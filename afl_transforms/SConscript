@@ -1,0 +1,34 @@
+import shutil
+import os
+import tarfile
+
+Import('env')
+
+(sysname, nodename, release, version, machine)=os.uname()
+
+env.Append(CXXFLAGS=" -Wall -Werror")
+
+env['BASE_IRDB_LIBS']="IRDB-core", "pqxx", "pq", "BeaEngine_s_d", "EXEIO"
+
+if sysname != "SunOS":
+	# setup libraries needed for linking
+	env['BASE_IRDB_LIBS']="IRDB-core", "pqxx", "pq", "BeaEngine_s_d", "EXEIO", "pebliss"
+
+# pebliss requires iconv, which needs to be explicit on cygwin.
+if "CYGWIN" in sysname:
+	# add tuple of 1 item!
+	env['BASE_IRDB_LIBS']=env['BASE_IRDB_LIBS']+("iconv",)
+
+Export('env')
+
+libs=SConscript("tools/SConscript", variant_dir='scons_build/tools')
+
+pedi = Command( target = "./testoutput",
+		source = "./SConscript",
+                action = "cd "+os.environ['SECURITY_TRANSFORMS_HOME']+" ; " +os.environ['PEDI_HOME']+"/pedi -m manifest.txt ; cd -" )
+
+Depends(pedi,libs)
+
+
+Default( pedi )
+

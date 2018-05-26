@@ -1,0 +1,2 @@
+export ZEPHYR_FUZZING_HOME=$PWD
+export AFL_TRANSFORMS=$PWD/afl_transforms
