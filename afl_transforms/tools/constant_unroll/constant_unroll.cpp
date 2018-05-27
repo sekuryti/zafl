@@ -21,6 +21,8 @@
  * E-mail: jwd@zephyr-software.com
  **************************************************************************/
 
+#include <sstream>
+
 #include "constant_unroll.hpp"
 
 #include <Rewrite_Utility.hpp>
@@ -50,5 +52,226 @@ ConstantUnroll_t::ConstantUnroll_t(libIRDB::pqxxDB_t &p_dbinterface, libIRDB::Fi
  */
 int ConstantUnroll_t::execute()
 {
+#ifdef COMMENT
+	// look for cmp against constant
+0000000000400526 <main>:
+  400535:	81 7d fc 78 56 34 12 	cmp    DWORD PTR [rbp-0x4],0x12345678
+  40053c:	75 0a                	jne    400548 <main+0x22>
+  40054e:	c3                   	ret    
+
+	// unroll into series of 1-byte comparisons
+  4005b9:	8b 45 fc             	mov    eax,DWORD PTR [rbp-0x4]
+  4005bc:	c1 f8 18             	sar    eax,0x18
+  4005bf:	83 f8 12             	cmp    eax,0x12
+  4005c2:	75 32                	jne    4005f6 <main+0x80>
+  4005c4:	8b 45 fc             	mov    eax,DWORD PTR [rbp-0x4]
+  4005c7:	25 00 00 ff 00       	and    eax,0xff0000
+  4005cc:	c1 f8 10             	sar    eax,0x10
+  4005cf:	83 f8 34             	cmp    eax,0x34
+  4005d2:	75 22                	jne    4005f6 <main+0x80>
+  4005d4:	8b 45 fc             	mov    eax,DWORD PTR [rbp-0x4]
+  4005d7:	25 00 ff 00 00       	and    eax,0xff00
+  4005dc:	c1 f8 08             	sar    eax,0x8
+  4005df:	83 f8 56             	cmp    eax,0x56
+  4005e2:	75 12                	jne    4005f6 <main+0x80>
+  4005e4:	8b 45 fc             	mov    eax,DWORD PTR [rbp-0x4]
+  4005e7:	0f b6 c0             	movzx  eax,al
+  4005ea:	83 f8 78             	cmp    eax,0x78
+  4005ed:	75 07                	jne    4005f6 <main+0x80>
+  4005ef:	b8 01 00 00 00       	mov    eax,0x1
+  4005f4:	eb 05                	jmp    4005fb <main+0x85>
+  4005f6:	b8 00 00 00 00       	mov    eax,0x0
+  4005fb:	c9                   	leave  
+  4005fc:	c3                   	ret    
+#endif
+
+	auto to_unroll = vector<Instruction_t*>(); 
+	for_each(getFileIR()->GetFunctions().begin(), 
+	         getFileIR()->GetFunctions().end(), [&](Function_t* func) {
+
+		for_each(func->GetInstructions().begin(), 
+ 	                 func->GetInstructions().end(), [&](Instruction_t* i) {
+			const auto d = DecodedInstruction_t(i);
+			if (d.getMnemonic()!="cmp") return;
+			if (d.getOperands().size()!=2) return;
+			if (!i->GetFallthrough()) return;
+			if (d.getOperand(0).getArgumentSizeInBytes()!=4) return;
+			if (!d.getOperand(1).isConstant()) return;
+			const auto cbr = DecodedInstruction_t(i->GetFallthrough());
+			if (!cbr.isConditionalBranch()) return;
+			
+			const auto imm = d.getImmediate();
+			if (imm == 0 || imm == 1 || imm == 0xff || imm == 0xffff || imm == -1)
+				return;
+
+			// we now have a cmp instruction to unroll
+			if (d.getOperand(0).isRegister() || d.getOperand(0).isMemory())
+				to_unroll.push_back(i);
+		});
+
+	});
+
+	for_each(to_unroll.begin(), to_unroll.end(), [&](Instruction_t* c) {
+		const auto d_c = DecodedInstruction_t(c);
+		auto jcc = (Instruction_t*) c->GetFallthrough();
+		const auto d_cbr = DecodedInstruction_t(jcc);
+
+// found comparison: 
+//                c:  cmp dword [rbp - 4], 0x12345678 
+//                jcc:  jne foobar
+		const auto immediate = d_c.getImmediate();
+		cout << "found comparison: " << c->getDisassembly() << " immediate: " << hex << immediate << endl;
+
+		auto byte0 = immediate >> 24;	              // high byte
+		auto byte1 = (immediate&0xff0000) >> 16;	
+		auto byte2 = (immediate&0xff00) >> 8;	
+		auto byte3 = immediate&0xff;	              // low byte
+
+		cout <<"    bytes: " << hex << byte0 << byte1 << byte2 << byte3 << endl;
+
+		const auto memop = d_c.getOperand(0);
+
+		auto init_sequence = string();
+
+		// need a free register
+		string free_reg = "eax";
+		if (d_c.getOperand(0).isRegister())
+		{
+			// cmp eax, 0x12345678
+			stringstream ss;
+			if (d_c.getOperand(0).getString() == "eax")
+			{
+				free_reg = "ebx";
+				ss << "mov " << free_reg << ", eax";
+			}
+			else
+			{
+				ss << "mov eax, " << d_c.getOperand(0).getString();
+			}
+			init_sequence = ss.str();
+		}
+		else
+		{
+			// cmp dword [rbp - 4], 0x12345678 
+			init_sequence = "mov " + free_reg + ", dword [ " + memop.getString() + " ]";
+		}
+
+		cout << "unroll sequence: assume free register: " << free_reg << endl;
+		cout << "init sequence is: " << init_sequence << endl;
+
+
+/*
+		mov eax, dword [rbp - 4]
+		sar eax, 0x18
+		cmp eax, 0x12
+		jne j
+*/
+		stringstream ss;
+		string s;
+		auto t = (Instruction_t*) NULL;
+
+		s = init_sequence;
+		getFileIR()->RegisterAssembly(c, s);
+		cout << s << endl;
+
+		s = "sar " + free_reg + ", 0x18";
+		t = insertAssemblyAfter(getFileIR(), c, s);
+		cout << s << endl;
+
+		ss.str("");
+		ss << "cmp " << free_reg << ", 0x" << hex << byte0;
+		s = ss.str();
+		t = insertAssemblyAfter(getFileIR(), t, s);
+		cout << s << endl;
+
+		s = "jne 0";
+		t = insertAssemblyAfter(getFileIR(), t, s);
+		t->SetTarget(jcc);
+		cout << s << endl;
+
+/*
+		mov eax, dword [rbp - 4]
+		and eax, 0xff0000
+		sar eax, 0x10
+		cmp eax, 0x34
+		jne xxx
+*/
+		s = init_sequence;
+		t = insertAssemblyAfter(getFileIR(), t, s);
+		cout << s << endl;
+
+		s = "and " + free_reg + ", 0xff0000";
+		t = insertAssemblyAfter(getFileIR(), t, s);
+		cout << s << endl;
+
+		s = "sar " + free_reg + ", 0x10";
+		t = insertAssemblyAfter(getFileIR(), t, s);
+		cout << s << endl;
+
+		ss.str("");
+		ss << "cmp " << free_reg << ", 0x" << hex << byte1;
+		s = ss.str();
+		t = insertAssemblyAfter(getFileIR(), t, s);
+		cout << s << endl;
+
+		s = "jne 0";
+		t = insertAssemblyAfter(getFileIR(), t, s);
+		t->SetTarget(jcc);
+		cout << s << endl;
+
+/*
+		mov    eax,DWORD PTR [rbp-0x4]
+		and    eax,0xff00
+		sar    eax,0x8
+		cmp    eax,0x56
+		jne    xxx
+*/
+		s = init_sequence;
+		t = insertAssemblyAfter(getFileIR(), t, s);
+		cout << s << endl;
+
+		s = "and " + free_reg + ", 0xff00";
+		t = insertAssemblyAfter(getFileIR(), t, s);
+		cout << s << endl;
+
+		s = "sar " + free_reg + ", 0x8";
+		t = insertAssemblyAfter(getFileIR(), t, s);
+		cout << s << endl;
+
+		ss.str("");
+		ss << "cmp " << free_reg << ", 0x" << hex << byte2;
+		s = ss.str();
+		t = insertAssemblyAfter(getFileIR(), t, s);
+		cout << s << endl;
+
+		s = "jne 0";
+		t = insertAssemblyAfter(getFileIR(), t, s);
+		t->SetTarget(jcc);
+		cout << s << endl;
+
+/*
+  4005e4:	8b 45 fc             	mov    eax,DWORD PTR [rbp-0x4]
+  4005e7:	0f b6 c0             	movzx  eax,al
+  4005ea:	83 f8 78             	cmp    eax,0x78
+  4005ed:	75 07                	jne    4005f6 <main+0x80>
+*/
+		s = init_sequence;
+		t = insertAssemblyAfter(getFileIR(), t, s);
+		cout << s << endl;
+
+		s = "and " + free_reg + ", 0xff";
+		t = insertAssemblyAfter(getFileIR(), t, s);
+		cout << s << endl;
+
+		ss.str("");
+		ss << "cmp " << free_reg << ", 0x" << hex << byte3;
+		s = ss.str();
+		t = insertAssemblyAfter(getFileIR(), t, s);
+		cout << s << endl;
+
+		// just fall through here b/c it's the last byte comparison
+		t->SetFallthrough(jcc);
+	});
+
 	return 1;	 // true means success
 }
