@@ -134,19 +134,20 @@ int ConstantUnroll_t::execute()
 		auto init_sequence = string();
 
 		// need a free register
-		string free_reg = "eax";
+		string free_reg = "r15d"; // use STARS dead regs annotation?
+
 		if (d_c.getOperand(0).isRegister())
 		{
 			// cmp eax, 0x12345678
 			stringstream ss;
-			if (d_c.getOperand(0).getString() == "eax")
+			if (d_c.getOperand(0).getString().find("r15") != string::npos)
 			{
-				free_reg = "ebx";
-				ss << "mov " << free_reg << ", eax";
+				cerr << "Skip instruction: " << c->getDisassembly() << " as r15 is used in cmp" << endl;
+				return;
 			}
 			else
 			{
-				ss << "mov eax, " << d_c.getOperand(0).getString();
+				ss << "mov " << free_reg << ", " << d_c.getOperand(0).getString();
 			}
 			init_sequence = ss.str();
 		}
@@ -156,6 +157,7 @@ int ConstantUnroll_t::execute()
 			init_sequence = "mov " + free_reg + ", dword [ " + memop.getString() + " ]";
 		}
 
+		// @todo: save/restore free register r15d 
 		cout << "unroll sequence: assume free register: " << free_reg << endl;
 		cout << "init sequence is: " << init_sequence << endl;
 
