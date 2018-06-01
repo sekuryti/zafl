@@ -85,7 +85,7 @@ int ConstantUnroll_t::execute()
   4005fc:	c3                   	ret    
 #endif
 
-	auto to_unroll = vector<Instruction_t*>(); 
+	auto to_decompose = vector<Instruction_t*>(); 
 	for_each(getFileIR()->GetFunctions().begin(), 
 	         getFileIR()->GetFunctions().end(), [&](Function_t* func) {
 
@@ -94,33 +94,44 @@ int ConstantUnroll_t::execute()
 			const auto d = DecodedInstruction_t(i);
 			if (d.getMnemonic()!="cmp") return;
 			if (d.getOperands().size()!=2) return;
-			if (!i->GetFallthrough()) return;
-			if (d.getOperand(0).getArgumentSizeInBytes()!=4) return;
 			if (!d.getOperand(1).isConstant()) return;
-			const auto cbr = DecodedInstruction_t(i->GetFallthrough());
-			if (!cbr.isConditionalBranch()) return;
+			if (d.getOperand(0).getArgumentSizeInBytes()!=4) return;
+			if (!i->GetFallthrough()) return;
+			const auto f = DecodedInstruction_t(i->GetFallthrough());
+			if (f.getMnemonic() != "je" && f.getMnemonic() !="jeq" && f.getMnemonic() !="jne") return;
 			
 			const auto imm = d.getImmediate();
-			if (imm == 0 || imm == 1 || imm == 0xff || imm == 0xffff || imm == -1)
+			if (imm == 0 || imm == 1 || imm == -1)
 				return;
 
 			// we now have a cmp instruction to unroll
 			if (d.getOperand(0).isRegister() || d.getOperand(0).isMemory())
-				to_unroll.push_back(i);
+				to_decompose.push_back(i);
 		});
 
 	});
 
-	for_each(to_unroll.begin(), to_unroll.end(), [&](Instruction_t* c) {
+	// transform each comparison that needs to be decomposed
+	for_each(to_decompose.begin(), to_decompose.end(), [&](Instruction_t* c) {
 		const auto d_c = DecodedInstruction_t(c);
 		auto jcc = (Instruction_t*) c->GetFallthrough();
-		const auto d_cbr = DecodedInstruction_t(jcc);
+		const auto d_cbr = DecodedInstruction_t(jcc); 
+		const auto is_jne = (d_cbr.getMnemonic() == "jne");
+		const auto is_je = !is_jne;
+		auto orig_jcc_fallthrough = jcc->GetFallthrough();
+		auto orig_jcc_target = jcc->GetTarget();
+
+		string s;
 
 // found comparison: 
-//                c:  cmp dword [rbp - 4], 0x12345678 
+//                c:  cmp dword [rbp - 4], 0x12345678    or c:  cmp reg, 0x12345678
 //                jcc:  jne foobar
 		const auto immediate = d_c.getImmediate();
-		cout << "found comparison: " << c->getDisassembly() << " immediate: " << hex << immediate << endl;
+		cout << "found comparison: " << c->getDisassembly() << " immediate: " << hex << immediate << " " << jcc->getDisassembly() << endl;
+		if (is_jne)
+			cout << "is jump not equal" << endl;
+		else
+			cout << "is jump equal" << endl;
 
 		auto byte0 = immediate >> 24;	              // high byte
 		auto byte1 = (immediate&0xff0000) >> 16;	
@@ -169,7 +180,6 @@ int ConstantUnroll_t::execute()
 		jne j
 */
 		stringstream ss;
-		string s;
 		auto t = (Instruction_t*) NULL;
 
 		s = init_sequence;
@@ -188,7 +198,15 @@ int ConstantUnroll_t::execute()
 
 		s = "jne 0";
 		t = insertAssemblyAfter(getFileIR(), t, s);
-		t->SetTarget(jcc);
+		if (is_je) {
+			t->SetTarget(orig_jcc_fallthrough);
+			cout << "target: original fallthrough ";
+		}
+		else {
+			t->SetTarget(orig_jcc_target);
+			cout << "target: original target ";
+		}
+
 		cout << s << endl;
 
 /*
@@ -218,7 +236,14 @@ int ConstantUnroll_t::execute()
 
 		s = "jne 0";
 		t = insertAssemblyAfter(getFileIR(), t, s);
-		t->SetTarget(jcc);
+		if (is_je) {
+			t->SetTarget(orig_jcc_fallthrough);
+			cout << "target: original fallthrough ";
+		}
+		else {
+			t->SetTarget(orig_jcc_target);
+			cout << "target: original target ";
+		}
 		cout << s << endl;
 
 /*
@@ -248,7 +273,14 @@ int ConstantUnroll_t::execute()
 
 		s = "jne 0";
 		t = insertAssemblyAfter(getFileIR(), t, s);
-		t->SetTarget(jcc);
+		if (is_je) {
+			t->SetTarget(orig_jcc_fallthrough);
+			cout << "target: original fallthrough ";
+		}
+		else {
+			t->SetTarget(orig_jcc_target);
+			cout << "target: original target ";
+		}
 		cout << s << endl;
 
 /*
@@ -271,8 +303,15 @@ int ConstantUnroll_t::execute()
 		t = insertAssemblyAfter(getFileIR(), t, s);
 		cout << s << endl;
 
-		// just fall through here b/c it's the last byte comparison
-		t->SetFallthrough(jcc);
+		if (is_je)
+			s = "je 0";
+		else
+			s = "jne 0";
+		t = insertAssemblyAfter(getFileIR(), t, s);
+		t->SetTarget(orig_jcc_target);
+		t->SetFallthrough(orig_jcc_fallthrough);
+		cout << "target: original target   fallthrough: original fallthrough ";
+		cout << s << endl;
 	});
 
 	return 1;	 // true means success
