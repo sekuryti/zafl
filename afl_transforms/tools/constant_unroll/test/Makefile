@@ -1,7 +1,7 @@
 all: test0.unrolled test_afl.unrolled
 
-test_afl: test.c
-	g++ test.c -o $@
+test_afl: test4.c
+	g++ test4.c -o $@
 test_afl.unrolled: test_afl
 	$(PSZ) test_afl $@ --critical-step constant_unroll=on
 
