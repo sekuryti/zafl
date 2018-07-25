@@ -1,0 +1,22 @@
+import os
+
+Import('env')
+myenv=env.Clone()
+myenv.Replace(SECURITY_TRANSFORMS_HOME=os.environ['SECURITY_TRANSFORMS_HOME'])
+myenv.Replace(AFL_PATH=os.environ['AFL_PATH'])
+
+files="libzafl.cpp"
+
+cpppath='''
+        $AFL_PATH/
+        ../include/
+        '''
+
+myenv=myenv.Clone(CPPPATH=Split(cpppath))
+myenv.Append(CXXFLAGS = " -std=c++11 ")
+
+lib=myenv.SharedLibrary("zafl",  Split(files))
+install=myenv.Install("$SECURITY_TRANSFORMS_HOME/lib/", lib)
+Default(install)
+
+Return('install')
