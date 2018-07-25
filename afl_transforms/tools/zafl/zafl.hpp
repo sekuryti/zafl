@@ -20,6 +20,8 @@ public:
 
 	void afl_instrument_bb(Instruction_t *inst);
 private:
+	unsigned get_blockid();
+private:
 	libIRDB::pqxxDB_t &m_dbinterface;
 	STARS::IRDB_Interface_t m_stars_analysis_engine;
 	bool m_verbose;
@@ -27,6 +29,7 @@ private:
         std::pair<DataScoop_t*, int> m_trace_bits; // afl shared memory trace map
         std::pair<DataScoop_t*, int> m_prev_id;    // id of previous block
 
+	std::set<unsigned> m_used_blockid;
 	int num_bb_instrumented;
 };
 

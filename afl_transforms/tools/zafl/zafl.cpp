@@ -57,6 +57,22 @@ static void create_got_reloc(FileIR_t* fir, pair<DataScoop_t*,int> wrt, Instruct
         i->GetRelocations().insert(r);
 }
 
+unsigned Zafl_t::get_blockid() 
+{
+	auto counter = 0;
+	auto blockid = 0;
+
+	while (counter++ < (1<<18)) {
+		blockid = rand() & 0xFFFF;
+		if (m_used_blockid.find(blockid) == m_used_blockid.end())
+		{
+			m_used_blockid.insert(blockid);
+			return blockid;
+		}
+	}
+	return blockid;
+}
+
 /*
         zafl_trace_bits[zafl_prev_id ^ id]++;                                                                                                                     │        tmp=  insertAssemblyAfter(getFileIR(), tmp," pop r8");
         zafl_prev_id = id >> 1;     
@@ -70,7 +86,7 @@ void Zafl_t::afl_instrument_bb(Instruction_t *inst)
 	tmp = insertAssemblyAfter(getFileIR(), tmp, "push rdx");
 	tmp = insertAssemblyAfter(getFileIR(), tmp, "pushf");
 
-	auto blockid = rand() & 0xFFFF;
+	auto blockid = get_blockid();
 
 /*
    0:   48 8b 15 00 00 00 00    mov    rdx,QWORD PTR [rip+0x0]        # 7 <f+0x7>
@@ -121,7 +137,7 @@ void Zafl_t::afl_instrument_bb(Instruction_t *inst)
  */
 int Zafl_t::execute()
 {
-	m_stars_analysis_engine.do_STARS(getFileIR());
+//	m_stars_analysis_engine.do_STARS(getFileIR());
 
 	// for all functions
 	//    for all basic blocks
