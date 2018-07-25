@@ -4,6 +4,7 @@ Import('env')
 
 dirs='''
 	constant_unroll
+	zafl
 	'''
 
 

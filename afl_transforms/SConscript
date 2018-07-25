@@ -8,11 +8,11 @@ Import('env')
 
 env.Append(CXXFLAGS=" -Wall -Werror")
 
-env['BASE_IRDB_LIBS']="IRDB-core", "pqxx", "pq", "BeaEngine_s_d", "EXEIO"
+env['BASE_IRDB_LIBS']="IRDB-core", "pqxx", "pq", "BeaEngine_s_d", "EXEIO", "ElfDep"
 
 if sysname != "SunOS":
 	# setup libraries needed for linking
-	env['BASE_IRDB_LIBS']="IRDB-core", "pqxx", "pq", "BeaEngine_s_d", "EXEIO", "pebliss"
+	env['BASE_IRDB_LIBS']="IRDB-core", "pqxx", "pq", "BeaEngine_s_d", "EXEIO", "pebliss", "ElfDep"
 
 # pebliss requires iconv, which needs to be explicit on cygwin.
 if "CYGWIN" in sysname:

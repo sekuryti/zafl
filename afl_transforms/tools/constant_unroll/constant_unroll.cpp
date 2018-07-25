@@ -101,7 +101,7 @@ int ConstantUnroll_t::execute()
 			if (f.getMnemonic() != "je" && f.getMnemonic() !="jeq" && f.getMnemonic() !="jne") return;
 			
 			const auto imm = d.getImmediate();
-			if (imm == 0 || imm == 1 || imm == -1 || imm == 0xff)
+			if (imm == 0 || imm == 1 || imm == -1 || imm == 0xff || imm == 0xffff)
 				return;
 
 			// we now have a cmp instruction to unroll
