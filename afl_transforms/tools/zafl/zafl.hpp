@@ -5,9 +5,10 @@
 #include <stars.h>
 #include "transform.hpp"
 
-
 namespace Zafl
 {
+typedef unsigned zafl_blockid_t;
+
 // the actual transform.
 class Zafl_t : public libTransform::Transform
 {
@@ -20,17 +21,16 @@ public:
 
 	void afl_instrument_bb(Instruction_t *inst);
 private:
-	unsigned get_blockid();
+	zafl_blockid_t get_blockid();
 private:
 	libIRDB::pqxxDB_t &m_dbinterface;
 	STARS::IRDB_Interface_t m_stars_analysis_engine;
 	bool m_verbose;
 
-        std::pair<DataScoop_t*, int> m_trace_bits; // afl shared memory trace map
+        std::pair<DataScoop_t*, int> m_trace_map; // afl shared memory trace map
         std::pair<DataScoop_t*, int> m_prev_id;    // id of previous block
 
-	std::set<unsigned> m_used_blockid;
-	int num_bb_instrumented;
+	std::set<zafl_blockid_t> m_used_blockid;
 };
 
 } 

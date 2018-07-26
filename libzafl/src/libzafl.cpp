@@ -29,15 +29,8 @@
 
 #include "libzafl.hpp"
 
-//
-// code adapted from libAflDynist.cpp
-// to perform AFL handshaking with master process
-// see afl documentation for handshaking description
-//
-
-// these are externally visible so that Zipr transformations
-// can access directly
-u8* zafl_trace_bits;
+// these are externally visible so that Zipr transformations can access directly
+u8* zafl_trace_map;
 unsigned short zafl_prev_id;
 
 static s32 shm_id;                    /* ID of the SHM region             */
@@ -55,7 +48,7 @@ void __attribute__((constructor)) zafl_initAflForkServer();
 static void zafl_setupSharedMemory()
 {
 	zafl_prev_id = 0;
-	zafl_trace_bits = NULL;
+	zafl_trace_map = NULL;
 
 	char *shm_env_var = getenv(SHM_ENV_VAR);
 	if(!shm_env_var) {
@@ -63,8 +56,8 @@ static void zafl_setupSharedMemory()
 		return;
 	}
 	shm_id = atoi(shm_env_var);
-	zafl_trace_bits = (u8*)shmat(shm_id, NULL, 0);
-	if(zafl_trace_bits == (u8*)-1) {
+	zafl_trace_map = (u8*)shmat(shm_id, NULL, 0);
+	if(zafl_trace_map == (u8*)-1) {
 		PRINT_ERROR("shmat");
 		return;
 	}
@@ -77,16 +70,16 @@ void zafl_initAflForkServer()
 	if (!shared_memory_is_setup)
 		zafl_setupSharedMemory();
 
-	if (!zafl_trace_bits) {
-		zafl_trace_bits = (u8*)malloc(MAP_SIZE);
-		printf("no shmem detected: fake it: zafl_trace_bits = %p, malloc_size(%d)\n", zafl_trace_bits, MAP_SIZE);
+	if (!zafl_trace_map) {
+		zafl_trace_map = (u8*)malloc(MAP_SIZE);
+		printf("no shmem detected: fake it: zafl_trace_map = %p, malloc_size(%d)\n", zafl_trace_map, MAP_SIZE);
 	}
 
 	int n = write(FORKSRV_FD+1, &__afl_temp_data,4);
 	if( n!=4 ) {
 		PRINT_ERROR("Error writting fork server -- faking global memory\n");
 		perror("zafl_initAflForkServer()");
-		printf("zafl_trace_bits = %p,   FORKSVR_FD(%d)\n", zafl_trace_bits, FORKSRV_FD);
+		printf("zafl_trace_map = %p,   FORKSVR_FD(%d)\n", zafl_trace_map, FORKSRV_FD);
 		return;
 	}
 
@@ -103,11 +96,12 @@ void zafl_initAflForkServer()
 		    return;
 		}
 		if(__afl_fork_pid == 0) {
+		    // child
 		    close(FORKSRV_FD);
 		    close(FORKSRV_FD+1);
 		    break;
 		} else {
-		    // parent stuff
+		    // parent
 		    n = write(FORKSRV_FD+1,&__afl_fork_pid, 4);
 		    pid_t temp_pid = waitpid(__afl_fork_pid,&__afl_temp_data,2);
 		    if(temp_pid == 0) {
@@ -121,6 +115,6 @@ void zafl_initAflForkServer()
 // for debugging purposes only
 // basic block instrumentations will be inlined via a Zipr transformation
 void zafl_bbInstrument(unsigned short id) {
-	zafl_trace_bits[zafl_prev_id ^ id]++;
+	zafl_trace_map[zafl_prev_id ^ id]++;
 	zafl_prev_id = id >> 1;
 }

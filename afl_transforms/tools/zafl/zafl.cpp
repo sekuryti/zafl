@@ -40,13 +40,12 @@ Zafl_t::Zafl_t(libIRDB::pqxxDB_t &p_dbinterface, libIRDB::FileIR_t *p_variantIR,
 	Transform(NULL, p_variantIR, NULL),
 	m_dbinterface(p_dbinterface),
 	m_stars_analysis_engine(p_dbinterface),
-	m_verbose(p_verbose), 
-	num_bb_instrumented(0)
+	m_verbose(p_verbose)
 {
         auto ed=ElfDependencies_t(getFileIR());
         (void)ed.appendLibraryDepedencies("libzafl.so");
 
-        m_trace_bits = ed.appendGotEntry("zafl_trace_bits");
+        m_trace_map = ed.appendGotEntry("zafl_trace_map");
         m_prev_id = ed.appendGotEntry("zafl_prev_id");
 }
 
@@ -57,13 +56,13 @@ static void create_got_reloc(FileIR_t* fir, pair<DataScoop_t*,int> wrt, Instruct
         i->GetRelocations().insert(r);
 }
 
-unsigned Zafl_t::get_blockid() 
+zafl_blockid_t Zafl_t::get_blockid() 
 {
 	auto counter = 0;
 	auto blockid = 0;
 
-	while (counter++ < (1<<18)) {
-		blockid = rand() & 0xFFFF;
+	while (counter++ < 100) {
+		blockid = rand() % 0xFFFF;
 		if (m_used_blockid.find(blockid) == m_used_blockid.end())
 		{
 			m_used_blockid.insert(blockid);
@@ -74,7 +73,7 @@ unsigned Zafl_t::get_blockid()
 }
 
 /*
-        zafl_trace_bits[zafl_prev_id ^ id]++;                                                                                                                     │        tmp=  insertAssemblyAfter(getFileIR(), tmp," pop r8");
+        zafl_trace_bits[zafl_prev_id ^ id]++;
         zafl_prev_id = id >> 1;     
 */
 void Zafl_t::afl_instrument_bb(Instruction_t *inst)
@@ -84,7 +83,7 @@ void Zafl_t::afl_instrument_bb(Instruction_t *inst)
 	     insertAssemblyBefore(getFileIR(), tmp, "push rax");
 	tmp = insertAssemblyAfter(getFileIR(), tmp, "push rcx");
 	tmp = insertAssemblyAfter(getFileIR(), tmp, "push rdx");
-	tmp = insertAssemblyAfter(getFileIR(), tmp, "pushf");
+	tmp = insertAssemblyAfter(getFileIR(), tmp, "pushf"); // this is expensive, optimize away when flags dead
 
 	auto blockid = get_blockid();
 
@@ -99,13 +98,16 @@ void Zafl_t::afl_instrument_bb(Instruction_t *inst)
   1e:   b8 1a 09 00 00          mov    eax,0x91a                          
   23:   66 89 02                mov    WORD PTR [rdx],ax       
 */	
-   	                         sprintf(buf, "La%d: mov  rdx, QWORD [rel La%d]", blockid, blockid);
+	static unsigned labelid = 0; 
+	labelid++;
+
+   	                         sprintf(buf, "L%d: mov  rdx, QWORD [rel L%d]", labelid, labelid);
 	tmp = insertAssemblyAfter(getFileIR(), tmp, buf);
 	create_got_reloc(getFileIR(), m_prev_id, tmp);
 
-                                 sprintf(buf, "Lb%d: mov  rcx, QWORD [rel Lb%d]", blockid, blockid);
+                                 sprintf(buf, "X%d: mov  rcx, QWORD [rel X%d]", labelid, labelid);
 	tmp = insertAssemblyAfter(getFileIR(), tmp, buf);
-	create_got_reloc(getFileIR(), m_trace_bits, tmp);
+	create_got_reloc(getFileIR(), m_trace_map, tmp);
 
 	tmp = insertAssemblyAfter(getFileIR(), tmp, "movzx  eax,WORD [rdx]");
 
@@ -125,7 +127,6 @@ void Zafl_t::afl_instrument_bb(Instruction_t *inst)
 	tmp = insertAssemblyAfter(getFileIR(), tmp, "pop rcx");
 	tmp = insertAssemblyAfter(getFileIR(), tmp, "pop rax");
 
-	num_bb_instrumented++;
 }
 
 /*
@@ -137,6 +138,8 @@ void Zafl_t::afl_instrument_bb(Instruction_t *inst)
  */
 int Zafl_t::execute()
 {
+	auto num_bb_instrumented = 0;
+	auto num_orphan_instructions = 0;
 //	m_stars_analysis_engine.do_STARS(getFileIR());
 
 	// for all functions
@@ -144,11 +147,14 @@ int Zafl_t::execute()
 	//          afl_instrument
 	for (auto f : getFileIR()->GetFunctions())
 	{
+		if (f && f->GetName()[0] == '.')
+			continue;
 		auto current = num_bb_instrumented;
 		ControlFlowGraph_t cfg(f);
 		for (auto bb : cfg.GetBlocks())
 		{
 			afl_instrument_bb(bb->GetInstructions()[0]);
+			num_bb_instrumented++;
 		}
 		
 		if (f) {
@@ -156,7 +162,14 @@ int Zafl_t::execute()
 		}
 	}
 
+	for (auto i : getFileIR()->GetInstructions())
+	{
+		if (i && (i->GetFunction() == NULL))		
+			num_orphan_instructions++;
+	}
+
 	cout << "#ATTRIBUTE num_bb_instrumented=" << dec << num_bb_instrumented << endl;
+	cout << "#ATTRIBUTE num_orphan_instructions=" << dec << num_orphan_instructions << endl;
 
 	return 1;
 }
