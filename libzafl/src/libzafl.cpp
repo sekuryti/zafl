@@ -55,6 +55,7 @@ void __attribute__((constructor)) zafl_initAflForkServer();
 static void zafl_setupSharedMemory()
 {
 	zafl_prev_id = 0;
+	zafl_trace_bits = NULL;
 
 	char *shm_env_var = getenv(SHM_ENV_VAR);
 	if(!shm_env_var) {
@@ -76,11 +77,15 @@ void zafl_initAflForkServer()
 	if (!shared_memory_is_setup)
 		zafl_setupSharedMemory();
 
+	if (!zafl_trace_bits) {
+		zafl_trace_bits = (u8*)malloc(MAP_SIZE);
+		printf("no shmem detected: fake it: zafl_trace_bits = %p, malloc_size(%d)\n", zafl_trace_bits, MAP_SIZE);
+	}
+
 	int n = write(FORKSRV_FD+1, &__afl_temp_data,4);
 	if( n!=4 ) {
 		PRINT_ERROR("Error writting fork server -- faking global memory\n");
 		perror("zafl_initAflForkServer()");
-		zafl_trace_bits = (u8*)malloc(MAP_SIZE);
 		printf("zafl_trace_bits = %p,   FORKSVR_FD(%d)\n", zafl_trace_bits, FORKSRV_FD);
 		return;
 	}
