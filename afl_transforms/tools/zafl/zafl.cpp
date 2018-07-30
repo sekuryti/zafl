@@ -80,10 +80,16 @@ void Zafl_t::afl_instrument_bb(Instruction_t *inst)
 {
 	char buf[8192];
 	auto tmp = inst;
+	auto save_flags = true;
+
 	     insertAssemblyBefore(getFileIR(), tmp, "push rax");
 	tmp = insertAssemblyAfter(getFileIR(), tmp, "push rcx");
 	tmp = insertAssemblyAfter(getFileIR(), tmp, "push rdx");
-	tmp = insertAssemblyAfter(getFileIR(), tmp, "pushf"); // this is expensive, optimize away when flags dead
+
+	if (save_flags)
+	{
+		tmp = insertAssemblyAfter(getFileIR(), tmp, "pushf"); // this is expensive, optimize away when flags dead
+	}
 
 	auto blockid = get_blockid();
 
@@ -122,7 +128,10 @@ void Zafl_t::afl_instrument_bb(Instruction_t *inst)
 	tmp = insertAssemblyAfter(getFileIR(), tmp, buf);
 	tmp = insertAssemblyAfter(getFileIR(), tmp, "mov    WORD [rdx], ax");
 
-	tmp = insertAssemblyAfter(getFileIR(), tmp, "popf");
+	if (save_flags) 
+	{
+		tmp = insertAssemblyAfter(getFileIR(), tmp, "popf");
+	}
 	tmp = insertAssemblyAfter(getFileIR(), tmp, "pop rdx");
 	tmp = insertAssemblyAfter(getFileIR(), tmp, "pop rcx");
 	tmp = insertAssemblyAfter(getFileIR(), tmp, "pop rax");
