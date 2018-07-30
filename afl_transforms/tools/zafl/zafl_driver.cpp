@@ -21,7 +21,11 @@
  * E-mail: jwd@zephyr-software.com
  **************************************************************************/
 
+#include <stdlib.h>
 #include <getopt.h>
+#include <time.h>
+#include <sys/types.h>
+#include <unistd.h>
 
 #include "zafl.hpp"
 
@@ -49,6 +53,8 @@ int main(int argc, char **argv)
 	int variantID = atoi(argv[1]);
 	bool verbose=false;
 
+
+	srand(getpid()+time(NULL));
 
 	// Parse some options for the transform
 	static struct option long_options[] = {
