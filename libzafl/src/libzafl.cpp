@@ -77,7 +77,7 @@ void zafl_initAflForkServer()
 
 	int n = write(FORKSRV_FD+1, &__afl_temp_data,4);
 	if( n!=4 ) {
-		PRINT_ERROR("Error writting fork server -- faking global memory\n");
+		PRINT_ERROR("Error writting fork server\n");
 		perror("zafl_initAflForkServer()");
 		printf("zafl_trace_map = %p,   FORKSVR_FD(%d)\n", zafl_trace_map, FORKSRV_FD);
 		return;
