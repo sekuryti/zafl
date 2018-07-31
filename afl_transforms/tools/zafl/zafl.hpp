@@ -31,6 +31,7 @@ private:
         std::pair<DataScoop_t*, int> m_prev_id;    // id of previous block
 
 	std::set<zafl_blockid_t> m_used_blockid;
+	std::set<std::string> m_blacklistedFunctions;
 };
 
 } 

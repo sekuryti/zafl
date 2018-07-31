@@ -28,12 +28,16 @@
 #include <libElfDep.hpp>
 #include <Rewrite_Utility.hpp>
 #include <utils.hpp>
+#include <MEDS_DeadRegAnnotation.hpp>
+
+// #define USE_STARS_IRDB
 
 using namespace std;
 using namespace libTransform;
 using namespace libIRDB;
 using namespace Zafl;
 using namespace IRDBUtility;
+using namespace MEDS_Annotation;
 
 Zafl_t::Zafl_t(libIRDB::pqxxDB_t &p_dbinterface, libIRDB::FileIR_t *p_variantIR, bool p_verbose)
 	:
@@ -47,6 +51,12 @@ Zafl_t::Zafl_t(libIRDB::pqxxDB_t &p_dbinterface, libIRDB::FileIR_t *p_variantIR,
 
         m_trace_map = ed.appendGotEntry("zafl_trace_map");
         m_prev_id = ed.appendGotEntry("zafl_prev_id");
+
+	m_blacklistedFunctions.insert(".init_proc");
+	m_blacklistedFunctions.insert("init");
+	m_blacklistedFunctions.insert("_init");
+	m_blacklistedFunctions.insert("fini");
+	m_blacklistedFunctions.insert("_fini");
 }
 
 static void create_got_reloc(FileIR_t* fir, pair<DataScoop_t*,int> wrt, Instruction_t* i)
@@ -54,6 +64,42 @@ static void create_got_reloc(FileIR_t* fir, pair<DataScoop_t*,int> wrt, Instruct
         auto r=new Relocation_t(BaseObj_t::NOT_IN_DATABASE, wrt.second, "pcrel", wrt.first);
         fir->GetRelocations().insert(r);
         i->GetRelocations().insert(r);
+}
+
+static RegisterSet_t get_dead_regs(Instruction_t* insn, MEDS_AnnotationParser &meds_ap_param)
+{
+	MEDS_AnnotationParser *meds_ap=&meds_ap_param;
+
+        assert(meds_ap);
+
+        std::pair<MEDS_Annotations_t::iterator,MEDS_Annotations_t::iterator> ret;
+
+        /* find it in the annotations */
+        ret = meds_ap->getAnnotations().equal_range(insn->GetBaseID());
+        MEDS_DeadRegAnnotation* p_annotation;
+
+        /* for each annotation for this instruction */
+        for (MEDS_Annotations_t::iterator it = ret.first; it != ret.second; ++it)
+        {
+                        p_annotation=dynamic_cast<MEDS_DeadRegAnnotation*>(it->second);
+                        if(p_annotation==NULL)
+                                continue;
+
+                        /* bad annotation? */
+                        if(!p_annotation->isValid())
+                                continue;
+
+                        return p_annotation->getRegisterSet();
+        }
+
+        /* couldn't find the annotation, return an empty set.*/
+        return RegisterSet_t();
+}
+
+static bool areFlagsDead(Instruction_t* insn, MEDS_AnnotationParser &meds_ap_param)
+{
+	RegisterSet_t regset=get_dead_regs(insn, meds_ap_param);
+	return (regset.find(MEDS_Annotation::rn_EFLAGS)!=regset.end());
 }
 
 zafl_blockid_t Zafl_t::get_blockid() 
@@ -78,20 +124,35 @@ zafl_blockid_t Zafl_t::get_blockid()
 */
 void Zafl_t::afl_instrument_bb(Instruction_t *inst)
 {
+	assert(inst);
+
 	char buf[8192];
 	auto tmp = inst;
-	auto save_flags = true;
+	areFlagsDead(inst, m_stars_analysis_engine.getAnnotations());
+#ifdef USE_STARS_IRDB
+	const auto live_flags = !(areFlagsDead(inst, m_stars_analysis_engine.getAnnotations()));
+#else
+	const auto live_flags = true; // always save/restore flags
+#endif
 
 	     insertAssemblyBefore(getFileIR(), tmp, "push rax");
 	tmp = insertAssemblyAfter(getFileIR(), tmp, "push rcx");
 	tmp = insertAssemblyAfter(getFileIR(), tmp, "push rdx");
 
-	if (save_flags)
+	const auto blockid = get_blockid();
+	static unsigned labelid = 0; 
+	labelid++;
+
+	cout << "labelid: " << labelid << " instruction: " << inst->getDisassembly();
+	if (live_flags)
 	{
-		tmp = insertAssemblyAfter(getFileIR(), tmp, "pushf"); // this is expensive, optimize away when flags dead
+		cout << "   flags are live" << endl;
+		tmp = insertAssemblyAfter(getFileIR(), tmp, "pushf"); 
+	}
+	else {
+		cout << "   flags are dead" << endl;
 	}
 
-	auto blockid = get_blockid();
 
 /*
    0:   48 8b 15 00 00 00 00    mov    rdx,QWORD PTR [rip+0x0]        # 7 <f+0x7>
@@ -104,8 +165,6 @@ void Zafl_t::afl_instrument_bb(Instruction_t *inst)
   1e:   b8 1a 09 00 00          mov    eax,0x91a                          
   23:   66 89 02                mov    WORD PTR [rdx],ax       
 */	
-	static unsigned labelid = 0; 
-	labelid++;
 
    	                         sprintf(buf, "L%d: mov  rdx, QWORD [rel L%d]", labelid, labelid);
 	tmp = insertAssemblyAfter(getFileIR(), tmp, buf);
@@ -128,7 +187,7 @@ void Zafl_t::afl_instrument_bb(Instruction_t *inst)
 	tmp = insertAssemblyAfter(getFileIR(), tmp, buf);
 	tmp = insertAssemblyAfter(getFileIR(), tmp, "mov    WORD [rdx], ax");
 
-	if (save_flags) 
+	if (live_flags) 
 	{
 		tmp = insertAssemblyAfter(getFileIR(), tmp, "popf");
 	}
@@ -149,15 +208,21 @@ int Zafl_t::execute()
 {
 	auto num_bb_instrumented = 0;
 	auto num_orphan_instructions = 0;
-//	m_stars_analysis_engine.do_STARS(getFileIR());
+	m_stars_analysis_engine.do_STARS(getFileIR());
 
 	// for all functions
 	//    for all basic blocks
 	//          afl_instrument
 	for (auto f : getFileIR()->GetFunctions())
 	{
-		if (f && f->GetName()[0] == '.')
+		if (!f) continue;
+		if (f->GetName()[0] == '.' || m_blacklistedFunctions.find(f->GetName())!=m_blacklistedFunctions.end())
 			continue;
+		if (f) 
+		{
+			cout << "Processing function " << f->GetName() << endl;
+		}
+
 		auto current = num_bb_instrumented;
 		ControlFlowGraph_t cfg(f);
 		for (auto bb : cfg.GetBlocks())
