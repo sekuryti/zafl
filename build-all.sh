@@ -12,3 +12,6 @@ fi
 
 cd $AFL_TRANSFORMS
 scons $SCONSDEBUG -j 3 || exit
+
+cd $ZEPHYR_FUZZING_HOME/libzafl/src
+scons
