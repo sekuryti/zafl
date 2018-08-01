@@ -19,9 +19,9 @@ public:
 	Zafl_t(libIRDB::pqxxDB_t &p_dbinterface, libIRDB::FileIR_t *p_variantIR, bool p_verbose=false);
 	int execute();
 
-	void afl_instrument_bb(Instruction_t *inst);
+	void afl_instrument_bb(Instruction_t *inst, const bool p_hasLeafAnnotation);
 private:
-	zafl_blockid_t get_blockid();
+	zafl_blockid_t get_blockid(const unsigned = 0xFFFF);
 private:
 	libIRDB::pqxxDB_t &m_dbinterface;
 	STARS::IRDB_Interface_t m_stars_analysis_engine;

@@ -27,10 +27,11 @@
 #include <libIRDB-cfg.hpp>
 #include <libElfDep.hpp>
 #include <Rewrite_Utility.hpp>
-#include <utils.hpp>
 #include <MEDS_DeadRegAnnotation.hpp>
+#include <MEDS_SafeFuncAnnotation.hpp>
+#include <utils.hpp> 
 
-// #define USE_STARS_IRDB
+//#define USE_STARS_IRDB
 
 using namespace std;
 using namespace libTransform;
@@ -57,6 +58,10 @@ Zafl_t::Zafl_t(libIRDB::pqxxDB_t &p_dbinterface, libIRDB::FileIR_t *p_variantIR,
 	m_blacklistedFunctions.insert("_init");
 	m_blacklistedFunctions.insert("fini");
 	m_blacklistedFunctions.insert("_fini");
+	m_blacklistedFunctions.insert("register_tm_clones");
+	m_blacklistedFunctions.insert("deregister_tm_clones");
+	m_blacklistedFunctions.insert("frame_dummy");
+	m_blacklistedFunctions.insert("__do_global_dtors_aux");
 }
 
 static void create_got_reloc(FileIR_t* fir, pair<DataScoop_t*,int> wrt, Instruction_t* i)
@@ -102,13 +107,29 @@ static bool areFlagsDead(Instruction_t* insn, MEDS_AnnotationParser &meds_ap_par
 	return (regset.find(MEDS_Annotation::rn_EFLAGS)!=regset.end());
 }
 
-zafl_blockid_t Zafl_t::get_blockid() 
+static bool hasLeafAnnotation(Function_t* fn, MEDS_AnnotationParser &meds_ap_param)
+{
+	assert(fn);
+        const auto ret = meds_ap_param.getFuncAnnotations().equal_range(fn->GetName());
+	const auto sfa_it = find_if(ret.first, ret.second, [](const MEDS_Annotations_FuncPair_t &it)
+		{
+			auto p_annotation=dynamic_cast<MEDS_SafeFuncAnnotation*>(it.second);
+			if(p_annotation==NULL)
+				return false;
+			return p_annotation->isLeaf();
+		}
+	);
+
+	return (sfa_it != ret.second);
+}
+
+zafl_blockid_t Zafl_t::get_blockid(unsigned p_max_mask) 
 {
 	auto counter = 0;
 	auto blockid = 0;
 
 	while (counter++ < 100) {
-		blockid = rand() % 0xFFFF;
+		blockid = rand() % p_max_mask;
 		if (m_used_blockid.find(blockid) == m_used_blockid.end())
 		{
 			m_used_blockid.insert(blockid);
@@ -122,20 +143,30 @@ zafl_blockid_t Zafl_t::get_blockid()
         zafl_trace_bits[zafl_prev_id ^ id]++;
         zafl_prev_id = id >> 1;     
 */
-void Zafl_t::afl_instrument_bb(Instruction_t *inst)
+void Zafl_t::afl_instrument_bb(Instruction_t *inst, const bool p_hasLeafAnnotation)
 {
 	assert(inst);
 
 	char buf[8192];
 	auto tmp = inst;
-	areFlagsDead(inst, m_stars_analysis_engine.getAnnotations());
 #ifdef USE_STARS_IRDB
 	const auto live_flags = !(areFlagsDead(inst, m_stars_analysis_engine.getAnnotations()));
 #else
+	areFlagsDead(inst, m_stars_analysis_engine.getAnnotations());  // shut up the compiler
 	const auto live_flags = true; // always save/restore flags
 #endif
 
-	     insertAssemblyBefore(getFileIR(), tmp, "push rax");
+	if (p_hasLeafAnnotation) 
+	{
+		// leaf function, must respect the red zone
+		insertAssemblyBefore(getFileIR(), tmp, "lea rsp, [rsp-128]");
+		tmp = insertAssemblyAfter(getFileIR(), tmp, "push rax");
+	}
+	else
+	{
+		insertAssemblyBefore(getFileIR(), tmp, "push rax");
+	}
+
 	tmp = insertAssemblyAfter(getFileIR(), tmp, "push rcx");
 	tmp = insertAssemblyAfter(getFileIR(), tmp, "push rdx");
 
@@ -143,7 +174,7 @@ void Zafl_t::afl_instrument_bb(Instruction_t *inst)
 	static unsigned labelid = 0; 
 	labelid++;
 
-	cout << "labelid: " << labelid << " instruction: " << inst->getDisassembly();
+	cout << "labelid: " << labelid << " baseid: " << inst->GetBaseID() << " instruction: " << inst->getDisassembly();
 	if (live_flags)
 	{
 		cout << "   flags are live" << endl;
@@ -194,6 +225,10 @@ void Zafl_t::afl_instrument_bb(Instruction_t *inst)
 	tmp = insertAssemblyAfter(getFileIR(), tmp, "pop rdx");
 	tmp = insertAssemblyAfter(getFileIR(), tmp, "pop rcx");
 	tmp = insertAssemblyAfter(getFileIR(), tmp, "pop rax");
+	if (p_hasLeafAnnotation) 
+	{
+		tmp = insertAssemblyAfter(getFileIR(), tmp, "lea rsp, [rsp+128]");
+	}
 
 }
 
@@ -218,16 +253,25 @@ int Zafl_t::execute()
 		if (!f) continue;
 		if (f->GetName()[0] == '.' || m_blacklistedFunctions.find(f->GetName())!=m_blacklistedFunctions.end())
 			continue;
+		const auto leafAnnotation = hasLeafAnnotation(f, m_stars_analysis_engine.getAnnotations());
 		if (f) 
 		{
-			cout << "Processing function " << f->GetName() << endl;
+			if (leafAnnotation)
+				cout << "Processing leaf function: ";
+			else
+				cout << "Processing function: ";
+			cout << f->GetName() << endl;
 		}
 
 		auto current = num_bb_instrumented;
 		ControlFlowGraph_t cfg(f);
 		for (auto bb : cfg.GetBlocks())
 		{
-			afl_instrument_bb(bb->GetInstructions()[0]);
+#ifdef USE_STARS_IRDB
+			afl_instrument_bb(bb->GetInstructions()[0], leafAnnotation);
+#else
+			afl_instrument_bb(bb->GetInstructions()[0], true);
+#endif
 			num_bb_instrumented++;
 		}
 		
