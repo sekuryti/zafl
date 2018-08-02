@@ -31,8 +31,6 @@
 #include <MEDS_SafeFuncAnnotation.hpp>
 #include <utils.hpp> 
 
-//#define USE_STARS_IRDB
-
 using namespace std;
 using namespace libTransform;
 using namespace libIRDB;
@@ -40,11 +38,12 @@ using namespace Zafl;
 using namespace IRDBUtility;
 using namespace MEDS_Annotation;
 
-Zafl_t::Zafl_t(libIRDB::pqxxDB_t &p_dbinterface, libIRDB::FileIR_t *p_variantIR, bool p_verbose)
+Zafl_t::Zafl_t(libIRDB::pqxxDB_t &p_dbinterface, libIRDB::FileIR_t *p_variantIR, bool p_use_stars, bool p_verbose)
 	:
 	Transform(NULL, p_variantIR, NULL),
 	m_dbinterface(p_dbinterface),
 	m_stars_analysis_engine(p_dbinterface),
+	m_use_stars(p_use_stars),
 	m_verbose(p_verbose)
 {
         auto ed=ElfDependencies_t(getFileIR());
@@ -149,12 +148,11 @@ void Zafl_t::afl_instrument_bb(Instruction_t *inst, const bool p_hasLeafAnnotati
 
 	char buf[8192];
 	auto tmp = inst;
-#ifdef USE_STARS_IRDB
-	const auto live_flags = !(areFlagsDead(inst, m_stars_analysis_engine.getAnnotations()));
-#else
-	areFlagsDead(inst, m_stars_analysis_engine.getAnnotations());  // shut up the compiler
-	const auto live_flags = true; // always save/restore flags
-#endif
+
+	auto live_flags = true;
+
+	if (m_use_stars)
+		live_flags = !(areFlagsDead(inst, m_stars_analysis_engine.getAnnotations()));
 
 	if (p_hasLeafAnnotation) 
 	{
@@ -243,7 +241,9 @@ int Zafl_t::execute()
 {
 	auto num_bb_instrumented = 0;
 	auto num_orphan_instructions = 0;
-	m_stars_analysis_engine.do_STARS(getFileIR());
+
+	if (m_use_stars)
+		m_stars_analysis_engine.do_STARS(getFileIR());
 
 	// for all functions
 	//    for all basic blocks
@@ -253,7 +253,9 @@ int Zafl_t::execute()
 		if (!f) continue;
 		if (f->GetName()[0] == '.' || m_blacklistedFunctions.find(f->GetName())!=m_blacklistedFunctions.end())
 			continue;
-		const auto leafAnnotation = hasLeafAnnotation(f, m_stars_analysis_engine.getAnnotations());
+		bool leafAnnotation = true;
+		if (m_use_stars)
+			leafAnnotation = hasLeafAnnotation(f, m_stars_analysis_engine.getAnnotations());
 		if (f) 
 		{
 			if (leafAnnotation)
@@ -267,11 +269,7 @@ int Zafl_t::execute()
 		ControlFlowGraph_t cfg(f);
 		for (auto bb : cfg.GetBlocks())
 		{
-#ifdef USE_STARS_IRDB
 			afl_instrument_bb(bb->GetInstructions()[0], leafAnnotation);
-#else
-			afl_instrument_bb(bb->GetInstructions()[0], true);
-#endif
 			num_bb_instrumented++;
 		}
 		

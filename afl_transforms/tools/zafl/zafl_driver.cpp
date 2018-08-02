@@ -37,7 +37,8 @@ void usage(char* name)
 {
 	cerr<<"Usage: "<<name<<" <variant_id>\n";
 	cerr<<"\t[--verbose | -v]                       Verbose mode                  "<<endl;
-	cerr<<"[--help,--usage,-?,-h]                   Display this message           "<<endl;
+	cerr<<"[--help,--usage,-?,-h]                   Display this message          "<<endl;
+	cerr<<"[--stars]]                               Enable STARS optimizations    "<<endl;
 
 }
 
@@ -51,8 +52,8 @@ int main(int argc, char **argv)
 
 	string programName(argv[0]);
 	int variantID = atoi(argv[1]);
-	bool verbose=false;
-
+	auto verbose=false;
+	auto use_stars=false;
 
 	srand(getpid()+time(NULL));
 
@@ -61,6 +62,7 @@ int main(int argc, char **argv)
 		{"verbose", no_argument, 0, 'v'},
 		{"help", no_argument, 0, 'h'},
 		{"usage", no_argument, 0, '?'},
+		{"stars", no_argument, 0, 's'},
 		{0,0,0,0}
 	};
 
@@ -80,6 +82,9 @@ int main(int argc, char **argv)
 		case 'h':
 			usage(argv[0]);
 			exit(1);
+			break;
+		case 's':
+			use_stars=true;
 			break;
 		default:
 			break;
@@ -109,7 +114,7 @@ int main(int argc, char **argv)
 
 		try
 		{
-			Zafl_t is(pqxx_interface, firp, verbose);
+			Zafl_t is(pqxx_interface, firp, use_stars, verbose);
 			int success=is.execute();
 
 			if (success)
