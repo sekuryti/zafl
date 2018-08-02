@@ -39,7 +39,6 @@ void usage(char* name)
 	cerr<<"\t[--verbose | -v]                       Verbose mode                  "<<endl;
 	cerr<<"[--help,--usage,-?,-h]                   Display this message          "<<endl;
 	cerr<<"[--stars]]                               Enable STARS optimizations    "<<endl;
-
 }
 
 int main(int argc, char **argv)
