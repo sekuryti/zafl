@@ -71,5 +71,5 @@ build_zafl gzip.zafl
 test_zafl ./gzip.zafl
 cleanup
 
-log_success "all tests passed"
+log_success "all tests passed: zafl instrumentation operational on gzip"
 
