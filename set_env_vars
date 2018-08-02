@@ -1,2 +1,3 @@
-export ZFUZZ_HOME=$PWD
-export AFL_TRANSFORMS=$PWD/afl_transforms
+export ZFUZZ_HOME=`pwd`
+export AFL_TRANSFORMS=$ZFUZZ_HOME/afl_transforms
+export AFL_PATH=$ZFUZZ_HOME/afl

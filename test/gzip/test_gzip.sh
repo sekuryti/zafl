@@ -1,3 +1,5 @@
+#!/bin/bash -x 
+
 TMP_FILE_1=/tmp/gzip.tmp.$$
 TMP_FILE_2=/tmp/gzip.tmp.$$
 
