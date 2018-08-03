@@ -30,6 +30,7 @@
 #include <MEDS_DeadRegAnnotation.hpp>
 #include <MEDS_SafeFuncAnnotation.hpp>
 #include <utils.hpp> 
+#include <string.h> 
 
 using namespace std;
 using namespace libTransform;
@@ -138,6 +139,37 @@ zafl_blockid_t Zafl_t::get_blockid(unsigned p_max_mask)
 	return blockid;
 }
 
+static std::vector<RegisterName> get_free_regs(RegisterSet_t candidates)
+{
+	std::vector<RegisterName> free_regs;
+
+
+	for (auto f : candidates)
+	{
+		switch (f) 
+		{
+			case rn_RAX:
+			case rn_RBX:
+			case rn_RCX:
+			case rn_RDX:
+			case rn_R8:
+			case rn_R9:
+			case rn_R10:
+			case rn_R11:
+			case rn_R12:
+			case rn_R13:
+			case rn_R14:
+			case rn_R15:
+				free_regs.push_back(f);	
+				break;
+			default:
+				break;
+		}
+	}
+
+	return free_regs;
+}
+
 /*
         zafl_trace_bits[zafl_prev_id ^ id]++;
         zafl_prev_id = id >> 1;     
@@ -147,39 +179,124 @@ void Zafl_t::afl_instrument_bb(Instruction_t *inst, const bool p_hasLeafAnnotati
 	assert(inst);
 
 	char buf[8192];
-	auto tmp = inst;
-
 	auto live_flags = true;
+	std::vector<RegisterName> free_regs; // need 3 free regs
+	char *reg_temp = NULL;
+	char *reg_temp32 = NULL;
+	char *reg_temp16 = NULL;
+	char *reg_trace_map = NULL;
+	char *reg_prev_id = NULL;
+	bool save_temp = true;
+	bool save_trace_map = true;
+	bool save_prev_id = true;
+	auto tmp = inst;
+//	auto originalInstruction = inst;
+//	auto originalFallthrough = inst->GetFallthrough();
+//	auto originalDisassembly = inst->getDisassembly();
 
-	if (m_use_stars)
+	if (m_use_stars) 
+	{
 		live_flags = !(areFlagsDead(inst, m_stars_analysis_engine.getAnnotations()));
+		auto regset=get_dead_regs(inst, m_stars_analysis_engine.getAnnotations());
+		free_regs = get_free_regs(regset);
+		if (free_regs.size() >= 1) {
+			reg_temp = strdup(Register::toString(free_regs[0]).c_str());
+			reg_temp32 = strdup(Register::toString(Register::demoteTo32(free_regs[0])).c_str());
+			reg_temp16 = strdup(Register::toString(Register::demoteTo16(free_regs[0])).c_str());
+			save_temp = false;
+		}
+		if (free_regs.size() >= 2) {
+			reg_trace_map = strdup(Register::toString(free_regs[1]).c_str());
+			save_trace_map = false;
+		}
+		if (free_regs.size() >= 3) {
+			reg_prev_id = strdup(Register::toString(free_regs[2]).c_str());
+			save_prev_id = false;
+		}
+	}
 
+	if (!reg_temp)
+		reg_temp = strdup("rax");
+	if (!reg_temp32)
+		reg_temp32 = strdup("eax");
+	if (!reg_temp16)
+		reg_temp16 = strdup("ax");
+	if (!reg_trace_map)
+		reg_trace_map = strdup("rcx");
+	if (!reg_prev_id)
+		reg_prev_id = strdup("rdx");
+
+	cerr << "save_temp: " << save_temp << " save_trace_map: " << save_trace_map << " save_prev_id: " << save_prev_id << " live_flags: " << live_flags << endl;
+	cerr << "reg_temp: " << reg_temp << " " << reg_temp32 << " " << reg_temp16 
+		<< " reg_trace_map: " << reg_trace_map
+		<< " reg_prev_id: " << reg_prev_id << endl;
+
+	//
+	// warning: first instrumentation must use insertAssemblyBefore
+	//
+
+	auto inserted_before = false;
 	if (p_hasLeafAnnotation) 
 	{
 		// leaf function, must respect the red zone
 		insertAssemblyBefore(getFileIR(), tmp, "lea rsp, [rsp-128]");
-		tmp = insertAssemblyAfter(getFileIR(), tmp, "push rax");
-	}
-	else
-	{
-		insertAssemblyBefore(getFileIR(), tmp, "push rax");
+		inserted_before = true;
 	}
 
-	tmp = insertAssemblyAfter(getFileIR(), tmp, "push rcx");
-	tmp = insertAssemblyAfter(getFileIR(), tmp, "push rdx");
+	if (save_temp)
+	{
+		if (inserted_before)
+		{
+			tmp = insertAssemblyAfter(getFileIR(), tmp, "push rax");
+		}
+		else
+		{
+			insertAssemblyBefore(getFileIR(), tmp, "push rax");
+			inserted_before = true;
+		}
+	}
+
+	if (save_trace_map)
+	{
+		if (inserted_before)
+			tmp = insertAssemblyAfter(getFileIR(), tmp, "push rcx");
+		else
+		{
+			insertAssemblyBefore(getFileIR(), tmp, "push rcx");
+			inserted_before = true;
+		}
+	}
+
+	if (save_prev_id)
+	{
+		if (inserted_before)
+			tmp = insertAssemblyAfter(getFileIR(), tmp, "push rdx");
+		else
+		{
+			insertAssemblyBefore(getFileIR(), tmp, "push rdx");
+			inserted_before = true;
+		}
+	}
 
 	const auto blockid = get_blockid();
 	static unsigned labelid = 0; 
 	labelid++;
 
-	cout << "labelid: " << labelid << " baseid: " << inst->GetBaseID() << " instruction: " << inst->getDisassembly();
+	cerr << "labelid: " << labelid << " baseid: " << inst->GetBaseID() << " instruction: " << inst->getDisassembly();
+
 	if (live_flags)
 	{
-		cout << "   flags are live" << endl;
-		tmp = insertAssemblyAfter(getFileIR(), tmp, "pushf"); 
+		cerr << "   flags are live" << endl;
+		if (inserted_before)
+			tmp = insertAssemblyAfter(getFileIR(), tmp, "pushf"); 
+		else
+		{
+			insertAssemblyBefore(getFileIR(), tmp, "pushf"); 
+			inserted_before = true;
+		}
 	}
 	else {
-		cout << "   flags are dead" << endl;
+		cerr << "   flags are dead" << endl;
 	}
 
 
@@ -195,39 +312,74 @@ void Zafl_t::afl_instrument_bb(Instruction_t *inst, const bool p_hasLeafAnnotati
   23:   66 89 02                mov    WORD PTR [rdx],ax       
 */	
 
-   	                         sprintf(buf, "L%d: mov  rdx, QWORD [rel L%d]", labelid, labelid);
-	tmp = insertAssemblyAfter(getFileIR(), tmp, buf);
+//   0:   48 8b 15 00 00 00 00    mov    rdx,QWORD PTR [rip+0x0]        # 7 <f+0x7>
+				sprintf(buf, "P%d: mov  %s, QWORD [rel P%d]", labelid, reg_prev_id, labelid); // rdx
+	if (inserted_before)
+	{
+		tmp = insertAssemblyAfter(getFileIR(), tmp, buf);
+	}
+	else
+	{
+		insertAssemblyBefore(getFileIR(), tmp, buf);
+		inserted_before = true;
+	}
 	create_got_reloc(getFileIR(), m_prev_id, tmp);
 
-                                 sprintf(buf, "X%d: mov  rcx, QWORD [rel X%d]", labelid, labelid);
+//   7:   48 8b 0d 00 00 00 00    mov    rcx,QWORD PTR [rip+0x0]        # e <f+0xe>
+				sprintf(buf, "T%d: mov  %s, QWORD [rel T%d]", labelid, reg_trace_map, labelid); // rcx
 	tmp = insertAssemblyAfter(getFileIR(), tmp, buf);
 	create_got_reloc(getFileIR(), m_trace_map, tmp);
 
-	tmp = insertAssemblyAfter(getFileIR(), tmp, "movzx  eax,WORD [rdx]");
-
-	                               sprintf(buf, "xor    ax,0x%x", blockid);
+//   e:   0f b7 02                movzx  eax,WORD PTR [rdx]                      
+				sprintf(buf,"movzx  %s,WORD [%s]", reg_temp32, reg_prev_id);
 	tmp = insertAssemblyAfter(getFileIR(), tmp, buf);
-
-	tmp = insertAssemblyAfter(getFileIR(), tmp, "movzx  eax,ax");
-	tmp = insertAssemblyAfter(getFileIR(), tmp, "add    rax,QWORD [rcx]");                  
-	tmp = insertAssemblyAfter(getFileIR(), tmp, "add    BYTE [rax],0x1");                  
-
-	                               sprintf(buf, "mov    eax, 0x%x", blockid >> 1);
+//  11:   66 35 34 12             xor    ax,0x1234                              
+				sprintf(buf, "xor   %s,0x%x", reg_temp16, blockid);
 	tmp = insertAssemblyAfter(getFileIR(), tmp, buf);
-	tmp = insertAssemblyAfter(getFileIR(), tmp, "mov    WORD [rdx], ax");
+//  15:   0f b7 c0                movzx  eax,ax                                
+				sprintf(buf,"movzx  %s,%s", reg_temp32, reg_temp16);
+	tmp = insertAssemblyAfter(getFileIR(), tmp, buf);
+//  18:   48 03 01                add    rax,QWORD PTR [rcx]                  
+				sprintf(buf,"add    %s,QWORD [%s]", reg_temp, reg_trace_map);
+	tmp = insertAssemblyAfter(getFileIR(), tmp, buf);                  
+//  1b:   80 00 01                add    BYTE PTR [rax],0x1                  
+				sprintf(buf,"add    BYTE [%s],0x1", reg_temp);
+	tmp = insertAssemblyAfter(getFileIR(), tmp, buf);                  
+//  1e:   b8 1a 09 00 00          mov    eax,0x91a                          
+				sprintf(buf, "mov   %s, 0x%x", reg_temp32, blockid >> 1);
+	tmp = insertAssemblyAfter(getFileIR(), tmp, buf);
+	sprintf(buf,"baseid: %d labelid: %d", tmp->GetBaseID(), labelid);
+//  23:   66 89 02                mov    WORD PTR [rdx],ax       
+				sprintf(buf, "mov    WORD [%s], %s", reg_prev_id, reg_temp16);
+	tmp = insertAssemblyAfter(getFileIR(), tmp, buf);
+	sprintf(buf,"baseid: %d labelid: %d", tmp->GetBaseID(), labelid);
 
 	if (live_flags) 
 	{
 		tmp = insertAssemblyAfter(getFileIR(), tmp, "popf");
 	}
-	tmp = insertAssemblyAfter(getFileIR(), tmp, "pop rdx");
-	tmp = insertAssemblyAfter(getFileIR(), tmp, "pop rcx");
-	tmp = insertAssemblyAfter(getFileIR(), tmp, "pop rax");
+	if (save_prev_id) 
+	{
+		tmp = insertAssemblyAfter(getFileIR(), tmp, "pop rdx");
+	}
+	if (save_trace_map) 
+	{
+		tmp = insertAssemblyAfter(getFileIR(), tmp, "pop rcx");
+	}
+	if (save_temp) 
+	{
+		tmp = insertAssemblyAfter(getFileIR(), tmp, "pop rax");
+	}
 	if (p_hasLeafAnnotation) 
 	{
 		tmp = insertAssemblyAfter(getFileIR(), tmp, "lea rsp, [rsp+128]");
 	}
-
+	
+	free(reg_temp); 
+	free(reg_temp32);
+	free(reg_temp16);
+	free(reg_trace_map);
+	free(reg_prev_id);
 }
 
 /*
