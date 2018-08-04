@@ -409,7 +409,7 @@ int Zafl_t::execute()
 		if (m_use_stars)
 			leafAnnotation = hasLeafAnnotation(f, m_stars_analysis_engine.getAnnotations());
 
-		cout << end;
+		cout << endl;
 		if (leafAnnotation)
 			cout << "Processing leaf function: ";
 		else
