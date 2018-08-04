@@ -1,5 +1,3 @@
-#!/bin/bash -x 
-
 TMP_FILE_1=/tmp/gzip.tmp.$$
 TMP_FILE_2=/tmp/gzip.tmp.$$
 
@@ -10,19 +8,19 @@ cleanup()
 
 log_error()
 {
-	echo "FAIL: $1"
+	echo "TEST FAIL: $1"
 	cleanup
 	exit 1
 }
 
 log_message()
 {
-	echo "$1"
+	echo "TEST  MSG: $1"
 }
 
 log_success()
 {
-	echo "PASS: $1"
+	echo "TEST PASS: $1"
 }
 
 setup()
@@ -52,7 +50,6 @@ test_zafl()
 		log_error "$gzip_zafl $*: unable to gzip file using zafl"
 	fi
 
-#	gunzip  ${TMP_FILE_1}.gz
 	LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$SECURITY_TRANSFORMS_HOME/lib/ $gzip_zafl -d ${TMP_FILE_1}.gz
 	diff $TMP_FILE_1 $TMP_FILE_2
 	if [ $? -eq 0 ]; then
