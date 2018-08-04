@@ -408,14 +408,13 @@ int Zafl_t::execute()
 		bool leafAnnotation = true;
 		if (m_use_stars)
 			leafAnnotation = hasLeafAnnotation(f, m_stars_analysis_engine.getAnnotations());
-		if (f) 
-		{
-			if (leafAnnotation)
-				cout << "Processing leaf function: ";
-			else
-				cout << "Processing function: ";
-			cout << f->GetName() << endl;
-		}
+
+		cout << end;
+		if (leafAnnotation)
+			cout << "Processing leaf function: ";
+		else
+			cout << "Processing function: ";
+		cout << f->GetName() << endl;
 
 		auto current = num_bb_instrumented;
 		ControlFlowGraph_t cfg(f);
