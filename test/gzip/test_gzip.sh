@@ -45,17 +45,20 @@ build_zafl()
 
 test_zafl()
 {
-	LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$SECURITY_TRANSFORMS_HOME/lib/ $1 $TMP_FILE_1
+	gzip_zafl=$1
+	shift
+	LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$SECURITY_TRANSFORMS_HOME/lib/ $gzip_zafl $* $TMP_FILE_1
 	if [ ! $? -eq 0 ]; then
-		log_error "$1: unable to gzip file using zafl"
+		log_error "$gzip_zafl $*: unable to gzip file using zafl"
 	fi
 
-	gunzip  ${TMP_FILE_1}.gz
+#	gunzip  ${TMP_FILE_1}.gz
+	LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$SECURITY_TRANSFORMS_HOME/lib/ $gzip_zafl -d ${TMP_FILE_1}.gz
 	diff $TMP_FILE_1 $TMP_FILE_2
 	if [ $? -eq 0 ]; then
-		log_success "$1: after unzipping, we get the same file back. yeah!"
+		log_success "$gzip_zafl $*: after unzipping, we get the same file back. yeah!"
 	else
-		log_error "$1: after unzipping, we get a diferent file"
+		log_error "$gzip_zafl $*: after unzipping, we get a diferent file"
 	fi
 }
 
@@ -64,11 +67,15 @@ pushd /tmp
 setup
 build_zafl gzip.nostars.zafl
 test_zafl ./gzip.nostars.zafl
+test_zafl ./gzip.nostars.zafl --fast
+test_zafl ./gzip.nostars.zafl --best
 cleanup
 
 setup
 build_zafl gzip.zafl
 test_zafl ./gzip.zafl
+test_zafl ./gzip.zafl --fast
+test_zafl ./gzip.zafl --best
 cleanup
 
 log_success "all tests passed: zafl instrumentation operational on gzip"
