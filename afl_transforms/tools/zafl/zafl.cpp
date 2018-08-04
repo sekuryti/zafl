@@ -139,10 +139,9 @@ zafl_blockid_t Zafl_t::get_blockid(unsigned p_max_mask)
 	return blockid;
 }
 
-static std::vector<RegisterName> get_free_regs(RegisterSet_t candidates)
+static std::set<RegisterName> get_free_regs(RegisterSet_t candidates)
 {
-	std::vector<RegisterName> free_regs;
-
+	std::set<RegisterName> free_regs;
 
 	for (auto f : candidates)
 	{
@@ -160,7 +159,7 @@ static std::vector<RegisterName> get_free_regs(RegisterSet_t candidates)
 			case rn_R13:
 			case rn_R14:
 			case rn_R15:
-				free_regs.push_back(f);	
+				free_regs.insert(f);	
 				break;
 			default:
 				break;
@@ -180,38 +179,69 @@ void Zafl_t::afl_instrument_bb(Instruction_t *inst, const bool p_hasLeafAnnotati
 
 	char buf[8192];
 	auto live_flags = true;
-	std::vector<RegisterName> free_regs; // need 3 free regs
 	char *reg_temp = NULL;
 	char *reg_temp32 = NULL;
 	char *reg_temp16 = NULL;
 	char *reg_trace_map = NULL;
 	char *reg_prev_id = NULL;
-	bool save_temp = true;
-	bool save_trace_map = true;
-	bool save_prev_id = true;
+	auto save_temp = true;
+	auto save_trace_map = true;
+	auto save_prev_id = true;
 	auto tmp = inst;
-//	auto originalInstruction = inst;
-//	auto originalFallthrough = inst->GetFallthrough();
-//	auto originalDisassembly = inst->getDisassembly();
 
 	if (m_use_stars) 
 	{
 		live_flags = !(areFlagsDead(inst, m_stars_analysis_engine.getAnnotations()));
-		auto regset=get_dead_regs(inst, m_stars_analysis_engine.getAnnotations());
-		free_regs = get_free_regs(regset);
-		if (free_regs.size() >= 1) {
-			reg_temp = strdup(Register::toString(free_regs[0]).c_str());
-			reg_temp32 = strdup(Register::toString(Register::demoteTo32(free_regs[0])).c_str());
-			reg_temp16 = strdup(Register::toString(Register::demoteTo16(free_regs[0])).c_str());
+		auto regset = get_dead_regs(inst, m_stars_analysis_engine.getAnnotations());
+		auto free_regs = get_free_regs(regset);
+
+		for (auto r : regset)
+		{
+			if (r == rn_RAX)
+			{
+				reg_temp = strdup("rax"); reg_temp32 = strdup("eax"); reg_temp16 = strdup("ax");
+				save_temp = false;
+				free_regs.erase(r);
+			}
+			else if (r == rn_RCX)
+			{
+				reg_trace_map = strdup("rcx");
+				save_trace_map = false;
+				free_regs.erase(r);
+			}
+			else if (r == rn_RDX)
+			{
+				reg_prev_id = strdup("rdx");
+				save_prev_id = false;
+				free_regs.erase(r);
+			}
+		}
+
+		if (save_temp && free_regs.size() >= 1) 
+		{
+			auto r = *free_regs.begin(); 
+			auto r32 = Register::demoteTo32(r); assert(Register::isValidRegister(r32));
+			auto r16 = Register::demoteTo16(r); assert(Register::isValidRegister(r16));
+			reg_temp = strdup(Register::toString(r).c_str());
+			reg_temp32 = strdup(Register::toString(r32).c_str());
+			reg_temp16 = strdup(Register::toString(r16).c_str());
 			save_temp = false;
+			free_regs.erase(r);
 		}
-		if (free_regs.size() >= 2) {
-			reg_trace_map = strdup(Register::toString(free_regs[1]).c_str());
+
+		if (save_trace_map && free_regs.size() >= 1) 
+		{
+			auto r = *free_regs.begin();
+			reg_trace_map = strdup(Register::toString(r).c_str());
 			save_trace_map = false;
+			free_regs.erase(r);
 		}
-		if (free_regs.size() >= 3) {
-			reg_prev_id = strdup(Register::toString(free_regs[2]).c_str());
+		if (save_prev_id && free_regs.size() >= 1) 
+		{
+			auto r = *free_regs.begin();
+			reg_prev_id = strdup(Register::toString(r).c_str());
 			save_prev_id = false;
+			free_regs.erase(r);
 		}
 	}
 

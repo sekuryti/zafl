@@ -62,13 +62,7 @@ test_zafl()
 
 pushd /tmp
 
-setup
-build_zafl gzip.nostars.zafl
-test_zafl ./gzip.nostars.zafl
-test_zafl ./gzip.nostars.zafl --fast
-test_zafl ./gzip.nostars.zafl --best
-cleanup
-
+# test STARS version
 setup
 build_zafl gzip.stars.zafl -o zafl:--stars
 test_zafl ./gzip.stars.zafl
@@ -76,5 +70,14 @@ test_zafl ./gzip.stars.zafl --fast
 test_zafl ./gzip.stars.zafl --best
 cleanup
 
+# test non-STARS version
+setup
+build_zafl gzip.nostars.zafl
+test_zafl ./gzip.nostars.zafl
+test_zafl ./gzip.nostars.zafl --fast
+test_zafl ./gzip.nostars.zafl --best
+cleanup
+
 log_success "all tests passed: zafl instrumentation operational on gzip"
 
+popd
