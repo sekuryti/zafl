@@ -24,13 +24,14 @@
 #include "zafl.hpp"
 
 #include <stdlib.h>
+#include <string.h> 
+#include <algorithm>
 #include <libIRDB-cfg.hpp>
 #include <libElfDep.hpp>
 #include <Rewrite_Utility.hpp>
 #include <MEDS_DeadRegAnnotation.hpp>
 #include <MEDS_SafeFuncAnnotation.hpp>
 #include <utils.hpp> 
-#include <string.h> 
 
 using namespace std;
 using namespace libTransform;
@@ -139,32 +140,14 @@ zafl_blockid_t Zafl_t::get_blockid(unsigned p_max_mask)
 	return blockid;
 }
 
-static std::set<RegisterName> get_free_regs(RegisterSet_t candidates)
+// return intersection of candidates and allowed general-purpose registers
+static std::set<RegisterName> get_free_regs(const RegisterSet_t candidates)
 {
 	std::set<RegisterName> free_regs;
+	const std::set<RegisterName> allowed_regs = {rn_RAX, rn_RBX, rn_RCX, rn_RDX, rn_R8, rn_R9, rn_R10, rn_R11, rn_R12, rn_R13, rn_R14, rn_R15};
 
-	for (auto f : candidates)
-	{
-		switch (f) 
-		{
-			case rn_RAX:
-			case rn_RBX:
-			case rn_RCX:
-			case rn_RDX:
-			case rn_R8:
-			case rn_R9:
-			case rn_R10:
-			case rn_R11:
-			case rn_R12:
-			case rn_R13:
-			case rn_R14:
-			case rn_R15:
-				free_regs.insert(f);	
-				break;
-			default:
-				break;
-		}
-	}
+	set_intersection(candidates.begin(),candidates.end(),free_regs.begin(),free_regs.end(),
+                  std::inserter(free_regs,free_regs.begin()));
 
 	return free_regs;
 }
