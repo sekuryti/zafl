@@ -23,7 +23,7 @@
 
 #include <sstream>
 
-#include "constant_unroll.hpp"
+#include "constant_decompose.hpp"
 
 #include <Rewrite_Utility.hpp>
 #include <utils.hpp>
@@ -31,10 +31,10 @@
 using namespace std;
 using namespace libTransform;
 using namespace libIRDB;
-using namespace ConstantUnroll;
+using namespace ConstantDecompose;
 using namespace IRDBUtility;
 
-ConstantUnroll_t::ConstantUnroll_t(libIRDB::pqxxDB_t &p_dbinterface, libIRDB::FileIR_t *p_variantIR, bool p_verbose)
+ConstantDecompose_t::ConstantDecompose_t(libIRDB::pqxxDB_t &p_dbinterface, libIRDB::FileIR_t *p_variantIR, bool p_verbose)
 	:
 	Transform(NULL, p_variantIR, NULL),
 	m_dbinterface(p_dbinterface),
@@ -50,7 +50,7 @@ ConstantUnroll_t::ConstantUnroll_t(libIRDB::pqxxDB_t &p_dbinterface, libIRDB::Fi
  * postcondition: instructions added to auto-initialize stack for each specified function
  *
  */
-int ConstantUnroll_t::execute()
+int ConstantDecompose_t::execute()
 {
 #ifdef COMMENT
 	// look for cmp against constant
@@ -59,7 +59,7 @@ int ConstantUnroll_t::execute()
   40053c:	75 0a                	jne    400548 <main+0x22>
   40054e:	c3                   	ret    
 
-	// unroll into series of 1-byte comparisons
+	// decompose into series of 1-byte comparisons
   4005b9:	8b 45 fc             	mov    eax,DWORD PTR [rbp-0x4]
   4005bc:	c1 f8 18             	sar    eax,0x18
   4005bf:	83 f8 12             	cmp    eax,0x12
@@ -104,7 +104,7 @@ int ConstantUnroll_t::execute()
 			if (imm == 0 || imm == 1 || imm == -1 || imm == 0xff || imm == 0xffff)
 				return;
 
-			// we now have a cmp instruction to unroll
+			// we now have a cmp instruction to decompose
 			if (d.getOperand(0).isRegister() || d.getOperand(0).isMemory())
 				to_decompose.push_back(i);
 		});
@@ -169,7 +169,7 @@ int ConstantUnroll_t::execute()
 		}
 
 		// @todo: save/restore free register r15d 
-		cout << "unroll sequence: assume free register: " << free_reg << endl;
+		cout << "decompose sequence: assume free register: " << free_reg << endl;
 		cout << "init sequence is: " << init_sequence << endl;
 
 

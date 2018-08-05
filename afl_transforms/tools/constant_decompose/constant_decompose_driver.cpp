@@ -23,11 +23,11 @@
 
 #include <getopt.h>
 
-#include "constant_unroll.hpp"
+#include "constant_decompose.hpp"
 
 using namespace std;
 using namespace libIRDB;
-using namespace ConstantUnroll;
+using namespace ConstantDecompose;
 
 void usage(char* name)
 {
@@ -103,7 +103,7 @@ int main(int argc, char **argv)
 
 		try
 		{
-			ConstantUnroll_t is(pqxx_interface, firp, verbose);
+			ConstantDecompose_t is(pqxx_interface, firp, verbose);
 			int success=is.execute();
 
 			if (success)

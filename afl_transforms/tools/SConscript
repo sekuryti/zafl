@@ -3,7 +3,7 @@ import os
 Import('env')
 
 dirs='''
-	constant_unroll
+	constant_decompose
 	zafl
 	'''
 
