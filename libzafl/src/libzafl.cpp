@@ -29,16 +29,17 @@
 
 #include "libzafl.hpp"
 
-// these are externally visible so that Zipr transformations can access directly
+// externally visible so that Zipr transformations can access directly
 u8* zafl_trace_map;
 unsigned short zafl_prev_id;
 
-static s32 shm_id;                    /* ID of the SHM region             */
+static s32 shm_id;
 static int __afl_temp_data;
 static pid_t __afl_fork_pid;
+static auto debug = false;
 
-#define PRINT_ERROR(string) (void)(write(2, string, strlen(string))+1) 
-#define PRINT_DEBUG(string) (void)(write(1, string, strlen(string))+1) 
+#define PRINT_ERROR(string) if (debug) {(void)(write(2, string, strlen(string)));}
+#define PRINT_DEBUG(string) if (debug) {(void)(write(1, string, strlen(string)));}
 
 static void zafl_setupSharedMemory();
 static bool shared_memory_is_setup = false;
@@ -52,7 +53,7 @@ static void zafl_setupSharedMemory()
 
 	char *shm_env_var = getenv(SHM_ENV_VAR);
 	if(!shm_env_var) {
-		PRINT_ERROR("Error getting shm\n");
+		PRINT_ERROR("Error getting shm environment variable\n");
 		return;
 	}
 	shm_id = atoi(shm_env_var);
@@ -67,32 +68,40 @@ static void zafl_setupSharedMemory()
 
 void zafl_initAflForkServer()
 {
+	static auto fork_server_initialized = false;
+
+	if (fork_server_initialized) return;
+
+	if (getenv("ZAFL_DEBUG")) debug = true;
+
 	if (!shared_memory_is_setup)
 		zafl_setupSharedMemory();
 
 	if (!zafl_trace_map) {
 		zafl_trace_map = (u8*)malloc(MAP_SIZE);
-		printf("no shmem detected: fake it: zafl_trace_map = %p, malloc_size(%d)\n", zafl_trace_map, MAP_SIZE);
+		if (debug)
+			printf("no shmem detected: fake it: zafl_trace_map = %p, malloc_size(%d)\n", zafl_trace_map, MAP_SIZE);
 	}
 
 	int n = write(FORKSRV_FD+1, &__afl_temp_data,4);
 	if( n!=4 ) {
-		PRINT_ERROR("Error writting fork server\n");
-		perror("zafl_initAflForkServer()");
-		printf("zafl_trace_map = %p,   FORKSVR_FD(%d)\n", zafl_trace_map, FORKSRV_FD);
+		if (debug)
+			perror("zafl_initAflForkServer()");
 		return;
 	}
+
+	fork_server_initialized = true;
 
 	while(1) {
 		n = read(FORKSRV_FD,&__afl_temp_data,4);
 		if(n != 4) {
-		    PRINT_ERROR("Error reading fork server\n");
+		    perror("Error reading fork server\n");
 		    return;
 		}
 
 		__afl_fork_pid = fork();
 		if(__afl_fork_pid < 0) {
-		    PRINT_ERROR("Error on fork()\n");
+		    perror("Error on fork()\n");
 		    return;
 		}
 		if(__afl_fork_pid == 0) {
