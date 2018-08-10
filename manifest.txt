@@ -1,0 +1,2 @@
+# env vars.
+file set_env_vars zfuzz
