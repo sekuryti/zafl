@@ -455,10 +455,9 @@ void Zafl_t::insertForkServer(string p_forkServerEntry)
 	if (std::isdigit(p_forkServerEntry[0]))
 	{
 		// find instruction to insert fork server based on address
-		const auto fileid = getFileIR()->GetFile()->GetBaseID();
 		const auto voffset = (virtual_offset_t) std::strtoul(p_forkServerEntry.c_str(), NULL, 16);
 		auto instructions=find_if(getFileIR()->GetInstructions().begin(), getFileIR()->GetInstructions().end(), [&](const Instruction_t* i) {
-				return i->GetAddress()->GetFileID()==fileid && i->GetAddress()->GetVirtualOffset()==voffset;
+				return i->GetAddress()->GetVirtualOffset()==voffset;
 			});
 
 		if (instructions==getFileIR()->GetInstructions().end())
