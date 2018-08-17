@@ -72,7 +72,7 @@ cleanup
 # test setting of entry point via function name
 setup
 build_zafl gzip.entrypoint.zafl -o "zafl:--entrypoint=main"
-test_zafl ./gzip.entrypoint.zafl --slow
+test_zafl ./gzip.entrypoint.zafl --best
 cleanup
 
 # test STARS version
