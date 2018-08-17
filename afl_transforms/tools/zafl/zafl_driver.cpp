@@ -39,7 +39,7 @@ void usage(char* name)
 	cerr<<"\t[--verbose | -v]                       Verbose mode                  "<<endl;
 	cerr<<"[--help,--usage,-?,-h]                   Display this message          "<<endl;
 	cerr<<"[--stars]]                               Enable STARS optimizations    "<<endl;
-	cerr<<"[--entrypoint {<funcName>|<address>}]    Specify where to insert fork server (address starts with 0x)"<<endl;
+	cerr<<"[--entrypoint {<funcName>|<hex_address>}]    Specify where to insert fork server"<<endl;
 }
 
 int main(int argc, char **argv)
