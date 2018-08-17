@@ -413,8 +413,11 @@ void Zafl_t::insertForkServer(Instruction_t* p_entry)
 	auto tmp=p_entry;
     	(void)insertAssemblyBefore(getFileIR(),tmp," push rdi") ;
 	tmp=  insertAssemblyAfter(getFileIR(), tmp," push rsi ") ;
+	tmp=  insertAssemblyAfter(getFileIR(), tmp," push rbp") ;
 	tmp=  insertAssemblyAfter(getFileIR(), tmp," push rdx") ;
 	tmp=  insertAssemblyAfter(getFileIR(), tmp," push rcx ") ;
+	tmp=  insertAssemblyAfter(getFileIR(), tmp," push rbx ") ;
+	tmp=  insertAssemblyAfter(getFileIR(), tmp," push rax ") ;
 	tmp=  insertAssemblyAfter(getFileIR(), tmp," push r8 ") ;
 	tmp=  insertAssemblyAfter(getFileIR(), tmp," push r9 ") ;
 	tmp=  insertAssemblyAfter(getFileIR(), tmp," push r10 ") ;
@@ -434,8 +437,11 @@ void Zafl_t::insertForkServer(Instruction_t* p_entry)
 	tmp=  insertAssemblyAfter(getFileIR(), tmp," pop r10 ") ;
 	tmp=  insertAssemblyAfter(getFileIR(), tmp," pop r9");
 	tmp=  insertAssemblyAfter(getFileIR(), tmp," pop r8");
+	tmp=  insertAssemblyAfter(getFileIR(), tmp," pop rax");
+	tmp=  insertAssemblyAfter(getFileIR(), tmp," pop rbx");
 	tmp=  insertAssemblyAfter(getFileIR(), tmp," pop rcx");
 	tmp=  insertAssemblyAfter(getFileIR(), tmp," pop rdx");
+	tmp=  insertAssemblyAfter(getFileIR(), tmp," pop rbp");
 	tmp=  insertAssemblyAfter(getFileIR(), tmp," pop rsi");
 	tmp=  insertAssemblyAfter(getFileIR(), tmp," pop rdi");
 }
