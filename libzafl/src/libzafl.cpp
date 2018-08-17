@@ -44,16 +44,28 @@ static auto debug = false;
 static void zafl_setupSharedMemory();
 static bool shared_memory_is_setup = false;
 
+#ifdef ZAFL_AUTO_INIT_FORK_SERVER
 void __attribute__((constructor)) zafl_initAflForkServer();
+#else
+void __attribute__((constructor)) zafl_setupSharedMemory();
+#endif
 
 static void zafl_setupSharedMemory()
 {
+	if (getenv("ZAFL_DEBUG")) debug = true;
+
+	if (shared_memory_is_setup)
+		return;
+
 	zafl_prev_id = 0;
 	zafl_trace_map = NULL;
 
 	char *shm_env_var = getenv(SHM_ENV_VAR);
 	if(!shm_env_var) {
-		PRINT_ERROR("Error getting shm environment variable\n");
+		PRINT_ERROR("Error getting shm environment variable - fake allocate AFL trace map\n");
+
+		// fake allocate until someone calls zafl_initAflForkServer()
+		zafl_trace_map = (u8*)malloc(MAP_SIZE); 
 		return;
 	}
 	shm_id = atoi(shm_env_var);
@@ -74,8 +86,7 @@ void zafl_initAflForkServer()
 
 	if (getenv("ZAFL_DEBUG")) debug = true;
 
-	if (!shared_memory_is_setup)
-		zafl_setupSharedMemory();
+	zafl_setupSharedMemory();
 
 	if (!zafl_trace_map) {
 		zafl_trace_map = (u8*)malloc(MAP_SIZE);
@@ -121,8 +132,8 @@ void zafl_initAflForkServer()
 	}
 }
 
-// for debugging purposes only
-// basic block instrumentations will be inlined via a Zipr transformation
+// for efficiency, basic block instrumentation is inlined via a Zipr transformation
+// this code is used for debugging purposes only
 void zafl_bbInstrument(unsigned short id) {
 	zafl_trace_map[zafl_prev_id ^ id]++;
 	zafl_prev_id = id >> 1;

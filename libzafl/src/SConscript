@@ -13,10 +13,13 @@ cpppath='''
         '''
 
 myenv=myenv.Clone(CPPPATH=Split(cpppath))
+
 myenv.Append(CXXFLAGS = " -std=c++11 ")
+#myenv.Append(CXXFLAGS = " -std=c++11 -DZAFL_AUTO_INIT_FORK_SERVER")
 
 lib=myenv.SharedLibrary("zafl",  Split(files))
 install=myenv.Install("$SECURITY_TRANSFORMS_HOME/lib/", lib)
+
 Default(install)
 
 Return('install')

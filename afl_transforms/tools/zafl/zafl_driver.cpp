@@ -39,6 +39,7 @@ void usage(char* name)
 	cerr<<"\t[--verbose | -v]                       Verbose mode                  "<<endl;
 	cerr<<"[--help,--usage,-?,-h]                   Display this message          "<<endl;
 	cerr<<"[--stars]]                               Enable STARS optimizations    "<<endl;
+	cerr<<"[--entrypoint {<funcName>|<address>}]    Specify where to insert fork server (address starts with 0x)"<<endl;
 }
 
 int main(int argc, char **argv)
@@ -50,7 +51,8 @@ int main(int argc, char **argv)
 	}
 
 	string programName(argv[0]);
-	int variantID = atoi(argv[1]);
+	auto entry_fork_server = string();
+	auto variantID = atoi(argv[1]);
 	auto verbose=false;
 	auto use_stars=false;
 
@@ -62,10 +64,11 @@ int main(int argc, char **argv)
 		{"help", no_argument, 0, 'h'},
 		{"usage", no_argument, 0, '?'},
 		{"stars", no_argument, 0, 's'},
+		{"entrypoint", required_argument, 0, 'e'},
 		{0,0,0,0}
 	};
+	const char* short_opts="e:sv?h";
 
-	const char* short_opts="v?h";
 	while(true)
 	{
 		int index = 0;
@@ -84,6 +87,10 @@ int main(int argc, char **argv)
 			break;
 		case 's':
 			use_stars=true;
+			cout << "STARS optimization enabled" << endl;
+			break;
+		case 'e':
+			entry_fork_server = optarg;
 			break;
 		default:
 			break;
@@ -113,7 +120,7 @@ int main(int argc, char **argv)
 
 		try
 		{
-			Zafl_t is(pqxx_interface, firp, use_stars, verbose);
+			Zafl_t is(pqxx_interface, firp, entry_fork_server, use_stars, verbose);
 			int success=is.execute();
 
 			if (success)

@@ -26,6 +26,7 @@
 #include <stdlib.h>
 #include <string.h> 
 #include <algorithm>
+#include <cctype>
 #include <libIRDB-cfg.hpp>
 #include <libElfDep.hpp>
 #include <Rewrite_Utility.hpp>
@@ -40,17 +41,16 @@ using namespace Zafl;
 using namespace IRDBUtility;
 using namespace MEDS_Annotation;
 
-Zafl_t::Zafl_t(libIRDB::pqxxDB_t &p_dbinterface, libIRDB::FileIR_t *p_variantIR, bool p_use_stars, bool p_verbose)
+Zafl_t::Zafl_t(libIRDB::pqxxDB_t &p_dbinterface, libIRDB::FileIR_t *p_variantIR, string p_forkServerEntryPoint, bool p_use_stars, bool p_verbose)
 	:
 	Transform(NULL, p_variantIR, NULL),
 	m_dbinterface(p_dbinterface),
 	m_stars_analysis_engine(p_dbinterface),
+	m_fork_server_entry(p_forkServerEntryPoint),
 	m_use_stars(p_use_stars),
 	m_verbose(p_verbose)
 {
-        auto ed=ElfDependencies_t(getFileIR());
-        (void)ed.appendLibraryDepedencies("libzafl.so");
-
+	auto ed=ElfDependencies_t(getFileIR());
         m_trace_map = ed.appendGotEntry("zafl_trace_map");
         m_prev_id = ed.appendGotEntry("zafl_prev_id");
 
@@ -395,6 +395,124 @@ void Zafl_t::afl_instrument_bb(Instruction_t *inst, const bool p_hasLeafAnnotati
 	free(reg_prev_id);
 }
 
+void Zafl_t::insertForkServer(Instruction_t* p_entry)
+{
+	assert(p_entry);
+
+	cout << "inserting fork server code at address: " << hex << p_entry->GetAddress()->GetVirtualOffset() << dec;
+	if (p_entry->GetFunction())
+		cout << " function: " << p_entry->GetFunction()->GetName();
+	cout << endl;
+
+	// insert the PLT needed
+	auto ed=ElfDependencies_t(getFileIR());
+	(void)ed.appendLibraryDepedencies("libzafl.so");
+	auto edafl=ed.appendPltEntry("zafl_initAflForkServer");
+
+	// insert the instrumentation
+	auto tmp=p_entry;
+    	(void)insertAssemblyBefore(getFileIR(),tmp," push rdi") ;
+	tmp=  insertAssemblyAfter(getFileIR(), tmp," push rsi ") ;
+	tmp=  insertAssemblyAfter(getFileIR(), tmp," push rdx") ;
+	tmp=  insertAssemblyAfter(getFileIR(), tmp," push rcx ") ;
+	tmp=  insertAssemblyAfter(getFileIR(), tmp," push r8 ") ;
+	tmp=  insertAssemblyAfter(getFileIR(), tmp," push r9 ") ;
+	tmp=  insertAssemblyAfter(getFileIR(), tmp," push r10 ") ;
+	tmp=  insertAssemblyAfter(getFileIR(), tmp," push r11 ") ;
+	tmp=  insertAssemblyAfter(getFileIR(), tmp," push r12 ") ;
+	tmp=  insertAssemblyAfter(getFileIR(), tmp," push r13 ") ;
+	tmp=  insertAssemblyAfter(getFileIR(), tmp," push r14 ") ;
+	tmp=  insertAssemblyAfter(getFileIR(), tmp," push r15 ") ;
+	tmp=  insertAssemblyAfter(getFileIR(), tmp," pushf ") ;
+	tmp=  insertAssemblyAfter(getFileIR(), tmp," call 0 ", edafl) ;
+	tmp=  insertAssemblyAfter(getFileIR(), tmp," popf ") ;
+	tmp=  insertAssemblyAfter(getFileIR(), tmp," pop r15 ") ;
+	tmp=  insertAssemblyAfter(getFileIR(), tmp," pop r14 ") ;
+	tmp=  insertAssemblyAfter(getFileIR(), tmp," pop r13 ") ;
+	tmp=  insertAssemblyAfter(getFileIR(), tmp," pop r12 ") ;
+	tmp=  insertAssemblyAfter(getFileIR(), tmp," pop r11 ") ;
+	tmp=  insertAssemblyAfter(getFileIR(), tmp," pop r10 ") ;
+	tmp=  insertAssemblyAfter(getFileIR(), tmp," pop r9");
+	tmp=  insertAssemblyAfter(getFileIR(), tmp," pop r8");
+	tmp=  insertAssemblyAfter(getFileIR(), tmp," pop rcx");
+	tmp=  insertAssemblyAfter(getFileIR(), tmp," pop rdx");
+	tmp=  insertAssemblyAfter(getFileIR(), tmp," pop rsi");
+	tmp=  insertAssemblyAfter(getFileIR(), tmp," pop rdi");
+}
+
+void Zafl_t::insertForkServer(string p_forkServerEntry)
+{
+	assert(p_forkServerEntry.size() >= 1);
+
+	cout << "looking for fork server entry point: " << p_forkServerEntry << endl;
+
+	if (std::isdigit(p_forkServerEntry[0]))
+	{
+		// find instruction to insert fork server based on address
+		const auto fileid = getFileIR()->GetFile()->GetBaseID();
+		const auto voffset = (virtual_offset_t) std::strtoul(p_forkServerEntry.c_str(), NULL, 16);
+		auto instructions=find_if(getFileIR()->GetInstructions().begin(), getFileIR()->GetInstructions().end(), [&](const Instruction_t* i) {
+				return i->GetAddress()->GetFileID()==fileid && i->GetAddress()->GetVirtualOffset()==voffset;
+			});
+
+		if (instructions==getFileIR()->GetInstructions().end())
+		{
+			cerr << "Error: could not find address to insert fork server: " << p_forkServerEntry << endl;
+			throw;
+		}
+
+		insertForkServer(*instructions);
+	}
+	else
+	{
+		// find entry point of specified function to insert fork server
+		auto entryfunc=find_if(getFileIR()->GetFunctions().begin(), getFileIR()->GetFunctions().end(), [&](const Function_t* f) {
+				return f->GetName()==p_forkServerEntry;
+			});
+
+		
+		if(entryfunc==getFileIR()->GetFunctions().end())
+		{
+			cerr << "Error: could not find function to insert fork server: " << p_forkServerEntry << endl;
+			throw;
+		}
+
+		cout << "inserting fork server code at entry point of function: " << p_forkServerEntry << endl;
+		auto entrypoint = (*entryfunc)->GetEntryPoint();
+		insertForkServer(entrypoint);
+	}
+}
+
+void Zafl_t::setupForkServer()
+{
+	if (m_fork_server_entry.size()>0)
+	{
+		// user has specified entry point
+		insertForkServer(m_fork_server_entry);
+	}
+	else
+	{
+		// try to insert fork server at main
+		const auto &all_funcs=getFileIR()->GetFunctions();
+		const auto main_func_it=find_if(all_funcs.begin(), all_funcs.end(), [&](const Function_t* f) { return f->GetName()=="main";});
+		if(main_func_it!=all_funcs.end())
+		{
+			insertForkServer("main"); 
+		}
+		else
+		{
+			// if no main then use autozafl, which automatically sets up a fork server 
+        		auto ed=ElfDependencies_t(getFileIR());
+		        (void)ed.appendLibraryDepedencies("libautozafl.so");
+		}
+	}
+}
+
+bool Zafl_t::isBlacklisted(const Function_t *p_func) const
+{
+	return (p_func->GetName()[0] == '.' || m_blacklistedFunctions.find(p_func->GetName())!=m_blacklistedFunctions.end());
+}
+
 /*
  * Execute the transform.
  *
@@ -410,13 +528,15 @@ int Zafl_t::execute()
 	if (m_use_stars)
 		m_stars_analysis_engine.do_STARS(getFileIR());
 
+	setupForkServer();
+
 	// for all functions
 	//    for all basic blocks
 	//          afl_instrument
 	for (auto f : getFileIR()->GetFunctions())
 	{
 		if (!f) continue;
-		if (f->GetName()[0] == '.' || m_blacklistedFunctions.find(f->GetName())!=m_blacklistedFunctions.end())
+		if (isBlacklisted(f) || !f->GetEntryPoint())
 			continue;
 		bool leafAnnotation = true;
 		if (m_use_stars)
