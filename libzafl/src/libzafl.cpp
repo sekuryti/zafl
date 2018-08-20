@@ -38,8 +38,8 @@ static int __afl_temp_data;
 static pid_t __afl_fork_pid;
 static auto debug = false;
 
-#define PRINT_ERROR(string) if (debug) {(void)(write(2, string, strlen(string)));}
-#define PRINT_DEBUG(string) if (debug) {(void)(write(1, string, strlen(string)));}
+#define PRINT_ERROR(string) if (debug) {auto x=write(2, string, strlen(string));}
+#define PRINT_DEBUG(string) if (debug) {auto x=write(1, string, strlen(string));}
 
 static void zafl_setupSharedMemory();
 static bool shared_memory_is_setup = false;
@@ -50,6 +50,8 @@ void __attribute__((constructor)) zafl_initAflForkServer();
 void __attribute__((constructor)) zafl_setupSharedMemory();
 #endif
 
+// always setup a trace map so that an instrumented applicatin will run
+// even if not running under AFL
 static void zafl_setupSharedMemory()
 {
 	if (getenv("ZAFL_DEBUG")) debug = true;
@@ -68,6 +70,7 @@ static void zafl_setupSharedMemory()
 		zafl_trace_map = (u8*)malloc(MAP_SIZE); 
 		return;
 	}
+
 	shm_id = atoi(shm_env_var);
 	zafl_trace_map = (u8*)shmat(shm_id, NULL, 0);
 	if(zafl_trace_map == (u8*)-1) {
