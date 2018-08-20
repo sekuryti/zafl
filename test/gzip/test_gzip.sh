@@ -1,10 +1,13 @@
-TMP_FILE_1=/tmp/gzip.tmp.$$
-TMP_FILE_2=/tmp/gzip.tmp.$$
-AFL_TIMEOUT=3000
+AFL_TIMEOUT=30
+session=/tmp/tmp.gzip.$$
+TMP_FILE_1="${session}/gzip.tmp.$$"
+TMP_FILE_2="${session}/gzip.tmp.$$"
+
+mkdir -p $session
 
 cleanup()
 {
-	rm -fr /tmp/gzip.tmp* gzip*.zafl peasoup_exec*.gzip* zafl_in zafl_out
+	rm -fr /tmp/gzip.tmp* gzip*.zafl peasoup_exec*.gzip* zafl_in zafl_out ${session}
 }
 
 log_error()
@@ -44,7 +47,7 @@ build_zafl()
 
 test_zafl()
 {
-	gzip_zafl=$1
+	gzip_zafl=$( realpath $1 )
 	shift
 
 	LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$SECURITY_TRANSFORMS_HOME/lib/ $gzip_zafl $* $TMP_FILE_1
@@ -85,42 +88,36 @@ fuzz_with_zafl()
 
 }
 
-pushd /tmp
+pushd ${session}
+setup
 
-cleanup
 
 # test setting of entry point via address
-setup
 ep=$( objdump -Mintel -d /bin/gzip | grep text | grep -v -i disassembly | cut -d' ' -f1 | sed 's/^00000000//g' )
 build_zafl gzip.stars.entrypoint.${ep}.zafl -o zafl:--stars -o "zafl:--entrypoint=$ep"
 test_zafl ./gzip.stars.entrypoint.${ep}.zafl --fast
-cleanup
 
 # test setting of entry point via function name
-setup
 build_zafl gzip.entrypoint.zafl -o "zafl:--entrypoint=main"
 test_zafl ./gzip.entrypoint.zafl --best
-cleanup
 
 # test non-STARS version
-setup
 build_zafl gzip.nostars.zafl
 test_zafl ./gzip.nostars.zafl
 test_zafl ./gzip.nostars.zafl --fast
 test_zafl ./gzip.nostars.zafl --best
-cleanup
 
 # test STARS version
-setup
 build_zafl gzip.stars.zafl -o zafl:--stars
 test_zafl ./gzip.stars.zafl
 test_zafl ./gzip.stars.zafl --fast
 test_zafl ./gzip.stars.zafl --best
 
 # test STARS version on AFL
+log_message "Fuzz for $AFL_TIMEOUT seconds"
 fuzz_with_zafl ./gzip.stars.zafl
-cleanup
 
 log_success "all tests passed: zafl instrumentation operational on gzip"
 
+cleanup
 popd

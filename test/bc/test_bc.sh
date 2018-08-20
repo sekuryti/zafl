@@ -1,11 +1,11 @@
-export AFL_TIMEOUT=60
+export AFL_TIMEOUT=30
 export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$SECURITY_TRANSFORMS_HOME/lib/:. 
 
 session=/tmp/tmp.bc.$$
 
 cleanup()
 {
-	rm -fr /tmp/gzip.tmp* gzip*.zafl peasoup_exec*.gzip* zafl_in zafl_out $session
+	rm -fr /tmp/gzip.tmp* gzip*.zafl peasoup_exec*.gzip* zafl_in zafl_out 
 }
 
 log_error()
@@ -74,6 +74,9 @@ fi
 
 ls -lt
 
+log_message "Fuzz for $AFL_TIMEOUT secs"
 fuzz_with_zafl $(realpath ./bc.stars.zafl)
 
 popd
+
+cleanup
