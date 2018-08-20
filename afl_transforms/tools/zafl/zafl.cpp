@@ -504,12 +504,14 @@ void Zafl_t::setupForkServer()
 		{
 			insertForkServer("main"); 
 		}
+#ifdef NOT_YET_SUPPORTED
 		else
 		{
 			// if no main then use autozafl, which automatically sets up a fork server 
         		auto ed=ElfDependencies_t(getFileIR());
 		        (void)ed.appendLibraryDepedencies("libautozafl.so");
 		}
+#endif
 	}
 }
 

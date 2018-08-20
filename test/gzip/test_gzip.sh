@@ -1,9 +1,10 @@
 TMP_FILE_1=/tmp/gzip.tmp.$$
 TMP_FILE_2=/tmp/gzip.tmp.$$
+AFL_TIMEOUT=3000
 
 cleanup()
 {
-	rm -fr /tmp/gzip.tmp* gzip*.zafl peasoup_exec*.gzip*
+	rm -fr /tmp/gzip.tmp* gzip*.zafl peasoup_exec*.gzip* zafl_in zafl_out
 }
 
 log_error()
@@ -60,7 +61,33 @@ test_zafl()
 	fi
 }
 
+fuzz_with_zafl()
+{
+	gzip_zafl=$1
+
+	# setup AFL directories
+	mkdir zafl_in
+	echo "1" > zafl_in/1
+
+	# run for 30 seconds
+	LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$SECURITY_TRANSFORMS_HOME/lib/ timeout $AFL_TIMEOUT afl-fuzz -i zafl_in -o zafl_out -- $gzip_zafl -f
+	if [ $? -eq 124 ]; then
+		if [ ! -e zafl_out/fuzzer_stats ]; then
+			log_error "$gzip_zafl: something went wrong with afl -- no fuzzer stats file"
+		fi
+
+		cat zafl_out/fuzzer_stats
+		execs_per_sec=$( grep execs_per_sec zafl_out/fuzzer_stats )
+		log_success "$gzip_zafl: $execs_per_sec"
+	else
+		log_error "$gzip_zafl: unable to run with afl"
+	fi
+
+}
+
 pushd /tmp
+
+cleanup
 
 # test setting of entry point via address
 setup
@@ -75,14 +102,6 @@ build_zafl gzip.entrypoint.zafl -o "zafl:--entrypoint=main"
 test_zafl ./gzip.entrypoint.zafl --best
 cleanup
 
-# test STARS version
-setup
-build_zafl gzip.stars.zafl -o zafl:--stars
-test_zafl ./gzip.stars.zafl
-test_zafl ./gzip.stars.zafl --fast
-test_zafl ./gzip.stars.zafl --best
-cleanup
-
 # test non-STARS version
 setup
 build_zafl gzip.nostars.zafl
@@ -91,6 +110,16 @@ test_zafl ./gzip.nostars.zafl --fast
 test_zafl ./gzip.nostars.zafl --best
 cleanup
 
+# test STARS version
+setup
+build_zafl gzip.stars.zafl -o zafl:--stars
+test_zafl ./gzip.stars.zafl
+test_zafl ./gzip.stars.zafl --fast
+test_zafl ./gzip.stars.zafl --best
+
+# test STARS version on AFL
+fuzz_with_zafl ./gzip.stars.zafl
+cleanup
 
 log_success "all tests passed: zafl instrumentation operational on gzip"
 
