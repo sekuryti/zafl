@@ -63,6 +63,8 @@ Zafl_t::Zafl_t(libIRDB::pqxxDB_t &p_dbinterface, libIRDB::FileIR_t *p_variantIR,
 	m_blacklistedFunctions.insert("deregister_tm_clones");
 	m_blacklistedFunctions.insert("frame_dummy");
 	m_blacklistedFunctions.insert("__do_global_dtors_aux");
+	m_blacklistedFunctions.insert("__libc_csu_init");
+	m_blacklistedFunctions.insert("__libc_csu_fini");
 }
 
 static void create_got_reloc(FileIR_t* fir, pair<DataScoop_t*,int> wrt, Instruction_t* i)
@@ -406,7 +408,8 @@ void Zafl_t::insertForkServer(Instruction_t* p_entry)
 
 	// insert the PLT needed
 	auto ed=ElfDependencies_t(getFileIR());
-	(void)ed.appendLibraryDepedencies("libzafl.so");
+//	(void)ed.appendLibraryDepedencies("libzafl.so");
+	(void)ed.prependLibraryDepedencies("libzafl.so");
 	auto edafl=ed.appendPltEntry("zafl_initAflForkServer");
 
 	// insert the instrumentation
