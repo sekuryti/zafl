@@ -5,7 +5,7 @@ session=/tmp/tmp.bc.$$
 
 cleanup()
 {
-	rm -fr /tmp/gzip.tmp* gzip*.zafl peasoup_exec*.gzip* zafl_in zafl_out 
+	rm -fr /tmp/gzip.tmp* gzip*.zafl peasoup_exec*.gzip* zafl_in zafl_out $session
 }
 
 log_error()
