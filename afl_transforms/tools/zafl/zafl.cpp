@@ -65,6 +65,11 @@ Zafl_t::Zafl_t(libIRDB::pqxxDB_t &p_dbinterface, libIRDB::FileIR_t *p_variantIR,
 	m_blacklistedFunctions.insert("__do_global_dtors_aux");
 	m_blacklistedFunctions.insert("__libc_csu_init");
 	m_blacklistedFunctions.insert("__libc_csu_fini");
+
+	m_num_flags_saved = 0;
+	m_num_temp_reg_saved = 0;
+	m_num_tracemap_reg_saved = 0;
+	m_num_previd_reg_saved = 0;
 }
 
 static void create_got_reloc(FileIR_t* fir, pair<DataScoop_t*,int> wrt, Instruction_t* i)
@@ -246,6 +251,14 @@ void Zafl_t::afl_instrument_bb(Instruction_t *inst, const bool p_hasLeafAnnotati
 		<< " reg_trace_map: " << reg_trace_map
 		<< " reg_prev_id: " << reg_prev_id << endl;
 
+	if (live_flags)
+		m_num_flags_saved++;
+	if (save_temp)
+		m_num_temp_reg_saved++;
+	if (save_trace_map)
+		m_num_tracemap_reg_saved++;
+	if (save_prev_id)
+		m_num_previd_reg_saved++;
 	//
 	// warning: first instrumentation must use insertAssemblyBefore
 	//
@@ -579,6 +592,10 @@ int Zafl_t::execute()
 
 	cout << "#ATTRIBUTE num_bb_instrumented=" << dec << num_bb_instrumented << endl;
 	cout << "#ATTRIBUTE num_orphan_instructions=" << dec << num_orphan_instructions << endl;
+	cout << "#ATTRIBUTE num_flags_saved=" << m_num_flags_saved << endl;
+	cout << "#ATTRIBUTE num_temp_reg_saved=" << m_num_temp_reg_saved << endl;
+	cout << "#ATTRIBUTE num_tracemap_reg_saved=" << m_num_tracemap_reg_saved << endl;
+	cout << "#ATTRIBUTE num_previd_reg_saved=" << m_num_previd_reg_saved << endl;
 
 	return 1;
 }

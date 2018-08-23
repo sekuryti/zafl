@@ -39,6 +39,11 @@ private:
 
 	std::set<zafl_blockid_t>     m_used_blockid;
 	std::set<std::string>        m_blacklistedFunctions;
+
+	unsigned m_num_flags_saved;
+	unsigned m_num_temp_reg_saved;
+	unsigned m_num_tracemap_reg_saved;
+	unsigned m_num_previd_reg_saved;
 };
 
 } 
