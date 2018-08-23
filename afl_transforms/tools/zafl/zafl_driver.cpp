@@ -36,10 +36,11 @@ using namespace Zafl;
 void usage(char* name)
 {
 	cerr<<"Usage: "<<name<<" <variant_id>\n";
-	cerr<<"\t[--verbose | -v]                       Verbose mode                  "<<endl;
-	cerr<<"[--help,--usage,-?,-h]                   Display this message          "<<endl;
-	cerr<<"[--stars]]                               Enable STARS optimizations    "<<endl;
-	cerr<<"[--entrypoint {<funcName>|<hex_address>}]    Specify where to insert fork server"<<endl;
+	cerr<<"\t[--verbose | -v]                             Verbose mode                  "<<endl;
+	cerr<<"\t[--help,--usage,-?,-h]                       Display this message          "<<endl;
+	cerr<<"\t[--stars]]                                   Enable STARS optimizations    "<<endl;
+	cerr<<"\t[--entrypoint {<funcName>|<hex_address>}]    Specify where to insert fork server"<<endl;
+	cerr<<"\t[--exitpoint {<funcName>|<hex_address>}]     Specify where to insert exit"<<endl;
 }
 
 int main(int argc, char **argv)
@@ -55,6 +56,7 @@ int main(int argc, char **argv)
 	auto variantID = atoi(argv[1]);
 	auto verbose=false;
 	auto use_stars=false;
+	set<string> exitpoints;
 
 	srand(getpid()+time(NULL));
 
@@ -65,9 +67,10 @@ int main(int argc, char **argv)
 		{"usage", no_argument, 0, '?'},
 		{"stars", no_argument, 0, 's'},
 		{"entrypoint", required_argument, 0, 'e'},
+		{"exitpoint", required_argument, 0, 'E'},
 		{0,0,0,0}
 	};
-	const char* short_opts="e:sv?h";
+	const char* short_opts="e:E:sv?h";
 
 	while(true)
 	{
@@ -91,6 +94,9 @@ int main(int argc, char **argv)
 			break;
 		case 'e':
 			entry_fork_server = optarg;
+			break;
+		case 'E':
+			exitpoints.insert(optarg);
 			break;
 		default:
 			break;
@@ -120,7 +126,7 @@ int main(int argc, char **argv)
 
 		try
 		{
-			Zafl_t is(pqxx_interface, firp, entry_fork_server, use_stars, verbose);
+			Zafl_t is(pqxx_interface, firp, entry_fork_server, exitpoints, use_stars, verbose);
 			int success=is.execute();
 
 			if (success)

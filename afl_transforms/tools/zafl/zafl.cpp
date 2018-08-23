@@ -41,12 +41,13 @@ using namespace Zafl;
 using namespace IRDBUtility;
 using namespace MEDS_Annotation;
 
-Zafl_t::Zafl_t(libIRDB::pqxxDB_t &p_dbinterface, libIRDB::FileIR_t *p_variantIR, string p_forkServerEntryPoint, bool p_use_stars, bool p_verbose)
+Zafl_t::Zafl_t(libIRDB::pqxxDB_t &p_dbinterface, libIRDB::FileIR_t *p_variantIR, string p_forkServerEntryPoint, set<string> p_exitPoints, bool p_use_stars, bool p_verbose)
 	:
 	Transform(NULL, p_variantIR, NULL),
 	m_dbinterface(p_dbinterface),
 	m_stars_analysis_engine(p_dbinterface),
 	m_fork_server_entry(p_forkServerEntryPoint),
+	m_exitpoints(p_exitPoints),
 	m_use_stars(p_use_stars),
 	m_verbose(p_verbose)
 {
@@ -159,9 +160,25 @@ static std::set<RegisterName> get_free_regs(const RegisterSet_t candidates)
 	return free_regs;
 }
 
+void Zafl_t::insertExitPoint(Instruction_t *inst)
+{
+	assert(inst);
+
+	if (inst->GetFunction())
+		cout << "in function: " << inst->GetFunction()->GetName() << " ";
+
+	cout << "insert exit point at: 0x" << hex << inst->GetAddress()->GetVirtualOffset() << dec << " " << inst->getDisassembly() << endl;
+	
+	auto tmp = inst;
+	     insertAssemblyBefore(getFileIR(), tmp, "xor edi, edi"); //  rdi=0
+	tmp = insertAssemblyAfter(getFileIR(), tmp, "mov eax, 231"); //  231 = __NR_exit_group   from <asm/unistd_64.h>
+	tmp = insertAssemblyAfter(getFileIR(), tmp, "syscall");      //  sys_exit_group(edi)
+}
+
 /*
-        zafl_trace_bits[zafl_prev_id ^ id]++;
-        zafl_prev_id = id >> 1;     
+	Original afl instrumentation:
+	        zafl_trace_bits[zafl_prev_id ^ id]++;
+		zafl_prev_id = id >> 1;     
 */
 void Zafl_t::afl_instrument_bb(Instruction_t *inst, const bool p_hasLeafAnnotation)
 {
@@ -530,6 +547,55 @@ void Zafl_t::setupForkServer()
 	}
 }
 
+void Zafl_t::insertExitPoints()
+{
+	for (auto exitp : m_exitpoints)
+	{
+		if (std::isdigit(exitp[0]))
+		{
+			// find instruction to insert fork server based on address
+			const auto voffset = (virtual_offset_t) std::strtoul(exitp.c_str(), NULL, 16);
+			auto instructions=find_if(getFileIR()->GetInstructions().begin(), getFileIR()->GetInstructions().end(), [&](const Instruction_t* i) {
+					return i->GetAddress()->GetVirtualOffset()==voffset;
+				});
+
+			if (instructions==getFileIR()->GetInstructions().end())
+			{
+				cerr << "Error: could not find address to insert exit point: " << exitp << endl;
+				throw;
+			}
+
+			insertExitPoint(*instructions);
+		}
+		else
+		{
+			// find function
+			auto func_iter=find_if(getFileIR()->GetFunctions().begin(), getFileIR()->GetFunctions().end(), [&](const Function_t* f) {
+				return f->GetName()==exitp;
+			});
+
+		
+			if(func_iter==getFileIR()->GetFunctions().end())
+			{
+				cerr << "Error: could not find function to insert exit points: " << exitp << endl;
+				throw;
+			}
+
+			cout << "inserting fork server code at exit point of function: " << exitp << endl;
+			for (auto i : (*func_iter)->GetInstructions())
+			{
+				// if it's a return instruction, instrument exit point
+				const auto d=DecodedInstruction_t(i);
+				if (d.isReturn())
+				{
+					insertExitPoint(i);
+				}
+			}
+		}
+	}
+}
+
+
 bool Zafl_t::isBlacklisted(const Function_t *p_func) const
 {
 	return (p_func->GetName()[0] == '.' || m_blacklistedFunctions.find(p_func->GetName())!=m_blacklistedFunctions.end());
@@ -551,6 +617,8 @@ int Zafl_t::execute()
 		m_stars_analysis_engine.do_STARS(getFileIR());
 
 	setupForkServer();
+
+	insertExitPoints();
 
 	// for all functions
 	//    for all basic blocks
