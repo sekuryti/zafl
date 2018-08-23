@@ -408,7 +408,6 @@ void Zafl_t::insertForkServer(Instruction_t* p_entry)
 
 	// insert the PLT needed
 	auto ed=ElfDependencies_t(getFileIR());
-//	(void)ed.appendLibraryDepedencies("libzafl.so");
 	(void)ed.prependLibraryDepedencies("libzafl.so");
 	auto edafl=ed.appendPltEntry("zafl_initAflForkServer");
 

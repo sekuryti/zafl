@@ -24,6 +24,7 @@ fi
 cd $AFL_TRANSFORMS
 scons $SCONSDEBUG -j 3 || exit
 
-cd $ZFUZZ_HOME/libzafl/src
+cd $ZFUZZ_HOME/libzafl
 scons
+scons autozafl=1
 
