@@ -444,7 +444,8 @@ void Zafl_t::insertForkServer(Instruction_t* p_entry)
 
 	// insert the instrumentation
 	auto tmp=p_entry;
-    	(void)insertAssemblyBefore(getFileIR(),tmp," push rdi") ;
+	(void)insertAssemblyBefore(getFileIR(), tmp, "lea rsp, [rsp-128]");
+    	tmp=  insertAssemblyAfter(getFileIR(),tmp," push rdi") ;
 	tmp=  insertAssemblyAfter(getFileIR(), tmp," push rsi ") ;
 	tmp=  insertAssemblyAfter(getFileIR(), tmp," push rbp") ;
 	tmp=  insertAssemblyAfter(getFileIR(), tmp," push rdx") ;
@@ -476,7 +477,7 @@ void Zafl_t::insertForkServer(Instruction_t* p_entry)
 	tmp=  insertAssemblyAfter(getFileIR(), tmp," pop rdx");
 	tmp=  insertAssemblyAfter(getFileIR(), tmp," pop rbp");
 	tmp=  insertAssemblyAfter(getFileIR(), tmp," pop rsi");
-	tmp=  insertAssemblyAfter(getFileIR(), tmp," pop rdi");
+	tmp=  insertAssemblyAfter(getFileIR(), tmp," lea rsp, [rsp+128]");
 }
 
 void Zafl_t::insertForkServer(string p_forkServerEntry)
