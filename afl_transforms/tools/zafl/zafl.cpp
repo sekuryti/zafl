@@ -481,7 +481,7 @@ void Zafl_t::insertForkServer(Instruction_t* p_entry)
 
 void Zafl_t::insertForkServer(string p_forkServerEntry)
 {
-	assert(p_forkServerEntry.size() >= 1);
+	assert(p_forkServerEntry.size() > 0);
 
 	cout << "looking for fork server entry point: " << p_forkServerEntry << endl;
 
@@ -650,8 +650,8 @@ int Zafl_t::execute()
 		{
 			if (getenv("ZAFL_LIMIT_END"))
 			{
-				if (num_bb_instrumented > atoi(getenv("ZAFL_LIMIT_END"))) 
-					break;
+				if (num_bb_instrumented >= atoi(getenv("ZAFL_LIMIT_END"))) 
+					goto outahere;
 			}
 
 			cout << "Instrumenting basic block #" << dec << num_bb_instrumented << endl;
@@ -671,6 +671,7 @@ int Zafl_t::execute()
 			num_orphan_instructions++;
 	}
 
+outahere:
 	cout << "#ATTRIBUTE num_bb_instrumented=" << dec << num_bb_instrumented << endl;
 	cout << "#ATTRIBUTE num_orphan_instructions=" << dec << num_orphan_instructions << endl;
 	cout << "#ATTRIBUTE num_flags_saved=" << m_num_flags_saved << endl;
