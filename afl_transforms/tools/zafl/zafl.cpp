@@ -180,9 +180,9 @@ void Zafl_t::insertExitPoint(Instruction_t *inst)
 	        zafl_trace_bits[zafl_prev_id ^ id]++;
 		zafl_prev_id = id >> 1;     
 */
-void Zafl_t::afl_instrument_bb(Instruction_t *inst, const bool p_hasLeafAnnotation)
+void Zafl_t::afl_instrument_bb(Instruction_t *p_inst, const bool p_hasLeafAnnotation)
 {
-	assert(inst);
+	assert(p_inst);
 
 	char buf[8192];
 	auto live_flags = true;
@@ -194,12 +194,12 @@ void Zafl_t::afl_instrument_bb(Instruction_t *inst, const bool p_hasLeafAnnotati
 	auto save_temp = true;
 	auto save_trace_map = true;
 	auto save_prev_id = true;
-	auto tmp = inst;
+	auto tmp = p_inst;
 
 	if (m_use_stars) 
 	{
-		live_flags = !(areFlagsDead(inst, m_stars_analysis_engine.getAnnotations()));
-		auto regset = get_dead_regs(inst, m_stars_analysis_engine.getAnnotations());
+		live_flags = !(areFlagsDead(p_inst, m_stars_analysis_engine.getAnnotations()));
+		auto regset = get_dead_regs(p_inst, m_stars_analysis_engine.getAnnotations());
 		auto free_regs = get_free_regs(regset);
 
 		for (auto r : regset)
@@ -276,6 +276,7 @@ void Zafl_t::afl_instrument_bb(Instruction_t *inst, const bool p_hasLeafAnnotati
 		m_num_tracemap_reg_saved++;
 	if (save_prev_id)
 		m_num_previd_reg_saved++;
+
 	//
 	// warning: first instrumentation must use insertAssemblyBefore
 	//
@@ -327,7 +328,7 @@ void Zafl_t::afl_instrument_bb(Instruction_t *inst, const bool p_hasLeafAnnotati
 	static unsigned labelid = 0; 
 	labelid++;
 
-	cerr << "labelid: " << labelid << " baseid: " << inst->GetBaseID() << " instruction: " << inst->getDisassembly();
+	cerr << "labelid: " << labelid << " baseid: " << p_inst->GetBaseID() << " address: 0x" << hex << p_inst->GetAddress()->GetVirtualOffset() << dec << " instruction: " << p_inst->getDisassembly();
 
 	if (live_flags)
 	{
@@ -613,8 +614,10 @@ int Zafl_t::execute()
 	auto num_bb_instrumented = 0;
 	auto num_orphan_instructions = 0;
 
-	if (m_use_stars)
+	if (m_use_stars) {
+		cout << "Use STARS analysis engine" << endl;
 		m_stars_analysis_engine.do_STARS(getFileIR());
+	}
 
 	setupForkServer();
 
@@ -629,8 +632,10 @@ int Zafl_t::execute()
 		if (isBlacklisted(f) || !f->GetEntryPoint())
 			continue;
 		bool leafAnnotation = true;
-		if (m_use_stars)
+		if (m_use_stars) 
+		{
 			leafAnnotation = hasLeafAnnotation(f, m_stars_analysis_engine.getAnnotations());
+		}
 
 		cout << endl;
 		if (leafAnnotation)
@@ -643,6 +648,13 @@ int Zafl_t::execute()
 		ControlFlowGraph_t cfg(f);
 		for (auto bb : cfg.GetBlocks())
 		{
+			if (getenv("ZAFL_LIMIT_END"))
+			{
+				if (num_bb_instrumented > atoi(getenv("ZAFL_LIMIT_END"))) 
+					break;
+			}
+
+			cout << "Instrumenting basic block #" << dec << num_bb_instrumented << endl;
 			afl_instrument_bb(bb->GetInstructions()[0], leafAnnotation);
 			num_bb_instrumented++;
 		}
@@ -652,6 +664,7 @@ int Zafl_t::execute()
 		}
 	}
 
+	// count orphan instructions
 	for (auto i : getFileIR()->GetInstructions())
 	{
 		if (i && (i->GetFunction() == NULL))		
