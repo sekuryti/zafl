@@ -13,7 +13,6 @@ cleanup()
 log_error()
 {
 	echo "TEST FAIL: $1"
-	cleanup
 	exit 1
 }
 
