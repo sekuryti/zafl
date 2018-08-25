@@ -71,6 +71,10 @@ fuzz_with_zafl()
 	mkdir zafl_in
 	echo "1" > zafl_in/1
 
+	if [ -d zafl_out ]; then
+		rm -fr zafl_out
+	fi
+
 	# run for 30 seconds
 	LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$SECURITY_TRANSFORMS_HOME/lib/ timeout $AFL_TIMEOUT afl-fuzz -i zafl_in -o zafl_out -- $gzip_zafl -f
 	if [ $? -eq 124 ]; then
@@ -80,7 +84,7 @@ fuzz_with_zafl()
 
 		cat zafl_out/fuzzer_stats
 		execs_per_sec=$( grep execs_per_sec zafl_out/fuzzer_stats )
-		log_success "$gzip_zafl: $execs_per_sec"
+		log_success "$gzip_zafl: ran zafl binary: $execs_per_sec"
 	else
 		log_error "$gzip_zafl: unable to run with afl"
 	fi
