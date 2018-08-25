@@ -52,19 +52,22 @@ mkdir $session
 pushd $session
 
 # build ZAFL version of bc executable
-$PSZ `which bc` bc.stars.zafl -c move_globals=on -c zafl=on -o move_globals:--elftables -o zipr:--traceplacement:on -o zipr:true -o zipr:--stars 
+$PSZ `which bc` bc.stars.zafl -c move_globals=on -c zafl=on -o move_globals:--elftables -o zipr:--traceplacement:on -o zipr:true -o zafl:--stars 
 if [ $? -eq 0 ]; then
 	log_success "build bc.stars.zafl"
 else
 	log_error "build bc.stars.zafl"
 fi
 
+log_message "Fuzz for $AFL_TIMEOUT secs"
+fuzz_with_zafl $(realpath ./bc.stars.zafl)
+
 # build ZAFL version of readline shared library
 readline=$( ldd `which bc` | grep libreadline | cut -d'>' -f2 | cut -d'(' -f1 )
 readline_basename=$( basename $readline )
 readline_realpath=$( realpath $readline )
 echo "basename: $readline_basename  realpath: $readline_realpath"
-$PSZ $readline_realpath $readline_basename -c move_globals=on -c zafl=on -o move_globals:--elftables -o zipr:--traceplacement:on -o zipr:true -o zipr:--stars 
+$PSZ $readline_realpath $readline_basename -c move_globals=on -c zafl=on -o move_globals:--elftables -o zipr:--traceplacement:on -o zipr:true -o zafl:--stars 
 if [ $? -eq 0 ]; then
 	log_success "build zafl version of $readline_basename at $readline_realpath"
 else
@@ -72,9 +75,6 @@ else
 fi
 
 ls -lt
-
-log_message "Fuzz for $AFL_TIMEOUT secs"
-fuzz_with_zafl $(realpath ./bc.stars.zafl)
 
 popd
 
