@@ -32,6 +32,10 @@ fuzz_with_zafl()
 	mkdir zafl_in
 	echo "1" > zafl_in/1
 
+	if [ -d zafl_out ]; then
+		rm -fr zafl_out
+	fi
+
 	# run for 30 seconds
 	timeout $AFL_TIMEOUT afl-fuzz -i zafl_in -o zafl_out -- $bc_zafl 
 	if [ $? -eq 124 ]; then
@@ -78,7 +82,8 @@ ls -lt
 
 ldd bc.stars.zafl
 
-log_message "Need to re-run AFL now... (to do)"
+log_message "Fuzz for $AFL_TIMEOUT secs (with readline library zafl'ed)"
+fuzz_with_zafl $(realpath ./bc.stars.zafl)
 popd
 
 cleanup

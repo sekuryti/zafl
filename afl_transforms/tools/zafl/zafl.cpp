@@ -52,6 +52,7 @@ Zafl_t::Zafl_t(libIRDB::pqxxDB_t &p_dbinterface, libIRDB::FileIR_t *p_variantIR,
 	m_verbose(p_verbose)
 {
 	auto ed=ElfDependencies_t(getFileIR());
+	(void)ed.prependLibraryDepedencies("libzafl.so");
         m_trace_map = ed.appendGotEntry("zafl_trace_map");
         m_prev_id = ed.appendGotEntry("zafl_prev_id");
 
@@ -439,8 +440,7 @@ void Zafl_t::insertForkServer(Instruction_t* p_entry)
 
 	// insert the PLT needed
 	auto ed=ElfDependencies_t(getFileIR());
-	(void)ed.prependLibraryDepedencies("libzafl.so");
-	auto edafl=ed.appendPltEntry("zafl_initAflForkServer");
+	auto plt_zafl_initAflForkServer=ed.appendPltEntry("zafl_initAflForkServer");
 
 	// insert the instrumentation
 	auto tmp=p_entry;
@@ -460,7 +460,7 @@ void Zafl_t::insertForkServer(Instruction_t* p_entry)
 	tmp=  insertAssemblyAfter(getFileIR(), tmp," push r14 ") ;
 	tmp=  insertAssemblyAfter(getFileIR(), tmp," push r15 ") ;
 	tmp=  insertAssemblyAfter(getFileIR(), tmp," pushf ") ;
-	tmp=  insertAssemblyAfter(getFileIR(), tmp," call 0 ", edafl) ;
+	tmp=  insertAssemblyAfter(getFileIR(), tmp," call 0 ", plt_zafl_initAflForkServer) ;
 	tmp=  insertAssemblyAfter(getFileIR(), tmp," popf ") ;
 	tmp=  insertAssemblyAfter(getFileIR(), tmp," pop r15 ") ;
 	tmp=  insertAssemblyAfter(getFileIR(), tmp," pop r14 ") ;
@@ -537,14 +537,6 @@ void Zafl_t::setupForkServer()
 		{
 			insertForkServer("main"); 
 		}
-#ifdef NOT_YET_SUPPORTED
-		else
-		{
-			// if no main then use autozafl, which automatically sets up a fork server 
-        		auto ed=ElfDependencies_t(getFileIR());
-		        (void)ed.appendLibraryDepedencies("libautozafl.so");
-		}
-#endif
 	}
 }
 
