@@ -76,6 +76,9 @@ fi
 
 ls -lt
 
+ldd bc.stars.zafl
+
+log_message "Need to re-run AFL now... (to do)"
 popd
 
 cleanup
