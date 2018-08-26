@@ -56,17 +56,17 @@ Zafl_t::Zafl_t(libIRDB::pqxxDB_t &p_dbinterface, libIRDB::FileIR_t *p_variantIR,
         m_trace_map = ed.appendGotEntry("zafl_trace_map");
         m_prev_id = ed.appendGotEntry("zafl_prev_id");
 
-	m_blacklistedFunctions.insert(".init_proc");
-	m_blacklistedFunctions.insert("init");
-	m_blacklistedFunctions.insert("_init");
-	m_blacklistedFunctions.insert("fini");
-	m_blacklistedFunctions.insert("_fini");
-	m_blacklistedFunctions.insert("register_tm_clones");
-	m_blacklistedFunctions.insert("deregister_tm_clones");
-	m_blacklistedFunctions.insert("frame_dummy");
-	m_blacklistedFunctions.insert("__do_global_dtors_aux");
-	m_blacklistedFunctions.insert("__libc_csu_init");
-	m_blacklistedFunctions.insert("__libc_csu_fini");
+	m_blacklist.insert(".init_proc");
+	m_blacklist.insert("init");
+	m_blacklist.insert("_init");
+	m_blacklist.insert("fini");
+	m_blacklist.insert("_fini");
+	m_blacklist.insert("register_tm_clones");
+	m_blacklist.insert("deregister_tm_clones");
+	m_blacklist.insert("frame_dummy");
+	m_blacklist.insert("__do_global_dtors_aux");
+	m_blacklist.insert("__libc_csu_init");
+	m_blacklist.insert("__libc_csu_fini");
 
 	m_num_flags_saved = 0;
 	m_num_temp_reg_saved = 0;
@@ -132,6 +132,41 @@ static bool hasLeafAnnotation(Function_t* fn, MEDS_AnnotationParser &meds_ap_par
 
 	return (sfa_it != ret.second);
 }
+
+/*
+ * Only allow instrumentation in whitelisted functions
+ */
+void Zafl_t::setWhitelist(const string& p_whitelist)
+{
+	std::ifstream whitelistFile(p_whitelist);
+	if (!whitelistFile.is_open())
+		throw;
+	std::string line;
+	while(whitelistFile >> line)
+	{
+		cout <<"Adding " << line << " to white list" << endl;
+		m_whitelist.insert(line);
+	}
+	whitelistFile.close();
+}
+
+/*
+ * Disallow instrumentation in blackListed functions
+ */
+void Zafl_t::setBlacklist(const string& p_blackList)
+{
+	std::ifstream blackListFile(p_blackList);
+	if (!blackListFile.is_open())
+		throw;
+	std::string line;
+	while(blackListFile >> line)
+	{
+		cout <<"Adding " << line << " to black list" << endl;
+		m_blacklist.insert(line);
+	}
+	blackListFile.close();
+}
+
 
 zafl_blockid_t Zafl_t::get_blockid(unsigned p_max_mask) 
 {
@@ -591,7 +626,7 @@ void Zafl_t::insertExitPoints()
 
 bool Zafl_t::isBlacklisted(const Function_t *p_func) const
 {
-	return (p_func->GetName()[0] == '.' || m_blacklistedFunctions.find(p_func->GetName())!=m_blacklistedFunctions.end());
+	return (p_func->GetName()[0] == '.' || m_blacklist.find(p_func->GetName())!=m_blacklist.end());
 }
 
 /*
@@ -615,14 +650,31 @@ int Zafl_t::execute()
 
 	insertExitPoints();
 
+	struct BaseIDSorter
+	{
+	    bool operator()( const Function_t* lhs, const Function_t* rhs ) const {
+		return lhs->GetBaseID() < rhs->GetBaseID();
+	    }
+	};
+
+	auto bb_id = 0;
+
 	// for all functions
 	//    for all basic blocks
 	//          afl_instrument
-	for (auto f : getFileIR()->GetFunctions())
+	set<Function_t*, BaseIDSorter> sortedFuncs(getFileIR()->GetFunctions().begin(), getFileIR()->GetFunctions().end());
+	for_each( sortedFuncs.begin(), sortedFuncs.end(), [&](Function_t* f)
 	{
-		if (!f) continue;
-		if (isBlacklisted(f) || !f->GetEntryPoint())
-			continue;
+		if (!f) return;
+		// skip instrumentation for blacklisted functions 
+		if (isBlacklisted(f)) return;
+		// skip if function has no entry point
+		if (!f->GetEntryPoint())
+			return;
+		// if whitelist specified, only allow instrumentation for functions in whitelist
+		if (m_whitelist.size() > 0 && m_whitelist.count(f->GetName()) == 0)
+			return;
+
 		bool leafAnnotation = true;
 		if (m_use_stars) 
 		{
@@ -640,21 +692,31 @@ int Zafl_t::execute()
 		ControlFlowGraph_t cfg(f);
 		for (auto bb : cfg.GetBlocks())
 		{
-			if (getenv("ZAFL_LIMIT_END"))
+			if (getenv("ZAFL_LIMIT_BEGIN"))
 			{
-				if (num_bb_instrumented >= atoi(getenv("ZAFL_LIMIT_END"))) 
-					goto outahere;
+				if (bb_id < atoi(getenv("ZAFL_LIMIT_BEGIN")))
+				{
+					bb_id++;
+					continue;	
+				}
 			}
 
-			cout << "Instrumenting basic block #" << dec << num_bb_instrumented << endl;
+			if (getenv("ZAFL_LIMIT_END"))
+			{
+				if (bb_id >= atoi(getenv("ZAFL_LIMIT_END"))) 
+					continue;
+			}
+
+			cout << "Instrumenting basic block #" << dec << bb_id << endl;
 			afl_instrument_bb(bb->GetInstructions()[0], leafAnnotation);
 			num_bb_instrumented++;
+			bb_id++;
 		}
 		
 		if (f) {
 			cout << "Function " << f->GetName() << " has " << dec << num_bb_instrumented - current << " basic blocks instrumented" << endl;
 		}
-	}
+	});
 
 	// count orphan instructions
 	for (auto i : getFileIR()->GetInstructions())
@@ -663,7 +725,6 @@ int Zafl_t::execute()
 			num_orphan_instructions++;
 	}
 
-outahere:
 	cout << "#ATTRIBUTE num_bb_instrumented=" << dec << num_bb_instrumented << endl;
 	cout << "#ATTRIBUTE num_orphan_instructions=" << dec << num_orphan_instructions << endl;
 	cout << "#ATTRIBUTE num_flags_saved=" << m_num_flags_saved << endl;

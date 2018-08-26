@@ -56,7 +56,8 @@ mkdir $session
 pushd $session
 
 # build ZAFL version of bc executable
-$PSZ `which bc` bc.stars.zafl -c move_globals=on -c zafl=on -o move_globals:--elftables -o zipr:--traceplacement:on -o zipr:true -o zafl:--stars 
+#$PSZ `which bc` bc.stars.zafl -c move_globals=on -c zafl=on -o move_globals:--elftables -o zipr:--traceplacement:on -o zipr:true -o zafl:--stars 
+zafl.sh `which bc` bc.stars.zafl
 if [ $? -eq 0 ]; then
 	log_success "build bc.stars.zafl"
 else

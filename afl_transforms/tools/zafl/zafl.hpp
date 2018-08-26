@@ -18,6 +18,8 @@ public:
 	Zafl_t(const Zafl::Zafl_t&) = delete;
 	Zafl_t(libIRDB::pqxxDB_t &p_dbinterface, libIRDB::FileIR_t *p_variantIR, string p_entry, set<string> p_exits, bool p_use_stars=false, bool p_verbose=false);
 	int execute();
+	void setWhitelist(const string&);
+	void setBlacklist(const string&);
 
 private:
 	void afl_instrument_bb(Instruction_t *inst, const bool p_hasLeafAnnotation);
@@ -41,8 +43,10 @@ private:
         std::pair<DataScoop_t*,int>  m_trace_map;  // afl shared memory trace map
         std::pair<DataScoop_t*,int>  m_prev_id;    // id of previous block
 
+	std::set<std::string>        m_whitelist;  
+	std::set<std::string>        m_blacklist;
+
 	std::set<zafl_blockid_t>     m_used_blockid;
-	std::set<std::string>        m_blacklistedFunctions;
 
 	unsigned m_num_flags_saved;
 	unsigned m_num_temp_reg_saved;

@@ -41,6 +41,8 @@ void usage(char* name)
 	cerr<<"\t[--stars]]                                   Enable STARS optimizations    "<<endl;
 	cerr<<"\t[--entrypoint {<funcName>|<hex_address>}]    Specify where to insert fork server"<<endl;
 	cerr<<"\t[--exitpoint {<funcName>|<hex_address>}]     Specify where to insert exit"<<endl;
+	cerr<<"\t[--whitelist whitelistFile]                  Specify list of functions to instrument"<<endl;
+	cerr<<"\t[--blacklist blacklistFile]                  Specify list of functions to omit"<<endl;
 }
 
 int main(int argc, char **argv)
@@ -56,6 +58,8 @@ int main(int argc, char **argv)
 	auto variantID = atoi(argv[1]);
 	auto verbose=false;
 	auto use_stars=false;
+	auto whitelistFile=string();
+	auto blacklistFile=string();
 	set<string> exitpoints;
 
 	srand(getpid()+time(NULL));
@@ -68,9 +72,11 @@ int main(int argc, char **argv)
 		{"stars", no_argument, 0, 's'},
 		{"entrypoint", required_argument, 0, 'e'},
 		{"exitpoint", required_argument, 0, 'E'},
+		{"whitelist", required_argument, 0, 'w'},
+		{"blacklist", required_argument, 0, 'b'},
 		{0,0,0,0}
 	};
-	const char* short_opts="e:E:sv?h";
+	const char* short_opts="e:E:w:sv?h";
 
 	while(true)
 	{
@@ -97,6 +103,12 @@ int main(int argc, char **argv)
 			break;
 		case 'E':
 			exitpoints.insert(optarg);
+			break;
+		case 'w':
+			whitelistFile=optarg;
+			break;
+		case 'b':
+			blacklistFile=optarg;
 			break;
 		default:
 			break;
@@ -126,8 +138,12 @@ int main(int argc, char **argv)
 
 		try
 		{
-			Zafl_t is(pqxx_interface, firp, entry_fork_server, exitpoints, use_stars, verbose);
-			int success=is.execute();
+			Zafl_t zafl_transform(pqxx_interface, firp, entry_fork_server, exitpoints, use_stars, verbose);
+			if (whitelistFile.size()>0)
+				zafl_transform.setWhitelist(whitelistFile);
+			if (blacklistFile.size()>0)
+				zafl_transform.setBlacklist(blacklistFile);
+			int success=zafl_transform.execute();
 
 			if (success)
 			{
