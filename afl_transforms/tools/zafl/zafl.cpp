@@ -572,7 +572,10 @@ void Zafl_t::setupForkServer()
 		{
 			insertForkServer("main"); 
 		}
+
 	}
+
+	// it's ok not to have a fork server at all, e.g. libraries
 }
 
 void Zafl_t::insertExitPoints()
@@ -629,6 +632,30 @@ bool Zafl_t::isBlacklisted(const Function_t *p_func) const
 	return (p_func->GetName()[0] == '.' || m_blacklist.find(p_func->GetName())!=m_blacklist.end());
 }
 
+bool Zafl_t::isWhitelisted(const Function_t *p_func) const
+{
+	if (m_whitelist.size() == 0) return true;
+	return (m_whitelist.find(p_func->GetName())!=m_whitelist.end());
+}
+
+bool Zafl_t::isBlacklisted(const Instruction_t *p_inst) const
+{
+	const auto vo = p_inst->GetAddress()->GetVirtualOffset();
+	char tmp[1024];
+	snprintf(tmp, 1000, "0x%x", (unsigned int)vo);
+	return (m_blacklist.count(tmp) > 0 || isBlacklisted(p_inst->GetFunction()));
+}
+
+bool Zafl_t::isWhitelisted(const Instruction_t *p_inst) const
+{
+	if (m_whitelist.size() == 0) return true;
+
+	const auto vo = p_inst->GetAddress()->GetVirtualOffset();
+	char tmp[1024];
+	snprintf(tmp, 1000, "0x%x", (unsigned int)vo);
+	return (m_whitelist.count(tmp) > 0 || isWhitelisted(p_inst->GetFunction()));
+}
+
 /*
  * Execute the transform.
  *
@@ -657,7 +684,7 @@ int Zafl_t::execute()
 	    }
 	};
 
-	auto bb_id = 0;
+	auto bb_id = -1;
 
 	// for all functions
 	//    for all basic blocks
@@ -670,9 +697,6 @@ int Zafl_t::execute()
 		if (isBlacklisted(f)) return;
 		// skip if function has no entry point
 		if (!f->GetEntryPoint())
-			return;
-		// if whitelist specified, only allow instrumentation for functions in whitelist
-		if (m_whitelist.size() > 0 && m_whitelist.count(f->GetName()) == 0)
 			return;
 
 		bool leafAnnotation = true;
@@ -692,15 +716,27 @@ int Zafl_t::execute()
 		ControlFlowGraph_t cfg(f);
 		for (auto bb : cfg.GetBlocks())
 		{
+			assert(bb->GetInstructions().size() > 0);
+
+			bb_id++;
+
+			// if whitelist specified, only allow instrumentation for functions/addresses in whitelist
+			if (m_whitelist.size() > 0) {
+				if (!isWhitelisted(bb->GetInstructions()[0]))
+					continue;
+			}
+
+			if (isBlacklisted(bb->GetInstructions()[0]))
+				continue;
+
+			// debugging support
 			if (getenv("ZAFL_LIMIT_BEGIN"))
 			{
 				if (bb_id < atoi(getenv("ZAFL_LIMIT_BEGIN")))
-				{
-					bb_id++;
 					continue;	
-				}
 			}
 
+			// debugging support
 			if (getenv("ZAFL_LIMIT_END"))
 			{
 				if (bb_id >= atoi(getenv("ZAFL_LIMIT_END"))) 
@@ -709,8 +745,8 @@ int Zafl_t::execute()
 
 			cout << "Instrumenting basic block #" << dec << bb_id << endl;
 			afl_instrument_bb(bb->GetInstructions()[0], leafAnnotation);
+
 			num_bb_instrumented++;
-			bb_id++;
 		}
 		
 		if (f) {

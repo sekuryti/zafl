@@ -56,13 +56,14 @@ mkdir $session
 pushd $session
 
 # build ZAFL version of bc executable
-#$PSZ `which bc` bc.stars.zafl -c move_globals=on -c zafl=on -o move_globals:--elftables -o zipr:--traceplacement:on -o zipr:true -o zafl:--stars 
-zafl.sh `which bc` bc.stars.zafl
+#$PSZ `which bc` bc.stars.zafl -c move_globals=on -c zafl=on -o move_globals:--elftables -o zipr:--traceplacement:on -o zipr:true -o zafl:--stars  
+zafl.sh `which bc` bc.stars.zafl --tempdir analysis.bc.stars.zafl
 if [ $? -eq 0 ]; then
 	log_success "build bc.stars.zafl"
 else
 	log_error "build bc.stars.zafl"
 fi
+grep ATTR analysis.bc.stars.zafl/logs/zafl.log
 
 log_message "Fuzz for $AFL_TIMEOUT secs"
 fuzz_with_zafl $(realpath ./bc.stars.zafl)

@@ -36,12 +36,14 @@ build_zafl()
 {
 	gzip_zafl=$1
 	shift
-	$PSZ `which gzip` $gzip_zafl -c move_globals=on -c zafl=on -o move_globals:--elftables -o zipr:--traceplacement:on -o zipr:true $*
+	$PSZ `which gzip` $gzip_zafl -c move_globals=on -c zafl=on -o move_globals:--elftables -o zipr:--traceplacement:on -o zipr:true $* --tempdir analysis.${gzip_zafl}
 	if [ ! $? -eq 0 ]; then
 		log_error "$gzip_zafl: unable to generate zafl version"	
 	else
 		log_message "$gzip_zafl: built successfully"
 	fi
+
+	grep ATTR analysis.${gzip_zafl}/logs/zafl.log
 }
 
 test_zafl()

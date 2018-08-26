@@ -29,7 +29,10 @@ private:
 	void insertForkServer(string p_forkServerEntry);
 	void setupForkServer();
 	void insertExitPoints();
-	bool isBlacklisted(const Function_t *p_func) const;
+	bool isBlacklisted(const Function_t*) const;
+	bool isWhitelisted(const Function_t*) const;
+	bool isBlacklisted(const Instruction_t*) const;
+	bool isWhitelisted(const Instruction_t*) const;
 
 private:
 	libIRDB::pqxxDB_t&           m_dbinterface;
