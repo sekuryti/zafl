@@ -1,5 +1,11 @@
-tools="aflgcc zafl dyninst qemu"
-binutils_binaries="size strings readelf strip-new nm-new"
+#!/bin/bash
+
+SCRIPT=$(readlink -f $0)
+MYDIR=$(dirname $SCRIPT)
+
+cd $MYDIR
+
+source binutils.spec
 
 for b in $binutils_binaries
 do
@@ -10,6 +16,10 @@ do
 			mkdir in
 		fi
 		echo "1" > in/1
+
+		if [ -d out ]; then
+			rm -fr out
+		fi
 		popd
 	done
 done
