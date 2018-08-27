@@ -19,7 +19,7 @@ do
 	echo "Remove any remnants of previous analysis runs"
 	rm -fr peasoup_exec*
 	echo "Building Zafl version of $b"
-	$PSZ ./$b ${b}.zafl -c move_globals=on -c zafl=on -o move_globals:--elftables -o zipr:--traceplacement:on -o zipr:true -o zafl:--stars 
+	zafl.sh ./$b ${b}.zafl 
 
 	ln -s $SECURITY_TRANSFORMS_HOME/lib/libzafl.so .
 

@@ -11,10 +11,4 @@ do
 	fi
 
 	cp binutils-gdb/binutils/$b ${b}_aflgcc/${b}.aflgcc
-
-	pushd $aflgcc_dir
-	echo "Building Zafl version of $b"
-	mkdir in
-	echo "1" > in/1
-	popd
 done
