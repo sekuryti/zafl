@@ -18,18 +18,21 @@ do
 	echo "fuzz_map for $b: ${fuzz_map[$b]}"
 
 	cd $MYDIR/${b}_aflgcc
-	nohup timeout $AFL_TIMEOUT afl-fuzz -i in -o out -- ./${b}.aflgcc ${fuzz_map[$b]} &
+	nohup timeout $AFL_TIMEOUT afl-fuzz ${afl_args[$b]} -i in -o out -- ./${b}.aflgcc ${fuzz_map[$b]} &
 
 	cd $MYDIR/${b}_zafl
-	nohup timeout $AFL_TIMEOUT afl-fuzz -i in -o out -- ./${b}.zafl ${fuzz_map[$b]} &
+	nohup timeout $AFL_TIMEOUT afl-fuzz ${afl_args[$b]} -i in -o out -- ./${b}.zafl ${fuzz_map[$b]} &
 
 	cd $MYDIR/${b}_dyninst
-	nohup timeout $AFL_TIMEOUT afl-fuzz -i in -o out -- ./${b}.dyninst ${fuzz_map[$b]} &
+	nohup timeout $AFL_TIMEOUT afl-fuzz ${afl_args[$b]} -i in -o out -- ./${b}.dyninst ${fuzz_map[$b]} &
 
 	cd $MYDIR/${b}_qemu
-	nohup timeout $AFL_TIMEOUT afl-fuzz -i in -o out -Q -- ./${b}.qemu ${fuzz_map[$b]} &
+	nohup timeout $AFL_TIMEOUT afl-fuzz ${afl_args[$b]} -i in -o out -Q -- ./${b}.qemu ${fuzz_map[$b]} &
 
 	sleep $EPOCH_TIMEOUT
+
+	pkill afl-fuzz >/dev/null 2>&1
+	pkill afl-qemu-trace >/dev/null 2>&1
 
 	grep execs ${b}_*/out/fuzzer_stats
 done
