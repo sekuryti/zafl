@@ -21,8 +21,6 @@ do
 	echo "Building Zafl version of $b"
 	zafl.sh ./$b ${b}.zafl 
 
-	ln -s $SECURITY_TRANSFORMS_HOME/lib/libzafl.so .
-
 	if [ ! -d in ]; then
 		mkdir in
 	fi

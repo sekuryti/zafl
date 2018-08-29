@@ -1,6 +1,6 @@
-tools="aflgcc zafl dyninst qemu"
+#tools can be aflgcc zafl qemu dyninst
+tools="aflgcc zafl qemu"
 
-#binutils_binaries="size strings readelf objdump cxxfilt ar"
 binutils_binaries="objdump size readelf strings cxxfilt nm-new strip-new ar"
 
 # specify how to run under afl
@@ -12,6 +12,7 @@ fuzz_map["strings"]=""
 fuzz_map["cxxfilt"]=""
 fuzz_map["nm-new"]="-a @@"
 fuzz_map["strip-new"]="@@"
+fuzz_map["gzip"]="-f"
 
 # additional afl params to pass in
 declare -A afl_args
