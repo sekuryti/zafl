@@ -187,17 +187,17 @@ int ConstantDecompose_t::execute()
 		cout << s << endl;
 
 		s = "sar " + free_reg + ", 0x18";
-		t = insertAssemblyAfter(getFileIR(), c, s);
+		t = insertAssemblyAfter(c, s);
 		cout << s << endl;
 
 		ss.str("");
 		ss << "cmp " << free_reg << ", 0x" << hex << byte0;
 		s = ss.str();
-		t = insertAssemblyAfter(getFileIR(), t, s);
+		t = insertAssemblyAfter(t, s);
 		cout << s << endl;
 
 		s = "jne 0";
-		t = insertAssemblyAfter(getFileIR(), t, s);
+		t = insertAssemblyAfter(t, s);
 		if (is_je) {
 			t->SetTarget(orig_jcc_fallthrough);
 			cout << "target: original fallthrough ";
@@ -217,25 +217,25 @@ int ConstantDecompose_t::execute()
 		jne xxx
 */
 		s = init_sequence;
-		t = insertAssemblyAfter(getFileIR(), t, s);
+		t = insertAssemblyAfter(t, s);
 		cout << s << endl;
 
 		s = "and " + free_reg + ", 0xff0000";
-		t = insertAssemblyAfter(getFileIR(), t, s);
+		t = insertAssemblyAfter(t, s);
 		cout << s << endl;
 
 		s = "sar " + free_reg + ", 0x10";
-		t = insertAssemblyAfter(getFileIR(), t, s);
+		t = insertAssemblyAfter(t, s);
 		cout << s << endl;
 
 		ss.str("");
 		ss << "cmp " << free_reg << ", 0x" << hex << byte1;
 		s = ss.str();
-		t = insertAssemblyAfter(getFileIR(), t, s);
+		t = insertAssemblyAfter(t, s);
 		cout << s << endl;
 
 		s = "jne 0";
-		t = insertAssemblyAfter(getFileIR(), t, s);
+		t = insertAssemblyAfter(t, s);
 		if (is_je) {
 			t->SetTarget(orig_jcc_fallthrough);
 			cout << "target: original fallthrough ";
@@ -254,25 +254,25 @@ int ConstantDecompose_t::execute()
 		jne    xxx
 */
 		s = init_sequence;
-		t = insertAssemblyAfter(getFileIR(), t, s);
+		t = insertAssemblyAfter(t, s);
 		cout << s << endl;
 
 		s = "and " + free_reg + ", 0xff00";
-		t = insertAssemblyAfter(getFileIR(), t, s);
+		t = insertAssemblyAfter(t, s);
 		cout << s << endl;
 
 		s = "sar " + free_reg + ", 0x8";
-		t = insertAssemblyAfter(getFileIR(), t, s);
+		t = insertAssemblyAfter(t, s);
 		cout << s << endl;
 
 		ss.str("");
 		ss << "cmp " << free_reg << ", 0x" << hex << byte2;
 		s = ss.str();
-		t = insertAssemblyAfter(getFileIR(), t, s);
+		t = insertAssemblyAfter(t, s);
 		cout << s << endl;
 
 		s = "jne 0";
-		t = insertAssemblyAfter(getFileIR(), t, s);
+		t = insertAssemblyAfter(t, s);
 		if (is_je) {
 			t->SetTarget(orig_jcc_fallthrough);
 			cout << "target: original fallthrough ";
@@ -290,24 +290,24 @@ int ConstantDecompose_t::execute()
   4005ed:	75 07                	jne    4005f6 <main+0x80>
 */
 		s = init_sequence;
-		t = insertAssemblyAfter(getFileIR(), t, s);
+		t = insertAssemblyAfter(t, s);
 		cout << s << endl;
 
 		s = "and " + free_reg + ", 0xff";
-		t = insertAssemblyAfter(getFileIR(), t, s);
+		t = insertAssemblyAfter(t, s);
 		cout << s << endl;
 
 		ss.str("");
 		ss << "cmp " << free_reg << ", 0x" << hex << byte3;
 		s = ss.str();
-		t = insertAssemblyAfter(getFileIR(), t, s);
+		t = insertAssemblyAfter(t, s);
 		cout << s << endl;
 
 		if (is_je)
 			s = "je 0";
 		else
 			s = "jne 0";
-		t = insertAssemblyAfter(getFileIR(), t, s);
+		t = insertAssemblyAfter(t, s);
 		t->SetTarget(orig_jcc_target);
 		t->SetFallthrough(orig_jcc_fallthrough);
 		cout << "target: original target   fallthrough: original fallthrough ";
