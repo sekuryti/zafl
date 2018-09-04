@@ -36,6 +36,8 @@ If all goes well with the postgres setup, you should be able to login into the d
 ### Setting up IDA with your license key
 ...
 
+## Testing Zafl
+
 ### Testing Zipr
 Test that the binary rewriting infrastructure by rewriting say /bin/ls
 ```$PSZ /bin/ls ls.zipr```
