@@ -39,6 +39,7 @@ If all goes well with the postgres setup, you should be able to login into the d
 ### Testing Zipr
 Test that the binary rewriting infrastructure by rewriting say /bin/ls
 ```$PSZ /bin/ls ls.zipr```
+
 Invoke the rewritten version of /bin/ls: ```./ls.zipr``` 
 
 ### Testing Zafl
