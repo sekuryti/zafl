@@ -7,7 +7,7 @@ Key features of Zafl:
     * 20% slower than afl/source code
     * 15% faster than afl/dyninst
     * a **lot** faster than afl/QEMU
-* Platform for experimenting with other edge-profile instrumentation
+* Platform for experimenting with other edge-profile instrumentation, e.g., add calling context to the edge-profile function (a la Angora)
 
 ## Installation
 Note that you will need **sudo** privileges to get and install all the required packages.
