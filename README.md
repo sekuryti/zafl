@@ -22,10 +22,18 @@ Note:
 * Zafl automatically downloads and builds AFL and AFL/QEMU
 * Building Zafl takes approximately 15 minutes
 
+### Postgres setup
 Next we need to setup a local copy of the postgres database
 ```bash
-cd zipr_umbrella
+cd $ZAFL_HOME/zipr_umbrella
 ./postgres_setup.sh
 ```
 
 If all goes well with the postgres setup, you should be able to login into the database by typing: ```psql``` 
+
+### IDA Key
+...
+
+### Testing Zipr
+
+### Testing Zafl
