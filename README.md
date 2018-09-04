@@ -3,7 +3,7 @@
 Welcome to *Zafl*, a project to fuzz X86 64-bit binary programs.
 
 ## Installation
-Note that you will need sudo privileges.
+Note that you will need sudo privileges to get and install all the required packages.
 ```bash
 git clone --recursive git@git.zephyr-software.com:allnp/zafl_umbrella.git
 cd zafl_umbrella
