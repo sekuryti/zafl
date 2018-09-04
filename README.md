@@ -1,6 +1,13 @@
 # Zafl (Zipr-based AFL)
 
-Welcome to *Zafl*, a project to fuzz X86 64-bit binary programs.
+Welcome to *Zafl*, a project to fuzz X86 64-bit binary programs. 
+
+Key features of Zafl:
+* Uses Zipr, a fast, space-efficient binary rewriter to inline AFL-style instrumentations
+  * Preliminary overhead: 
+     * On average 20% slower than afl/source code
+     * 15% faster than afl/dyninst
+     * a **lot** faster than afl/QEMU
 
 ## Installation
 Note that you will need **sudo** privileges to get and install all the required packages.
@@ -12,4 +19,4 @@ cd zafl_umbrella
 ./build-all.sh
 ```
 
-Building Zafl takes approximately XX minutes.
+Building Zafl takes approximately 10 minutes.
