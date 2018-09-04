@@ -1,0 +1,6 @@
+[submodule "zipr_umbrella"]
+	path = zipr_umbrella
+	url = git@git.zephyr-software.com:allnp/peasoup_umbrella.git
+[submodule "zfuzz"]
+	path = zfuzz
+	url = git@git.zephyr-software.com:allzp/zfuzz.git

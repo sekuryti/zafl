@@ -1,0 +1,7 @@
+# subdirs.
+submanifest zipr_umbrella/manifest.txt
+submanifest zfuzz/manifest.txt
+
+# env vars.
+file set_env_vars zafl
+file set_env_vars zfuzz

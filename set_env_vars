@@ -1,0 +1,15 @@
+export ZAFL_HOME=$PWD
+if [ -z "$ZAFL_INSTALL" -o -f manifest.txt ]; then
+	if [ -z "$ZAFL_INSTALL" ]; then
+		export ZAFL_INSTALL=$PWD/install
+	fi
+	export PS_INSTALL=$ZAFL_INSTALL/zipr_umbrella
+fi
+
+cd $ZAFL_HOME/zipr_umbrella
+source ./set_env_vars
+
+cd $ZAFL_HOME/zfuzz
+source ./set_env_vars
+
+cd $ZAFL_HOME
