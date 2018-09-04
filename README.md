@@ -19,4 +19,6 @@ cd zafl_umbrella
 ./build-all.sh
 ```
 
-Building Zafl takes approximately 10 minutes.
+Note:
+* Zafl automatically downloads and builds AFL
+* Building Zafl takes approximately 10 minutes
