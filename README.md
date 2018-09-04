@@ -20,5 +20,5 @@ cd zafl_umbrella
 ```
 
 Note:
-* Zafl automatically downloads and builds AFL
+* Zafl automatically downloads and builds AFL and AFL/QEMU
 * Building Zafl takes approximately 10 minutes
