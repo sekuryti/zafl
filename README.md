@@ -11,6 +11,8 @@ Key features of Zafl:
 
 ## Installation
 Note that you will need **sudo** privileges to get and install all the required packages.
+
+### Getting packages and compiling Zafl
 ```bash
 git clone --recursive git@git.zephyr-software.com:allnp/zafl_umbrella.git
 cd zafl_umbrella
@@ -22,7 +24,7 @@ Note:
 * Zafl automatically downloads and builds AFL and AFL/QEMU
 * Building Zafl takes approximately 15 minutes
 
-### Postgres setup
+### Setting up local postgres database
 Next we need to setup a local copy of the postgres database
 ```bash
 cd $ZAFL_HOME/zipr_umbrella
@@ -31,7 +33,7 @@ cd $ZAFL_HOME/zipr_umbrella
 
 If all goes well with the postgres setup, you should be able to login into the database by typing: ```psql``` 
 
-### IDA Key
+### Setting up IDA with your license key
 ...
 
 ### Testing Zipr
