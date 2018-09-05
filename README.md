@@ -155,6 +155,12 @@ TEST PASS: ./gzip.stars.zafl: ran zafl binary: execs_per_sec     : 2000.00
 TEST PASS: all tests passed: zafl instrumentation operational on gzip
 ```
 
+You should also run and make sure these tests pass:
+```bash
+cd $ZAFL_HOME/zfuzz/test/bc
+./test_bc.sh
+```
+
 #### Final sanity check
 ```bash
 cd /tmp
