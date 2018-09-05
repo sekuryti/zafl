@@ -52,6 +52,12 @@ cd $IDAROOT
 
 ## Testing Zafl
 
+Before running Zafl, always make sure to have your environment variable set
+```
+cd $ZAFL_HOME
+. set_env_vars
+```
+
 ### Testing Zipr
 Test that the binary rewriting infrastructure by rewriting /bin/ls
 ```
@@ -80,6 +86,39 @@ Invoke the rewritten version of /bin/ls and make sure it runs normally:
 ``` 
 
 ### Testing Zafl
+#### Make sure afl itself is setup properly
+```
+cd /tmp
+mkdir in
+echo "1" > in/1
+afl-fuzz -i in -o out -Q -- /bin/ls @@
+```
+
+You may see afl error messages such as this one that will need to be fixed:
+```
+afl-fuzz 2.52b by <lcamtuf@google.com>
+[+] You have 24 CPU cores and 1 runnable tasks (utilization: 4%).
+[+] Try parallel jobs - see docs/parallel_fuzzing.txt.
+[*] Checking CPU core loadout...
+[+] Found a free CPU core, binding to #0.
+[*] Checking core_pattern...
+
+[-] Hmm, your system is configured to send core dump notifications to an
+    external utility. This will cause issues: there will be an extended delay
+    between stumbling upon a crash and having this information relayed to the
+    fuzzer via the standard waitpid() API.
+
+    To avoid having crashes misinterpreted as timeouts, please log in as root
+    and temporarily modify /proc/sys/kernel/core_pattern, like so:
+
+    echo core >/proc/sys/kernel/core_pattern
+
+[-] PROGRAM ABORT : Pipe at the beginning of 'core_pattern'
+         Location : check_crash_handling(), afl-fuzz.c:7275
+```
+
+
+
 ```
 cd $ZAFL_HOME/zfuzz/test/gzip
 ./test_gzip.sh
