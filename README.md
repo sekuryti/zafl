@@ -234,7 +234,8 @@ To specify a blacklist of functions to skip:
 
 ```zafl.sh <target_binary> <zafl_output_binary> -o zafl:--blacklist <blacklistFile>```
 
-The white and black list files contain one entry per line.
+The white and black list files contain one entry per line. 
+Options may be combined.
 
 # TL;DR
 Once everything is installed properly:
