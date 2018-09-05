@@ -32,20 +32,59 @@ cd $ZAFL_HOME/zipr_umbrella
 ```
 
 If all goes well with the postgres setup, you should be able to login into the database by typing: ```psql``` 
+The output of psql should look something like this:
+```
+psql (9.3.22)
+SSL connection (cipher: DHE-RSA-AES256-GCM-SHA384, bits: 256)
+Type "help" for help.
 
+peasoup_XXX=> 
+```
 ### Setting up IDA with your license key
-...
+The standard Zipr toolchain configuration uses IDA Pro as part of its analysis phases. 
+Once you get a license from IDA, put your license key file in: ```$IDAROOT/```
+
+Then you must run IDA once in interactive mode and accept the licensing terms: 
+```
+cd $IDAROOT
+./idat64
+```
 
 ## Testing Zafl
 
 ### Testing Zipr
-Test that the binary rewriting infrastructure by rewriting say /bin/ls
-```$PSZ /bin/ls ls.zipr```
+Test that the binary rewriting infrastructure by rewriting /bin/ls
+```
+cd /tmp
+$PSZ /bin/ls ls.zipr
+```
 
-Invoke the rewritten version of /bin/ls and make sure it runs normally: ```./ls.zipr``` 
+Your terminal's output should look like this:
+```
+Using Zipr backend.
+Detected ELF file.
+Performing step gather_libraries [dependencies=mandatory] ...Done. Successful.
+Performing step meds_static [dependencies=mandatory] ...Done. Successful.
+Performing step pdb_register [dependencies=mandatory] ...Done. Successful.
+Performing step fill_in_cfg [dependencies=mandatory] ...Done. Successful.
+Performing step fill_in_indtargs [dependencies=mandatory] ...Done. Successful.
+Performing step clone [dependencies=mandatory] ...Done. Successful.
+Performing step fix_calls [dependencies=mandatory] ...Done. Successful.
+Program not detected in signature database.
+Performing step zipr [dependencies=clone,fill_in_indtargs,fill_in_cfg,pdb_register] ...Done. Successful.
+```
+
+Invoke the rewritten version of /bin/ls and make sure it runs normally: 
+```
+./ls.zipr
+``` 
 
 ### Testing Zafl
 ```
 cd $ZAFL_HOME/zfuzz/test/gzip
 ./test_gzip.sh
 ```
+
+
+
+
