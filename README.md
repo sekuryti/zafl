@@ -213,15 +213,28 @@ afl-cmin -i out/queue/ -o out.cmin -- ./ls.zafl @@
 
 Et voila!
 
-## Other options to zafl.sh
+## Options to zafl.sh
 To specify the entry point for the fork server (by default, zafl.sh will look for main()):
+
 ```zafl.sh <target_binary> <zafl_output_binary> -o zafl:--entrypoint {<functionName> | 0xaddress}```
 
 To specify exit points:
+
 ```zafl.sh <target_binary> <zafl_output_binary> -o zafl:--exitpoint {<functionName> | 0xaddress}```
 
 To specify multiple exit points:
+
 ```zafl.sh <target_binary> <zafl_output_binary> -o zafl:--exitpoint {<functionName> | 0xaddress} ... -o zafl:--exitpoint {<functionName> | 0xaddress}```
+
+To specify a whitelist of functions to instrument:
+
+```zafl.sh <target_binary> <zafl_output_binary> -o zafl:--whitelist <whitelistFile>
+
+To specify a blacklist of functions to skip:
+
+```zafl.sh <target_binary> <zafl_output_binary> -o zafl:--blacklist <blacklistFile>
+
+The white and black list files contain one entry per line.
 
 # TL;DR
 Once everything is installed properly:
