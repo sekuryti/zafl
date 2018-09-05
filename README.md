@@ -136,11 +136,64 @@ or:
 Fix any afl-related errors until you can run:
 ```afl-fuzz -i in -o out -Q -- /bin/ls @@```
 
-
+#### Running Zafl smoke tests
 ```bash
 cd $ZAFL_HOME/zfuzz/test/gzip
 ./test_gzip.sh
 ```
+
+The test will run afl on gzip instrumented with the proper instrumentation inlined. 
+The output should end with:
+```
+execs_since_crash : 77855
+exec_timeout      : 20
+afl_banner        : gzip.stars.zafl
+afl_version       : 2.52b
+target_mode       : default
+command_line      : afl-fuzz -i zafl_in -o zafl_out -- ./gzip.stars.zafl -f
+TEST PASS: ./gzip.stars.zafl: ran zafl binary: execs_per_sec     : 2000.00
+TEST PASS: all tests passed: zafl instrumentation operational on gzip
+```
+
+#### Final sanity check
+```bash
+cd /tmp
+zafl.sh /bin/ls ls.zafl
+```
+
+**zafl.sh** is the primary script for adding afl instrumentation to binaries. 
+You should see:
+```
+zafl.sh /bin/ls ls.zafl
+Zafl: Transforming input binary /bin/ls into ls.zafl
+Zafl: Issuing command: /home/zafl_guest/zafl_umbrella/install/zipr_umbrella/peasoup_examples/tools/ps_zipr.sh /bin/ls ls.zafl -c move_globals=on -c zafl=on -o move_globals:--elftables -o zipr:--traceplacement:on -o zipr:true -o zafl:--stars 
+Using Zipr backend.
+Detected ELF file.
+Performing step gather_libraries [dependencies=mandatory] ...Done. Successful.
+Performing step meds_static [dependencies=mandatory] ...Done. Successful.
+Performing step pdb_register [dependencies=mandatory] ...Done. Successful.
+Performing step fill_in_cfg [dependencies=mandatory] ...Done. Successful.
+Performing step fill_in_indtargs [dependencies=mandatory] ...Done. Successful.
+Performing step clone [dependencies=mandatory] ...Done. Successful.
+Performing step fix_calls [dependencies=mandatory] ...Done. Successful.
+Program not detected in signature database.
+Performing step move_globals [dependencies=none] ...Done. Successful.
+Performing step zafl [dependencies=none] ...Done. Successful.
+Performing step zipr [dependencies=clone,fill_in_indtargs,fill_in_cfg,pdb_register] ...Done. Successful.
+```
+
+You can run **ls.zafl** as you would ls: ```./ls.zafl```
+
+To make sure the binary has been instrumented properly: ```ZAFL_DEBUG=1 ./ls.zafl```
+
+The output should start with:
+```
+Error getting shm environment variable - fake allocate AFL trace map
+Error getting shm environment variable - fake allocate AFL trace map
+zafl_initAflForkServer(): Bad file descriptor
+```
+
+
 
 
 
