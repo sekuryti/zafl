@@ -24,8 +24,8 @@ Note:
 * Zafl automatically downloads and builds AFL and AFL/QEMU
 * Building Zafl takes approximately 15 minutes
 
-### Setting up local postgres database
-Next we need to setup a local copy of the postgres database
+### Setting up local postgres tables
+Next we need to setup the proper tables in a local copy of the postgres database (email admin for instructions if you want to use a remote Postgres database). 
 ```bash
 cd $ZAFL_HOME/zipr_umbrella
 ./postgres_setup.sh
