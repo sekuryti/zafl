@@ -53,14 +53,14 @@ cd $IDAROOT
 ## Testing Zafl
 
 Before running Zafl, always make sure to have your environment variable set
-```
+```bash
 cd $ZAFL_HOME
 . set_env_vars
 ```
 
 ### Testing Zipr
 Test that the binary rewriting infrastructure by rewriting /bin/ls
-```
+```bash
 cd /tmp
 $PSZ /bin/ls ls.zipr
 ```
@@ -117,9 +117,24 @@ afl-fuzz 2.52b by <lcamtuf@google.com>
          Location : check_crash_handling(), afl-fuzz.c:7275
 ```
 
-
+or:
 
 ```
+[-] Whoops, your system uses on-demand CPU frequency scaling, adjusted
+    between 1558 and 2338 MHz. Unfortunately, the scaling algorithm in the
+    kernel is imperfect and can miss the short-lived processes spawned by
+    afl-fuzz. To keep things moving, run these commands as root:
+
+    cd /sys/devices/system/cpu
+    echo performance | tee cpu*/cpufreq/scaling_governor
+
+    You can later go back to the original state by replacing 'performance' with
+    'ondemand'. If you don't want to change the settings, set AFL_SKIP_CPUFREQ
+    to make afl-fuzz skip this check - but expect some performance drop.
+```
+
+
+```bash
 cd $ZAFL_HOME/zfuzz/test/gzip
 ./test_gzip.sh
 ```
