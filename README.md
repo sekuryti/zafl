@@ -228,11 +228,11 @@ To specify multiple exit points:
 
 To specify a whitelist of functions to instrument:
 
-```zafl.sh <target_binary> <zafl_output_binary> -o zafl:--whitelist <whitelistFile>
+```zafl.sh <target_binary> <zafl_output_binary> -o zafl:--whitelist <whitelistFile>```
 
 To specify a blacklist of functions to skip:
 
-```zafl.sh <target_binary> <zafl_output_binary> -o zafl:--blacklist <blacklistFile>
+```zafl.sh <target_binary> <zafl_output_binary> -o zafl:--blacklist <blacklistFile>```
 
 The white and black list files contain one entry per line.
 
