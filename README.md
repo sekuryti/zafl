@@ -87,7 +87,7 @@ Invoke the rewritten version of /bin/ls and make sure it runs normally:
 
 ### Testing Zafl
 #### Make sure afl itself is setup properly
-```
+```bash
 cd /tmp
 mkdir in
 echo "1" > in/1
@@ -215,7 +215,6 @@ Et voila!
 
 # TL;DR
 Once everything is installed properly:
-
 ```zafl.sh <target_binary> <zafl_output_binary>```
 
 
