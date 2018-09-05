@@ -214,10 +214,12 @@ afl-cmin -i out/queue/ -o out.cmin -- ./ls.zafl @@
 Et voila!
 
 ## Other options to zafl.sh
-```bash
-zafl.sh <target_binary> <zafl_output_binary> -o zafl:--entrypoint [<functionName> | 0xaddress]
-zafl.sh <target_binary> <zafl_output_binary> -o zafl:--exitpoint [<functionName> | 0xaddress]
-```
+To specify the entry point for the fork server (by default, zafl.sh will look for main()):
+```zafl.sh <target_binary> <zafl_output_binary> **-o zafl:--entrypoint {<functionName> | 0xaddress}**```
+
+To specify exit points:
+```zafl.sh <target_binary> <zafl_output_binary> **-o zafl:--exitpoint {<functionName> | 0xaddress}**```
+
 
 # TL;DR
 Once everything is installed properly:
