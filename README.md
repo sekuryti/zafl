@@ -133,6 +133,9 @@ or:
     to make afl-fuzz skip this check - but expect some performance drop.
 ```
 
+Fix any afl-related errors until you can run:
+```afl-fuzz -i in -o out -Q -- /bin/ls @@```
+
 
 ```bash
 cd $ZAFL_HOME/zfuzz/test/gzip
