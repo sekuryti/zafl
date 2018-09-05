@@ -188,7 +188,8 @@ Performing step zafl [dependencies=none] ...Done. Successful.
 Performing step zipr [dependencies=clone,fill_in_indtargs,fill_in_cfg,pdb_register] ...Done. Successful.
 ```
 
-You can run **ls.zafl** as you would ls: ```./ls.zafl```
+You can run **ls.zafl** as you would **ls**: ```./ls.zafl```
+
 Zafl'd binaries can be run normally. There is no extra output.
 
 To make sure the binary has been instrumented properly: ```ZAFL_DEBUG=1 ./ls.zafl```
