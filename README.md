@@ -195,12 +195,12 @@ zafl_initAflForkServer(): Bad file descriptor
 ```
 
 Let's now run the Zafl'd binary with afl:
-```
+```bash
 afl-fuzz -i in -o out -- ./ls.zafl @@
 ```
 
 You can also run the usual afl utities, e.g:
-```
+```bash
 afl-showmap -o map.out -- ./ls.zafl
 afl-cmin -i out/queue/ -o out.cmin -- ./ls.zafl @@
 ```
