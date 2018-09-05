@@ -238,7 +238,7 @@ The white and black list files contain one entry per line.
 
 # TL;DR
 Once everything is installed properly:
-```zafl.sh <target_binary> <zafl_output_binary>```
+```zafl.sh <target_binary> <zafl_output_binary> [options]```
 
 
 
