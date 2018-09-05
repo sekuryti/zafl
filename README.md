@@ -183,6 +183,7 @@ Performing step zipr [dependencies=clone,fill_in_indtargs,fill_in_cfg,pdb_regist
 ```
 
 You can run **ls.zafl** as you would ls: ```./ls.zafl```
+Zafl'd binaries can be run normally. There is no extra output.
 
 To make sure the binary has been instrumented properly: ```ZAFL_DEBUG=1 ./ls.zafl```
 
@@ -193,7 +194,18 @@ Error getting shm environment variable - fake allocate AFL trace map
 zafl_initAflForkServer(): Bad file descriptor
 ```
 
+Let's now run the Zafl'd binary with afl:
+```
+afl-fuzz -i in -o out -- ./ls.zafl @@
+```
 
+You can also run the usual afl utities, e.g:
+```
+afl-showmap -o map.out -- ./ls.zafl
+afl-cmin -i out/queue/ -o out.cmin -- ./ls.zafl @@
+```
+
+Et voila!
 
 
 
