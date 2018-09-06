@@ -50,7 +50,7 @@ cd $IDAROOT
 ./idat64
 ```
 
-Be sure to check the box that says "Don't display in the future"
+**Be sure to check the box that says "Don't display in the future"**
 
 ## Testing Zafl
 
