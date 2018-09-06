@@ -50,6 +50,8 @@ cd $IDAROOT
 ./idat64
 ```
 
+Be sure to check the box that says "Don't display in the future"
+
 ## Testing Zafl
 
 Before running Zafl, always make sure to have your environment variable set
