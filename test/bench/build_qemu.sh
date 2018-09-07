@@ -9,5 +9,5 @@ do
 		mkdir ${b}_qemu
 	fi
 
-	cp binutils-gdb/binutils/$b ${b}_qemu/${b}.qemu
+	cp binutils-2.30/binutils/$b ${b}_qemu/${b}.qemu
 done

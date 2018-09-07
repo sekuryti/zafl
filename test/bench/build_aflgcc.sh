@@ -10,5 +10,5 @@ do
 		mkdir ${b}_aflgcc
 	fi
 
-	cp binutils-gdb/binutils/$b ${b}_aflgcc/${b}.aflgcc
+	cp binutils-2.30/binutils/$b ${b}_aflgcc/${b}.aflgcc
 done

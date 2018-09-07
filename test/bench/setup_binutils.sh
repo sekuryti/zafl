@@ -1,4 +1,4 @@
-pushd binutils-gdb
+pushd binutils-2.30
 make clean distclean
 rm -fr config.cache
 rm -fr */config.cache

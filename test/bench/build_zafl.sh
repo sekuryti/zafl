@@ -13,7 +13,7 @@ do
 		mkdir ${b}_zafl
 	fi
 
-	cp binutils-gdb/binutils/$b ${b}_zafl/
+	cp binutils-2.30/binutils/$b ${b}_zafl/
 
 	pushd $zafl_dir
 	echo "Remove any remnants of previous analysis runs"

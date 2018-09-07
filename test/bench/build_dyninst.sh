@@ -12,7 +12,7 @@ do
 		mkdir ${b}_dyninst
 	fi
 
-	cp binutils-gdb/binutils/$b ${b}_dyninst
+	cp binutils-2.30/binutils/$b ${b}_dyninst
 
 	pushd $dyninst_dir
 	echo "Building Zafl version of $b"

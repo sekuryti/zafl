@@ -1,7 +1,8 @@
 #tools can be aflgcc zafl qemu dyninst
 tools="aflgcc zafl qemu"
 
-binutils_binaries="objdump size readelf strings cxxfilt nm-new strip-new ar"
+#binutils_binaries="objdump size readelf strings cxxfilt nm-new strip-new ar"
+binutils_binaries="objdump readelf nm-new"
 
 # specify how to run under afl
 declare -A fuzz_map
