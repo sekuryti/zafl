@@ -41,7 +41,7 @@ using namespace Zafl;
 using namespace IRDBUtility;
 using namespace MEDS_Annotation;
 
-Zafl_t::Zafl_t(libIRDB::pqxxDB_t &p_dbinterface, libIRDB::FileIR_t *p_variantIR, string p_forkServerEntryPoint, set<string> p_exitPoints, bool p_use_stars, bool p_verbose)
+Zafl_t::Zafl_t(libIRDB::pqxxDB_t &p_dbinterface, libIRDB::FileIR_t *p_variantIR, string p_forkServerEntryPoint, set<string> p_exitPoints, bool p_use_stars, bool p_autozafl, bool p_verbose)
 	:
 	Transform(NULL, p_variantIR, NULL),
 	m_dbinterface(p_dbinterface),
@@ -49,14 +49,24 @@ Zafl_t::Zafl_t(libIRDB::pqxxDB_t &p_dbinterface, libIRDB::FileIR_t *p_variantIR,
 	m_fork_server_entry(p_forkServerEntryPoint),
 	m_exitpoints(p_exitPoints),
 	m_use_stars(p_use_stars),
+	m_autozafl(p_autozafl),
 	m_verbose(p_verbose)
 {
 	auto ed=ElfDependencies_t(getFileIR());
-	(void)ed.prependLibraryDepedencies("libzafl.so");
+	if (p_autozafl)
+	{
+		cout << "autozafl library is on" << endl;
+		(void)ed.prependLibraryDepedencies("libautozafl.so");
+	}
+	else
+	{
+		cout << "autozafl library is off" << endl;
+		(void)ed.prependLibraryDepedencies("libzafl.so");
+	}
         m_trace_map = ed.appendGotEntry("zafl_trace_map");
         m_prev_id = ed.appendGotEntry("zafl_prev_id");
 
-	m_blacklist.insert(".init_proc");
+	// let's not instrument these functions ever
 	m_blacklist.insert("init");
 	m_blacklist.insert("_init");
 	m_blacklist.insert("fini");

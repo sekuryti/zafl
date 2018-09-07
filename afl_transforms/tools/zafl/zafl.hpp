@@ -16,7 +16,7 @@ public:
 	// explicitly disable default and copy constructors
 	Zafl_t() = delete;
 	Zafl_t(const Zafl::Zafl_t&) = delete;
-	Zafl_t(libIRDB::pqxxDB_t &p_dbinterface, libIRDB::FileIR_t *p_variantIR, string p_entry, set<string> p_exits, bool p_use_stars=false, bool p_verbose=false);
+	Zafl_t(libIRDB::pqxxDB_t &p_dbinterface, libIRDB::FileIR_t *p_variantIR, string p_entry, set<string> p_exits, bool p_use_stars=false, bool p_autozafl=false, bool p_verbose=false);
 	int execute();
 	void setWhitelist(const string&);
 	void setBlacklist(const string&);
@@ -41,6 +41,7 @@ private:
 	string                       m_fork_server_entry;  // string to specify fork server entry point
 	set<string>                  m_exitpoints;
 	bool                         m_use_stars;
+	bool                         m_autozafl;
 	bool                         m_verbose;
 
         std::pair<DataScoop_t*,int>  m_trace_map;  // afl shared memory trace map

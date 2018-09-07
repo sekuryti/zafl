@@ -33,16 +33,17 @@ using namespace std;
 using namespace libIRDB;
 using namespace Zafl;
 
-void usage(char* name)
+static void usage(char* name)
 {
 	cerr<<"Usage: "<<name<<" <variant_id>\n";
-	cerr<<"\t[--verbose | -v]                             Verbose mode                  "<<endl;
-	cerr<<"\t[--help,--usage,-?,-h]                       Display this message          "<<endl;
-	cerr<<"\t[--stars]]                                   Enable STARS optimizations    "<<endl;
-	cerr<<"\t[--entrypoint {<funcName>|<hex_address>}]    Specify where to insert fork server"<<endl;
-	cerr<<"\t[--exitpoint {<funcName>|<hex_address>}]     Specify where to insert exit"<<endl;
-	cerr<<"\t[--whitelist whitelistFile]                  Specify list of functions to instrument"<<endl;
-	cerr<<"\t[--blacklist blacklistFile]                  Specify list of functions to omit"<<endl;
+	cerr<<"\t[--verbose | -v]                               Verbose mode                  "<<endl;
+	cerr<<"\t[--help,--usage,-?,-h]                         Display this message          "<<endl;
+	cerr<<"\t[--stars|-s]                                   Enable STARS optimizations    "<<endl;
+	cerr<<"\t[--entrypoint|-e {<funcName>|<hex_address>}]   Specify where to insert fork server (defaults to main if found)"<<endl;
+	cerr<<"\t[--exitpoint|-E {<funcName>|<hex_address>}]    Specify where to insert exit"<<endl;
+	cerr<<"\t[--whitelist|-w whitelistFile]                 Specify list of functions to instrument"<<endl;
+	cerr<<"\t[--blacklist|-b blacklistFile]                 Specify list of functions to omit"<<endl;
+	cerr<<"\t[--autozafl|-a]                                Auto-initialize fork server (incompatible with --entrypoint)"<<endl;
 }
 
 int main(int argc, char **argv)
@@ -58,6 +59,7 @@ int main(int argc, char **argv)
 	auto variantID = atoi(argv[1]);
 	auto verbose=false;
 	auto use_stars=false;
+	auto autozafl=false;
 	auto whitelistFile=string();
 	auto blacklistFile=string();
 	set<string> exitpoints;
@@ -74,9 +76,10 @@ int main(int argc, char **argv)
 		{"exitpoint", required_argument, 0, 'E'},
 		{"whitelist", required_argument, 0, 'w'},
 		{"blacklist", required_argument, 0, 'b'},
+		{"autozafl", no_argument, 0, 'a'},
 		{0,0,0,0}
 	};
-	const char* short_opts="e:E:w:sv?h";
+	const char* short_opts="e:E:w:sv?ha";
 
 	while(true)
 	{
@@ -92,7 +95,7 @@ int main(int argc, char **argv)
 		case '?':
 		case 'h':
 			usage(argv[0]);
-			exit(1);
+			exit(0);
 			break;
 		case 's':
 			use_stars=true;
@@ -110,9 +113,19 @@ int main(int argc, char **argv)
 		case 'b':
 			blacklistFile=optarg;
 			break;
+		case 'a':
+			autozafl=true;
+			break;
 		default:
 			break;
 		}
+	}
+
+	if (entry_fork_server.size() > 0 && autozafl)
+	{
+		cerr << "--entrypoint and --autozafl are incompatible options" << endl;
+		usage(argv[0]);
+		exit(1);
 	}
 
 	VariantID_t *pidp=NULL;
@@ -138,11 +151,12 @@ int main(int argc, char **argv)
 
 		try
 		{
-			Zafl_t zafl_transform(pqxx_interface, firp, entry_fork_server, exitpoints, use_stars, verbose);
+			Zafl_t zafl_transform(pqxx_interface, firp, entry_fork_server, exitpoints, use_stars, autozafl, verbose);
 			if (whitelistFile.size()>0)
 				zafl_transform.setWhitelist(whitelistFile);
 			if (blacklistFile.size()>0)
 				zafl_transform.setBlacklist(blacklistFile);
+
 			int success=zafl_transform.execute();
 
 			if (success)
