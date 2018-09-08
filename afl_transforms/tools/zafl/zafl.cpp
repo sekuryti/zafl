@@ -50,6 +50,7 @@ Zafl_t::Zafl_t(libIRDB::pqxxDB_t &p_dbinterface, libIRDB::FileIR_t *p_variantIR,
 	m_exitpoints(p_exitPoints),
 	m_use_stars(p_use_stars),
 	m_autozafl(p_autozafl),
+	m_bb_graph_optimize(false),
 	m_verbose(p_verbose)
 {
 	auto ed=ElfDependencies_t(getFileIR());
@@ -74,6 +75,7 @@ Zafl_t::Zafl_t(libIRDB::pqxxDB_t &p_dbinterface, libIRDB::FileIR_t *p_variantIR,
 	m_blacklist.insert("register_tm_clones");
 	m_blacklist.insert("deregister_tm_clones");
 	m_blacklist.insert("frame_dummy");
+	m_blacklist.insert("__do_global_ctors_aux");
 	m_blacklist.insert("__do_global_dtors_aux");
 	m_blacklist.insert("__libc_csu_init");
 	m_blacklist.insert("__libc_csu_fini");
@@ -82,6 +84,11 @@ Zafl_t::Zafl_t(libIRDB::pqxxDB_t &p_dbinterface, libIRDB::FileIR_t *p_variantIR,
 	m_num_temp_reg_saved = 0;
 	m_num_tracemap_reg_saved = 0;
 	m_num_previd_reg_saved = 0;
+	m_num_bb_zero_predecessors = 0;
+	m_num_bb_zero_successors = 0;
+	m_num_bb_single_predecessors = 0;
+	m_num_bb_single_successors = 0;
+	m_num_bb_skipped = 0;
 }
 
 static void create_got_reloc(FileIR_t* fir, pair<DataScoop_t*,int> wrt, Instruction_t* i)
@@ -639,7 +646,9 @@ void Zafl_t::insertExitPoints()
 
 bool Zafl_t::isBlacklisted(const Function_t *p_func) const
 {
-	return (p_func->GetName()[0] == '.' || m_blacklist.find(p_func->GetName())!=m_blacklist.end());
+	return (p_func->GetName()[0] == '.' || 
+	        p_func->GetName().find("@plt") != string::npos ||
+	        m_blacklist.find(p_func->GetName())!=m_blacklist.end());
 }
 
 bool Zafl_t::isWhitelisted(const Function_t *p_func) const
@@ -695,6 +704,7 @@ int Zafl_t::execute()
 	};
 
 	auto bb_id = -1;
+	auto num_bb = 0;
 
 	// for all functions
 	//    for all basic blocks
@@ -716,19 +726,26 @@ int Zafl_t::execute()
 		}
 
 		cout << endl;
+
+		ControlFlowGraph_t cfg(f);
+		auto num_bb_instrumented_this_function = 0;
+		const auto num_blocks = cfg.GetBlocks().size();
+		num_bb += num_blocks;
+
 		if (leafAnnotation)
 			cout << "Processing leaf function: ";
 		else
 			cout << "Processing function: ";
-		cout << f->GetName() << endl;
+		cout << f->GetName();
+		cout << " " << num_blocks << " basic blocks" << endl;
 
-		auto current = num_bb_instrumented;
-		ControlFlowGraph_t cfg(f);
 		for (auto bb : cfg.GetBlocks())
 		{
 			assert(bb->GetInstructions().size() > 0);
 
 			bb_id++;
+
+			cout << "basic block id#" << bb_id << " has " << bb->GetInstructions().size() << " instructions" << endl;
 
 			// if whitelist specified, only allow instrumentation for functions/addresses in whitelist
 			if (m_whitelist.size() > 0) {
@@ -738,6 +755,7 @@ int Zafl_t::execute()
 
 			if (isBlacklisted(bb->GetInstructions()[0]))
 				continue;
+
 
 			// debugging support
 			if (getenv("ZAFL_LIMIT_BEGIN"))
@@ -753,14 +771,31 @@ int Zafl_t::execute()
 					continue;
 			}
 
-			cout << "Instrumenting basic block #" << dec << bb_id << endl;
-			afl_instrument_bb(bb->GetInstructions()[0], leafAnnotation);
+			if (bb->GetPredecessors().size() == 0)
+				m_num_bb_zero_predecessors++;
+			if (bb->GetPredecessors().size() == 1)
+				m_num_bb_single_predecessors++;
+			if (bb->GetSuccessors().size() == 0)
+				m_num_bb_zero_successors++;
+			
+			if (bb->GetSuccessors().size() == 1)
+			{ 
+				m_num_bb_single_successors++;
+				if (m_bb_graph_optimize)
+				{
+					m_num_bb_skipped++;
+					continue;
+				}
+			}
 
-			num_bb_instrumented++;
+			cout << "Instrumenting basic block #" << dec << bb_id << " preds: " << bb->GetPredecessors().size() << " succs: " << bb->GetSuccessors().size() << endl;
+			num_bb_instrumented_this_function++;
+			afl_instrument_bb(bb->GetInstructions()[0], leafAnnotation);
 		}
 		
+		num_bb_instrumented += num_bb_instrumented_this_function;
 		if (f) {
-			cout << "Function " << f->GetName() << " has " << dec << num_bb_instrumented - current << " basic blocks instrumented" << endl;
+			cout << "Function " << f->GetName() << " :  " << dec << num_bb_instrumented_this_function << "/" << cfg.GetBlocks().size() << " basic blocks instrumented." << endl;
 		}
 	});
 
@@ -777,6 +812,12 @@ int Zafl_t::execute()
 	cout << "#ATTRIBUTE num_temp_reg_saved=" << m_num_temp_reg_saved << endl;
 	cout << "#ATTRIBUTE num_tracemap_reg_saved=" << m_num_tracemap_reg_saved << endl;
 	cout << "#ATTRIBUTE num_previd_reg_saved=" << m_num_previd_reg_saved << endl;
+	cout << "#ATTRIBUTE num_bb=" << dec << num_bb << endl;
+	cout << "#ATTRIBUTE num_bb_zero_predecessors=" << dec << m_num_bb_zero_predecessors << endl;
+	cout << "#ATTRIBUTE num_bb_zero_successors=" << dec << m_num_bb_zero_successors << endl;
+	cout << "#ATTRIBUTE num_bb_single_predecessors=" << dec << m_num_bb_single_predecessors << endl;
+	cout << "#ATTRIBUTE num_bb_single_successors=" << dec << m_num_bb_single_successors << endl;
+	cout << "#ATTRIBUTE num_bb_skipped=" << dec << m_num_bb_skipped << endl;
 
 	return 1;
 }

@@ -41,8 +41,10 @@ static void usage(char* name)
 	cerr<<"\t[--stars|-s]                                   Enable STARS optimizations    "<<endl;
 	cerr<<"\t[--entrypoint|-e {<funcName>|<hex_address>}]   Specify where to insert fork server (defaults to main if found)"<<endl;
 	cerr<<"\t[--exitpoint|-E {<funcName>|<hex_address>}]    Specify where to insert exit"<<endl;
-	cerr<<"\t[--whitelist|-w whitelistFile]                 Specify list of functions to instrument"<<endl;
-	cerr<<"\t[--blacklist|-b blacklistFile]                 Specify list of functions to omit"<<endl;
+	cerr<<"\t[--whitelist|-w whitelistFile]                 Specify list of functions/addresses to instrument"<<endl;
+	cerr<<"\t[--blacklist|-b blacklistFile]                 Specify list of functions/addresses to omit"<<endl;
+	cerr<<"\t[--enable-bb-graph-optimization|-g]            Elide instrumentation if basic block has 1 successor"<<endl;
+	cerr<<"\t[--disable-bb-graph-optimization|-G]           Elide instrumentation if basic block has 1 successor"<<endl;
 	cerr<<"\t[--autozafl|-a]                                Auto-initialize fork server (incompatible with --entrypoint)"<<endl;
 }
 
@@ -62,6 +64,7 @@ int main(int argc, char **argv)
 	auto autozafl=false;
 	auto whitelistFile=string();
 	auto blacklistFile=string();
+	auto bb_graph_optimize=false;
 	set<string> exitpoints;
 
 	srand(getpid()+time(NULL));
@@ -77,9 +80,11 @@ int main(int argc, char **argv)
 		{"whitelist", required_argument, 0, 'w'},
 		{"blacklist", required_argument, 0, 'b'},
 		{"autozafl", no_argument, 0, 'a'},
+		{"enable-bb-graph-optimization", no_argument, 0, 'g'},
+		{"disable-bb-graph-optimization", no_argument, 0, 'G'},
 		{0,0,0,0}
 	};
-	const char* short_opts="e:E:w:sv?ha";
+	const char* short_opts="e:E:w:sv?hagG";
 
 	while(true)
 	{
@@ -115,6 +120,12 @@ int main(int argc, char **argv)
 			break;
 		case 'a':
 			autozafl=true;
+			break;
+		case 'g':
+			bb_graph_optimize=true;;
+			break;
+		case 'G':
+			bb_graph_optimize=false;
 			break;
 		default:
 			break;
@@ -156,6 +167,7 @@ int main(int argc, char **argv)
 				zafl_transform.setWhitelist(whitelistFile);
 			if (blacklistFile.size()>0)
 				zafl_transform.setBlacklist(blacklistFile);
+			zafl_transform.setBasicBlockOptimization(bb_graph_optimize);
 
 			int success=zafl_transform.execute();
 
