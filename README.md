@@ -58,7 +58,7 @@ cd $IDAROOT
 
 Before running Zafl, always make sure to have your environment variable set
 ```bash
-cd $ZAFL_HOME
+cd <zafl_top_level_directory>
 . set_env_vars
 ```
 
