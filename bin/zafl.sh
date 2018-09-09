@@ -17,16 +17,23 @@ grep "<main>:" $tmp_objdump >/dev/null 2>&1
 if [ ! $? -eq 0 ]; then
 	grep -B1 libc_start_main@plt $tmp_objdump >/dev/null 2>&1
 	if [ $? -eq 0 ]; then
-		main_addr=$(grep -B1 libc_start_main@plt $tmp_objdump | grep mov | grep rdi | cut -d':' -f2 | cut -d'm' -f2 | cut -d',' -f1 | cut -d'x' -f2)
-		if [ "$main_addr" = "" ]; then 
-			echo "Zafl: Error inferring main"
-			exit 1
-		fi
+		grep -B1 start_main $tmp_objdump | grep rdi | grep rip
+		if [ $? -eq 0 ]; then
+			echo "Zafl: Main exec is PIE... unable to infer address of main. Automatically insert fork server (not as efficient as inferring main though)"
+			options=" $options -o zafl:--autozafl "
+		else
+			main_addr=$(grep -B1 libc_start_main@plt $tmp_objdump | grep mov | grep rdi | cut -d':' -f2 | cut -d'm' -f2 | cut -d',' -f1 | cut -d'x' -f2)
+			if [ "$main_addr" = "" ]; then 
+				echo "Zafl: Error inferring main"
+				exit 1
+			fi
 
-		echo "Zafl: Inferring main to be at: 0x$main_addr"
-		options=" -o zafl:'-e 0x$main_addr'"
+			echo "Zafl: Inferring main to be at: 0x$main_addr"
+			options=" $options -o zafl:'-e 0x$main_addr'"
+		fi
 	fi
 fi
+rm $tmp_objdump
 
 echo "Zafl: Transforming input binary $input_binary into $output_zafl_binary"
 #cmd="$PSZ $input_binary $output_zafl_binary -c move_globals=on -c zafl=on -o move_globals:--elftables -o zipr:--traceplacement:on -o zafl:--stars $*"
@@ -46,3 +53,4 @@ if [ $? -eq 0 ]; then
 		exit 1
 	fi
 fi
+
