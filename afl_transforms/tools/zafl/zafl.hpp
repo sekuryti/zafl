@@ -25,6 +25,7 @@ public:
 
 private:
 	void afl_instrument_bb(Instruction_t *inst, const bool p_hasLeafAnnotation);
+	void afl_instrument_bb1(Instruction_t *inst, const bool p_hasLeafAnnotation);
 	void insertExitPoint(Instruction_t *inst);
 	zafl_blockid_t get_blockid(const unsigned = 0xFFFF);
 	void insertForkServer(Instruction_t* p_entry);

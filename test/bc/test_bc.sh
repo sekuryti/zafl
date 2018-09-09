@@ -1,4 +1,4 @@
-export AFL_TIMEOUT=30
+export AFL_TIMEOUT=15
 export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$SECURITY_TRANSFORMS_HOME/lib/:. 
 
 session=/tmp/tmp.bc.$$
@@ -73,7 +73,8 @@ readline=$( ldd `which bc` | grep libreadline | cut -d'>' -f2 | cut -d'(' -f1 )
 readline_basename=$( basename $readline )
 readline_realpath=$( realpath $readline )
 echo "basename: $readline_basename  realpath: $readline_realpath"
-$PSZ $readline_realpath $readline_basename -c move_globals=on -c zafl=on -o move_globals:--elftables -o zipr:--traceplacement:on -o zipr:true -o zafl:--stars 
+#$PSZ $readline_realpath $readline_basename -c move_globals=on -c zafl=on -o move_globals:--elftables -o zipr:--traceplacement:on -o zipr:true -o zafl:--stars 
+zafl.sh $readline_realpath $readline_basename
 if [ $? -eq 0 ]; then
 	log_success "build zafl version of $readline_basename at $readline_realpath"
 else
