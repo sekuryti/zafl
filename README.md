@@ -40,7 +40,9 @@ Type "help" for help.
 
 peasoup_XXX=> 
 ```
-### Setting up IDA with your license key
+### Setting up IDA with your license key (Optional)
+
+If you don't have IDA, you can skip this step
 The standard Zipr toolchain configuration uses IDA Pro as part of its analysis phases. 
 Once you get a license from IDA, put your license key file in: ```$IDAROOT/```
 
@@ -140,8 +142,8 @@ Fix any afl-related errors until you can run:
 
 #### Running Zafl smoke tests
 ```bash
-cd $ZAFL_HOME/zfuzz/test/gzip
-./test_gzip.sh
+cd $ZAFL_HOME/zfuzz/test/bc
+./test_bc.sh
 ```
 
 The test will run afl on gzip instrumented with the proper instrumentation inlined. 
@@ -149,18 +151,12 @@ The output should end with:
 ```
 execs_since_crash : 77855
 exec_timeout      : 20
-afl_banner        : gzip.stars.zafl
+afl_banner        : bc.stars.zafl
 afl_version       : 2.52b
 target_mode       : default
-command_line      : afl-fuzz -i zafl_in -o zafl_out -- ./gzip.stars.zafl -f
-TEST PASS: ./gzip.stars.zafl: ran zafl binary: execs_per_sec     : 2000.00
+command_line      : afl-fuzz -i zafl_in -o zafl_out -- ./bc.stars.zafl -f
+TEST PASS: ./bc.stars.zafl: ran zafl binary: execs_per_sec     : 2000.00
 TEST PASS: all tests passed: zafl instrumentation operational on gzip
-```
-
-You should also run and make sure these tests pass:
-```bash
-cd $ZAFL_HOME/zfuzz/test/bc
-./test_bc.sh
 ```
 
 #### Final sanity check
