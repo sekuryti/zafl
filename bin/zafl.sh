@@ -4,11 +4,61 @@
 #
 # @todo: make it more user-friendly and have zafl-specific options
 #
+usage()
+{
+	echo
+	echo "zafl.sh <input_binary> <output_zafl_binary> [options]"
+	echo 
+	echo "options:"
+	echo "     --ida         Use IDAPro"
+	echo "     --rida        (default) Do not use IDAPro"
+}
+
+if [ "$1" = "-h" -o "$1" = "--help" ];
+then
+	usage
+	exit 0
+fi
+
+if [ "$#" -lt 2 ]; then
+	usage
+	exit 1
+fi
+
 input_binary=$1
 output_zafl_binary=$2
 
 shift
 shift
+
+# default is rida
+ida_or_rida=" -s meds_static=off -s rida=on "
+
+other_args=""
+# parse args
+while [[ $# -gt 0 ]]
+do
+	key="$1"
+
+	case $key in
+		-h|--help)
+			usage
+			exit 0
+			;;
+		--ida)
+			ida_or_rida=" "
+			shift
+			;;
+		--rida)
+			ida_or_rida=" -s meds_static=off -s rida=on "
+			shift
+			;;
+    		*)    # unknown option
+			other_args="$other_args $1"         
+			shift # past argument
+			;;
+esac
+done
 
 # find main
 tmp_objdump=/tmp/$$.objdump
@@ -37,7 +87,7 @@ rm $tmp_objdump
 
 echo "Zafl: Transforming input binary $input_binary into $output_zafl_binary"
 #cmd="$PSZ $input_binary $output_zafl_binary -c move_globals=on -c zafl=on -o move_globals:--elftables -o zipr:--traceplacement:on -o zafl:--stars $*"
-cmd="$PSZ $input_binary $output_zafl_binary -s meds_static=off -s rida=on -c move_globals=on -c zafl=on -o move_globals:--elftables -o zipr:--traceplacement:on -o zafl:--stars $options $*"
+cmd="$PSZ $input_binary $output_zafl_binary $ida_or_rida -c move_globals=on -c zafl=on -o move_globals:--elftables -o zipr:--traceplacement:on -o zafl:--stars $options $*"
 echo "Zafl: Issuing command: $cmd"
 eval $cmd
 if [ $? -eq 0 ]; then
