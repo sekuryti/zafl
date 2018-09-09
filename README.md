@@ -156,7 +156,7 @@ afl_version       : 2.52b
 target_mode       : default
 command_line      : afl-fuzz -i zafl_in -o zafl_out -- ./bc.stars.zafl -f
 TEST PASS: ./bc.stars.zafl: ran zafl binary: execs_per_sec     : 2000.00
-TEST PASS: all tests passed: zafl instrumentation operational on gzip
+TEST PASS: all tests passed: zafl instrumentation operational on bc
 ```
 
 #### Final sanity check
