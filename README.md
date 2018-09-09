@@ -42,8 +42,8 @@ peasoup_XXX=>
 ```
 ### Setting up IDA with your license key (Optional)
 
-If you don't have IDA, you can skip this step
-The standard Zipr toolchain configuration uses IDA Pro as part of its analysis phases. 
+*Skip this step if you don't have IDA*
+
 Once you get a license from IDA, put your license key file in: ```$IDAROOT/```
 
 Then you must run IDA once in interactive mode and accept the licensing terms: 
