@@ -105,5 +105,8 @@ if [ $? -eq 0 ]; then
 		echo Zafl: error: output binary does not show a dependence on the Zafl support library
 		exit 1
 	fi
+else
+	echo Zafl: error transforming input program
+	exit 1
 fi
 
