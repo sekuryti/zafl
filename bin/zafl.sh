@@ -32,7 +32,10 @@ shift
 shift
 
 # default is rida
-ida_or_rida=" -s meds_static=off -s rida=on "
+#ida_or_rida=" -s meds_static=off -s rida=on "
+
+# default is ida
+ida_or_rida=" "
 
 other_args=""
 # parse args

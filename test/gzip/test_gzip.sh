@@ -97,6 +97,12 @@ pushd ${session}
 setup
 
 
+file /bin/gzip | grep "shared object" >/dev/null 2>&1
+if [ $? -eq 0 ]; then
+	echo "PIE detected -- this test only designed for non-PIE"
+	exit 1
+fi
+
 # test setting of entry point via address
 ep=$( objdump -Mintel -d /bin/gzip | grep text | grep -v -i disassembly | cut -d' ' -f1 | sed 's/^00000000//g' )
 build_zafl gzip.stars.entrypoint.${ep}.zafl -o zafl:--stars -o "zafl:--entrypoint=$ep"
