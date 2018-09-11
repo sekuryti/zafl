@@ -10,8 +10,10 @@ usage()
 	echo "zafl.sh <input_binary> <output_zafl_binary> [options]"
 	echo 
 	echo "options:"
-	echo "     --ida         Use IDAPro"
-	echo "     --rida        (default) Do not use IDAPro"
+	echo "     --ida         Use IDAPro (default)"
+	echo "     --rida        Do not use IDAPro"
+	echo "     --stars       Use STARS (default)"
+	echo "     --no-stars    Do not use STARS"
 }
 
 if [ "$1" = "-h" -o "$1" = "--help" ];
@@ -31,11 +33,9 @@ output_zafl_binary=$2
 shift
 shift
 
-# default is rida
-#ida_or_rida=" -s meds_static=off -s rida=on "
-
-# default is ida
-ida_or_rida=" "
+#ida_or_rida_opt=" -s meds_static=off -s rida=on "
+ida_or_rida_opt=" "
+stars_opt=" -o zafl:--stars "
 
 other_args=""
 # parse args
@@ -49,11 +49,19 @@ do
 			exit 0
 			;;
 		--ida)
-			ida_or_rida=" "
+			ida_or_rida_opt=" "
 			shift
 			;;
 		--rida)
-			ida_or_rida=" -s meds_static=off -s rida=on "
+			ida_or_rida_opt=" -s meds_static=off -s rida=on "
+			shift
+			;;
+		--stars)
+			stars_opt=" -o zafl:--stars "
+			shift
+			;;
+		--no-stars)
+			stars_opt=" "
 			shift
 			;;
     		*)    # unknown option
@@ -89,8 +97,7 @@ fi
 rm $tmp_objdump
 
 echo "Zafl: Transforming input binary $input_binary into $output_zafl_binary"
-#cmd="$PSZ $input_binary $output_zafl_binary -c move_globals=on -c zafl=on -o move_globals:--elftables -o zipr:--traceplacement:on -o zafl:--stars $*"
-cmd="$PSZ $input_binary $output_zafl_binary $ida_or_rida -c move_globals=on -c zafl=on -o move_globals:--elftables -o zipr:--traceplacement:on -o zafl:--stars $options $*"
+cmd="$PSZ $input_binary $output_zafl_binary $ida_or_rida_opt -c move_globals=on -c zafl=on -o move_globals:--elftables -o zipr:--traceplacement:on $stars_opt $options $*"
 echo "Zafl: Issuing command: $cmd"
 eval $cmd
 if [ $? -eq 0 ]; then
