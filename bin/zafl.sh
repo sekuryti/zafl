@@ -10,8 +10,8 @@ usage()
 	echo "zafl.sh <input_binary> <output_zafl_binary> [options]"
 	echo 
 	echo "options:"
-	echo "     --ida         Use IDAPro"
-	echo "     --rida        Do not use IDAPro (default)"
+	echo "     --ida         Use IDAPro (default)"
+	echo "     --rida        Do not use IDAPro"
 	echo "     --stars       Use STARS (default)"
 	echo "     --no-stars    Do not use STARS"
 }
@@ -33,8 +33,8 @@ output_zafl_binary=$2
 shift
 shift
 
-ida_or_rida_opt=" -s meds_static=off -s rida=on "
-#ida_or_rida_opt=" "
+#ida_or_rida_opt=" -s meds_static=off -s rida=on "
+ida_or_rida_opt=" "
 stars_opt=" -o zafl:--stars "
 
 other_args=""
