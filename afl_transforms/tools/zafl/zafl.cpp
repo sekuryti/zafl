@@ -29,6 +29,7 @@
 #include <string.h> 
 #include <algorithm>
 #include <cctype>
+#include <sstream>
 #include <libIRDB-cfg.hpp>
 #include <libElfDep.hpp>
 #include <Rewrite_Utility.hpp>
@@ -519,10 +520,14 @@ void Zafl_t::insertForkServer(Instruction_t* p_entry)
 {
 	assert(p_entry);
 
-	cout << "inserting fork server code at address: " << hex << p_entry->GetAddress()->GetVirtualOffset() << dec;
+	stringstream ss;
+	ss << "0x" << hex << p_entry->GetAddress()->GetVirtualOffset();
+	cout << "inserting fork server code at address: " << ss.str() << dec << endl;
 	if (p_entry->GetFunction())
 		cout << " function: " << p_entry->GetFunction()->GetName();
 	cout << endl;
+
+	m_blacklist.insert(ss.str());
 
 	// insert the PLT needed
 	auto ed=ElfDependencies_t(getFileIR());
