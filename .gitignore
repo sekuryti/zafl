@@ -1,6 +1,7 @@
 build/
 bin/
 afl/
+test/
 libzafl/src/*.so
 libzafl/src/*.os
 manifest.txt.config
