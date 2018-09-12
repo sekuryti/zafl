@@ -202,6 +202,7 @@ zafl_blockid_t Zafl_t::get_blockid(unsigned p_max_mask)
 }
 
 // return intersection of candidates and allowed general-purpose registers
+#ifdef OPTIMIZE_REGS
 static std::set<RegisterName> get_free_regs(const RegisterSet_t candidates)
 {
 	std::set<RegisterName> free_regs;
@@ -212,6 +213,7 @@ static std::set<RegisterName> get_free_regs(const RegisterSet_t candidates)
 
 	return free_regs;
 }
+#endif
 
 void Zafl_t::insertExitPoint(Instruction_t *inst)
 {
@@ -252,6 +254,7 @@ void Zafl_t::afl_instrument_bb(Instruction_t *p_inst, const bool p_hasLeafAnnota
 	if (m_use_stars) 
 	{
 		live_flags = !(areFlagsDead(p_inst, m_stars_analysis_engine.getAnnotations()));
+#ifdef OPTIMIZE_REGS
 		auto regset = get_dead_regs(p_inst, m_stars_analysis_engine.getAnnotations());
 		auto free_regs = get_free_regs(regset);
 
@@ -303,6 +306,7 @@ void Zafl_t::afl_instrument_bb(Instruction_t *p_inst, const bool p_hasLeafAnnota
 			save_prev_id = false;
 			free_regs.erase(r);
 		}
+#endif
 	}
 
 	if (!reg_temp)
@@ -456,21 +460,20 @@ void Zafl_t::afl_instrument_bb(Instruction_t *p_inst, const bool p_hasLeafAnnota
 	{
 		tmp = insertAssemblyAfter(tmp, "popf");
 	}
+
 	if (save_prev_id) 
 	{
-		sprintf(buf,"pop %s", reg_prev_id);
-		tmp = insertAssemblyAfter(tmp, buf); // @todo: ensure match the push
+		tmp = insertAssemblyAfter(tmp, "pop rdx");
 	}
 	if (save_trace_map) 
 	{
-		sprintf(buf,"pop %s", reg_trace_map);
-		tmp = insertAssemblyAfter(tmp, "pop rcx"); // @todo: ensure match the push
+		tmp = insertAssemblyAfter(tmp, "pop rcx");
 	}
 	if (save_temp) 
 	{
-		sprintf(buf,"pop %s", reg_temp);
-		tmp = insertAssemblyAfter(tmp, "pop rax"); // @todo: ensure match the push
+		tmp = insertAssemblyAfter(tmp, "pop rax");
 	}
+
 	if (p_hasLeafAnnotation) 
 	{
 		tmp = insertAssemblyAfter(tmp, "lea rsp, [rsp+128]");
