@@ -21,6 +21,8 @@
  * E-mail: jwd@zephyr-software.com
  **************************************************************************/
 
+//#define OPTIMIZE_REGS
+
 #include "zafl.hpp"
 
 #include <stdlib.h>
@@ -127,6 +129,7 @@ static RegisterSet_t get_dead_regs(Instruction_t* insn, MEDS_AnnotationParser &m
         /* couldn't find the annotation, return an empty set.*/
         return RegisterSet_t();
 }
+
 
 static bool areFlagsDead(Instruction_t* insn, MEDS_AnnotationParser &meds_ap_param)
 {

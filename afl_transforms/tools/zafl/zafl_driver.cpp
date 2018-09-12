@@ -38,11 +38,11 @@ static void usage(char* name)
 	cerr<<"Usage: "<<name<<" <variant_id>\n";
 	cerr<<"\t[--verbose | -v]                               Verbose mode                  "<<endl;
 	cerr<<"\t[--help,--usage,-?,-h]                         Display this message          "<<endl;
-	cerr<<"\t[--stars|-s]                                   Enable STARS optimizations    "<<endl;
 	cerr<<"\t[--entrypoint|-e {<funcName>|<hex_address>}]   Specify where to insert fork server (defaults to main if found)"<<endl;
 	cerr<<"\t[--exitpoint|-E {<funcName>|<hex_address>}]    Specify where to insert exit"<<endl;
 	cerr<<"\t[--whitelist|-w whitelistFile]                 Specify list of functions/addresses to instrument"<<endl;
 	cerr<<"\t[--blacklist|-b blacklistFile]                 Specify list of functions/addresses to omit"<<endl;
+	cerr<<"\t[--stars|-s]                                   Enable STARS optimizations    "<<endl;
 	cerr<<"\t[--enable-bb-graph-optimization|-g]            Elide instrumentation if basic block has 1 successor"<<endl;
 	cerr<<"\t[--disable-bb-graph-optimization|-G]           Elide instrumentation if basic block has 1 successor"<<endl;
 	cerr<<"\t[--autozafl|-a]                                Auto-initialize fork server (incompatible with --entrypoint)"<<endl;
