@@ -10,8 +10,8 @@ usage()
 	echo "zafl.sh <input_binary> <output_zafl_binary> [options]"
 	echo 
 	echo "options:"
-	echo "     --ida         Use IDAPro (default)"
-	echo "     --rida        Do not use IDAPro"
+	echo "     --ida         Use IDAPro"
+	echo "     --rida        Do not use IDAPro (default)"
 	echo "     --stars       Use STARS (default)"
 	echo "     --no-stars    Do not use STARS"
 }
@@ -33,8 +33,8 @@ output_zafl_binary=$2
 shift
 shift
 
-#ida_or_rida_opt=" -s meds_static=off -s rida=on "
-ida_or_rida_opt=" "
+ida_or_rida_opt=" -s meds_static=off -s rida=on "
+#ida_or_rida_opt=" "
 stars_opt=" -o zafl:--stars "
 
 other_args=""
@@ -72,16 +72,25 @@ esac
 done
 
 # find main
+main_addr=""
 tmp_objdump=/tmp/$$.objdump
 objdump -d $input_binary > $tmp_objdump
 grep "<main>:" $tmp_objdump >/dev/null 2>&1
-if [ ! $? -eq 0 ]; then
-	grep -B1 libc_start_main@plt $tmp_objdump >/dev/null 2>&1
+if [  $? -eq 0 ]; then
+	echo Zafl: Detected main program in $input_binary
+else
+	grep -B1 "libc_start_main@" $tmp_objdump >/dev/null 2>&1
 	if [ $? -eq 0 ]; then
-		grep -B1 start_main $tmp_objdump | grep rdi | grep rip
+		grep -B1 start_main $tmp_objdump | grep rdi | grep rip >/dev/null 2>&1
 		if [ $? -eq 0 ]; then
-			echo "Zafl: Main exec is PIE... unable to infer address of main. Automatically insert fork server (not as efficient as inferring main though)"
-			options=" $options -o zafl:--autozafl "
+			ep=$(readelf -h $input_binary | grep -i "entry point" | cut -d'x' -f2)
+			if [ ! -z $ep ]; then
+				echo "Zafl: Main exec is PIE... use entry point address (0x$ep) for fork server"
+				options=" $options -o zafl:'-e 0x$ep'"
+			else
+				echo "Zafl: error finding entry point address"
+				exit 1
+			fi
 		else
 			main_addr=$(grep -B1 libc_start_main@plt $tmp_objdump | grep mov | grep rdi | cut -d':' -f2 | cut -d'm' -f2 | cut -d',' -f1 | cut -d'x' -f2)
 			if [ "$main_addr" = "" ]; then 
@@ -92,6 +101,8 @@ if [ ! $? -eq 0 ]; then
 			echo "Zafl: Inferring main to be at: 0x$main_addr"
 			options=" $options -o zafl:'-e 0x$main_addr'"
 		fi
+	else
+		echo "Zafl: no main() detected, probably a library ==> no fork server"
 	fi
 fi
 rm $tmp_objdump
