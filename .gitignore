@@ -1,0 +1,7 @@
+build/
+bin/
+afl/
+libzafl/src/*.so
+libzafl/src/*.os
+manifest.txt.config
+.sconsign.dblite
