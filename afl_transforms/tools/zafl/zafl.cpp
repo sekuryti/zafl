@@ -81,6 +81,12 @@ Zafl_t::Zafl_t(libIRDB::pqxxDB_t &p_dbinterface, libIRDB::FileIR_t *p_variantIR,
 	m_blacklist.insert("__do_global_dtors_aux");
 	m_blacklist.insert("__libc_csu_init");
 	m_blacklist.insert("__libc_csu_fini");
+	m_blacklist.insert("start");
+	m_blacklist.insert("__libc_start_main");
+	m_blacklist.insert("__gmon_start__");
+	m_blacklist.insert("__cxa_atexit");
+	m_blacklist.insert("__cxa_finalize");
+	m_blacklist.insert("__assert_fail");
 
 	m_num_flags_saved = 0;
 	m_num_temp_reg_saved = 0;

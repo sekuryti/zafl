@@ -108,7 +108,7 @@ fi
 rm $tmp_objdump
 
 echo "Zafl: Transforming input binary $input_binary into $output_zafl_binary"
-cmd="$PSZ $input_binary $output_zafl_binary $ida_or_rida_opt -c move_globals=on -c zafl=on -o move_globals:--elftables -o zipr:--traceplacement:on $stars_opt $options $*"
+cmd="$PSZ $input_binary $output_zafl_binary $ida_or_rida_opt -c move_globals=on -c zafl=on -o move_globals:--elftables-only -o zipr:--traceplacement:on $stars_opt $options $other_args"
 echo "Zafl: Issuing command: $cmd"
 eval $cmd
 if [ $? -eq 0 ]; then
