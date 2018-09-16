@@ -123,6 +123,12 @@ if [ $? -eq 0 ]; then
 		echo Zafl: error: output binary does not show a dependence on the Zafl support library
 		exit 1
 	fi
+
+	ldd -d $output_zafl_binary | grep symbol | grep 'not defined' >/dev/null 2>&1
+	if [ $? -eq 0 ]; then
+		echo Zafl: error: something went wrong in resolving Zafl symnbols
+		exit 1
+	fi
 else
 	echo Zafl: error transforming input program
 	exit 1
