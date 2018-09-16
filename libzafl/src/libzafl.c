@@ -27,7 +27,7 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "libzafl.hpp"
+#include "config.h"
 
 // externally visible so that Zipr transformations can access directly
 u8* zafl_trace_map;
@@ -36,13 +36,13 @@ unsigned short zafl_prev_id;
 static s32 shm_id;
 static int __afl_temp_data;
 static pid_t __afl_fork_pid;
-static auto debug = false;
+static int debug = 0;
 
-#define PRINT_ERROR(string) if (debug) {auto x=write(2, string, strlen(string));}
-#define PRINT_DEBUG(string) if (debug) {auto x=write(1, string, strlen(string));}
+#define PRINT_ERROR(string) if (debug) {int x=write(2, string, strlen(string));}
+#define PRINT_DEBUG(string) if (debug) {int x=write(1, string, strlen(string));}
 
 static void zafl_setupSharedMemory();
-static bool shared_memory_is_setup = false;
+static int shared_memory_is_setup = 0;
 
 #ifdef ZAFL_AUTO_INIT_FORK_SERVER
 void __attribute__((constructor)) zafl_initAflForkServer();
@@ -54,7 +54,7 @@ void __attribute__((constructor)) zafl_setupSharedMemory();
 // even if not running under AFL
 static void zafl_setupSharedMemory()
 {
-	if (getenv("ZAFL_DEBUG")) debug = true;
+	if (getenv("ZAFL_DEBUG")) debug = 1;
 
 	if (shared_memory_is_setup)
 		return;
@@ -78,16 +78,16 @@ static void zafl_setupSharedMemory()
 		return;
 	}
 	PRINT_DEBUG("libzafl: shared memory segment is setup\n");
-	shared_memory_is_setup = true;
+	shared_memory_is_setup = 1;
 }
 
 void zafl_initAflForkServer()
 {
-	static auto fork_server_initialized = false;
+	static int fork_server_initialized = 0;
 
 	if (fork_server_initialized) return;
 
-	if (getenv("ZAFL_DEBUG")) debug = true;
+	if (getenv("ZAFL_DEBUG")) debug = 1;
 
 	zafl_setupSharedMemory();
 
@@ -104,7 +104,7 @@ void zafl_initAflForkServer()
 		return;
 	}
 
-	fork_server_initialized = true;
+	fork_server_initialized = 1;
 
 	while(1) {
 		n = read(FORKSRV_FD,&__afl_temp_data,4);

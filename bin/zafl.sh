@@ -27,7 +27,7 @@ if [ "$#" -lt 2 ]; then
 	exit 1
 fi
 
-input_binary=$1
+input_binary=$(realpath $1)
 output_zafl_binary=$2
 
 shift
