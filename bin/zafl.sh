@@ -33,8 +33,8 @@ output_zafl_binary=$2
 shift
 shift
 
-#ida_or_rida_opt=" -s meds_static=off -s rida=on "
-ida_or_rida_opt=" "
+#ida_or_rida_opt=" "
+ida_or_rida_opt=" -s meds_static=off -s rida=on "
 stars_opt=" -o zafl:--stars "
 
 other_args=""
