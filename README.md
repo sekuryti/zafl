@@ -44,6 +44,8 @@ peasoup_XXX=>
 
 *Skip this step if you don't have IDA*
 
+*The default Zafl toolchain does not use IDA*
+
 Once you get a license from IDA, put your license key file in: ```$IDAROOT/```
 
 Then you must run IDA once in interactive mode and accept the licensing terms: 
