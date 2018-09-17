@@ -146,7 +146,7 @@ cd $ZAFL_HOME/zfuzz/test/bc
 ./test_bc.sh
 ```
 
-The test will run afl on gzip instrumented with the proper instrumentation inlined. 
+The test will run afl on bc, instrumented with the proper instrumentation inlined. 
 The output should end with:
 ```
 execs_since_crash : 77855
@@ -158,6 +158,8 @@ command_line      : afl-fuzz -i zafl_in -o zafl_out -- ./bc.stars.zafl -f
 TEST PASS: ./bc.stars.zafl: ran zafl binary: execs_per_sec     : 2000.00
 TEST PASS: all tests passed: zafl instrumentation operational on bc
 ```
+
+There are also other smoke tests you can run in ```$ZAFL_HOME/zfuzz/test```
 
 #### Final sanity check
 ```bash
