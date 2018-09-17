@@ -40,7 +40,7 @@ Type "help" for help.
 
 peasoup_XXX=> 
 ```
-### Setting up IDA with your license key (Optional)
+### Optional configuration of Zafl with IDA
 
 *Skip this step if you don't have IDA*
 
