@@ -779,7 +779,7 @@ int Zafl_t::execute()
 		cout << f->GetName();
 		cout << " " << num_blocks << " basic blocks" << endl;
 
-		cout << cfg << endl;
+//		cout << cfg << endl;
 
 		for (auto bb : cfg.GetBlocks())
 		{
@@ -787,26 +787,27 @@ int Zafl_t::execute()
 
 			bb_id++;
 
-			cout << "---" << endl;
-			cout << "basic block id#" << bb_id << " has " << bb->GetInstructions().size() << " instructions";
-			cout << " instr: " << bb->GetInstructions()[0]->getDisassembly();
-			if (bb->GetInstructions()[0]->GetIndirectBranchTargetAddress())
-				cout << " ibta";
-			cout << " | preds: " << bb->GetPredecessors().size() << " succs: " << bb->GetSuccessors().size();
-			if (bb->GetPredecessors().size()==1)
+			if (m_verbose)
 			{
-				const auto pred = *(bb->GetPredecessors().begin());
-				cout << " succ(pred): " << pred->GetSuccessors().size();
-				if (pred->GetSuccessors().size() == 2)
+				cout << "---" << endl;
+				cout << "basic block id#" << bb_id << " has " << bb->GetInstructions().size() << " instructions";
+				cout << " instr: " << bb->GetInstructions()[0]->getDisassembly();
+				if (bb->GetInstructions()[0]->GetIndirectBranchTargetAddress())
+					cout << " ibta";
+				cout << " | preds: " << bb->GetPredecessors().size() << " succs: " << bb->GetSuccessors().size();
+				if (bb->GetPredecessors().size()==1)
 				{
-					auto num_instruction_in_prev_bb = pred->GetInstructions().size();
-					cout << " last_instr_in_pred: " <<
-						pred->GetInstructions()[num_instruction_in_prev_bb-1]->getDisassembly();
+					const auto pred = *(bb->GetPredecessors().begin());
+					cout << " succ(pred): " << pred->GetSuccessors().size();
+					if (pred->GetSuccessors().size() == 2)
+					{
+						auto num_instruction_in_prev_bb = pred->GetInstructions().size();
+						cout << " last_instr_in_pred: " <<
+							pred->GetInstructions()[num_instruction_in_prev_bb-1]->getDisassembly();
+					}
 				}
+				cout << endl;
 			}
-
-
-			cout << endl;
 
 			// if whitelist specified, only allow instrumentation for functions/addresses in whitelist
 			if (m_whitelist.size() > 0) {
