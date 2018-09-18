@@ -73,6 +73,11 @@ Zafl_t::Zafl_t(libIRDB::pqxxDB_t &p_dbinterface, libIRDB::FileIR_t *p_variantIR,
 		(void)ed.prependLibraryDepedencies("libzafl.so");
 	}
 
+	if (m_verbose)
+		cout << "verbose mode is on" << endl;
+	else
+		cout << "verbose mode is off" << endl;
+
 	m_plt_zafl_initAflForkServer=ed.appendPltEntry("zafl_initAflForkServer");
         m_trace_map = ed.appendGotEntry("zafl_trace_map");
         m_prev_id = ed.appendGotEntry("zafl_prev_id");
@@ -95,6 +100,17 @@ Zafl_t::Zafl_t(libIRDB::pqxxDB_t &p_dbinterface, libIRDB::FileIR_t *p_variantIR,
 	m_blacklist.insert("__cxa_atexit");
 	m_blacklist.insert("__cxa_finalize");
 	m_blacklist.insert("__assert_fail");
+	m_blacklist.insert("free");
+	m_blacklist.insert("fnmatch");
+	m_blacklist.insert("readlinkat");
+	m_blacklist.insert("malloc");
+	m_blacklist.insert("calloc");
+	m_blacklist.insert("realloc");
+	m_blacklist.insert("argp_failure");
+	m_blacklist.insert("argp_help");
+	m_blacklist.insert("argp_state_help");
+	m_blacklist.insert("argp_error");
+	m_blacklist.insert("argp_parse");
 
 	m_num_flags_saved = 0;
 	m_num_temp_reg_saved = 0;
@@ -773,7 +789,8 @@ int Zafl_t::execute()
 		cout << f->GetName();
 		cout << " " << num_blocks << " basic blocks" << endl;
 
-//		cout << cfg << endl;
+		if (m_verbose)
+			cout << cfg << endl;
 
 		for (auto bb : cfg.GetBlocks())
 		{
@@ -812,6 +829,18 @@ int Zafl_t::execute()
 			if (isBlacklisted(bb->GetInstructions()[0]))
 				continue;
 
+			if (bb->GetInstructions().size()==1 && bb->GetIsExitBlock())
+			{
+				cout << "Skip basic block b/c it's an exit block and only has 1 instruction" << endl;
+				continue;
+			}
+
+			// push/jmp pair, don't bother instrumenting
+			if (bb->GetInstructions().size()==2 && bb->GetInstructions()[0]->getDisassembly().find("push")!=string::npos && bb->GetInstructions()[1]->getDisassembly().find("jmp")!=string::npos)
+			{
+				cout << "Skip basic block b/c it consists of push/jmp pair" << endl;
+				continue;
+			}
 
 			// debugging support
 			if (getenv("ZAFL_LIMIT_BEGIN"))
