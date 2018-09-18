@@ -50,6 +50,7 @@ private:
 
         std::pair<DataScoop_t*,int>  m_trace_map;  // afl shared memory trace map
         std::pair<DataScoop_t*,int>  m_prev_id;    // id of previous block
+	Instruction_t*               m_plt_zafl_initAflForkServer; 
 
 	std::set<std::string>        m_whitelist;  
 	std::set<std::string>        m_blacklist;

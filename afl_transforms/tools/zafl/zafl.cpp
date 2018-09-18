@@ -56,6 +56,11 @@ Zafl_t::Zafl_t(libIRDB::pqxxDB_t &p_dbinterface, libIRDB::FileIR_t *p_variantIR,
 	m_bb_graph_optimize(false),
 	m_verbose(p_verbose)
 {
+	if (m_use_stars) {
+		cout << "Use STARS analysis engine" << endl;
+		m_stars_analysis_engine.do_STARS(getFileIR());
+	}
+
 	auto ed=ElfDependencies_t(getFileIR());
 	if (p_autozafl)
 	{
@@ -67,6 +72,8 @@ Zafl_t::Zafl_t(libIRDB::pqxxDB_t &p_dbinterface, libIRDB::FileIR_t *p_variantIR,
 		cout << "autozafl library is off" << endl;
 		(void)ed.prependLibraryDepedencies("libzafl.so");
 	}
+
+	m_plt_zafl_initAflForkServer=ed.appendPltEntry("zafl_initAflForkServer");
         m_trace_map = ed.appendGotEntry("zafl_trace_map");
         m_prev_id = ed.appendGotEntry("zafl_prev_id");
 
@@ -109,14 +116,10 @@ static void create_got_reloc(FileIR_t* fir, pair<DataScoop_t*,int> wrt, Instruct
 
 static RegisterSet_t get_dead_regs(Instruction_t* insn, MEDS_AnnotationParser &meds_ap_param)
 {
-	MEDS_AnnotationParser *meds_ap=&meds_ap_param;
-
-        assert(meds_ap);
-
         std::pair<MEDS_Annotations_t::iterator,MEDS_Annotations_t::iterator> ret;
 
         /* find it in the annotations */
-        ret = meds_ap->getAnnotations().equal_range(insn->GetBaseID());
+        ret = meds_ap_param.getAnnotations().equal_range(insn->GetBaseID());
         MEDS_DeadRegAnnotation* p_annotation;
 
         /* for each annotation for this instruction */
@@ -529,10 +532,6 @@ void Zafl_t::insertForkServer(Instruction_t* p_entry)
 
 	m_blacklist.insert(ss.str());
 
-	// insert the PLT needed
-	auto ed=ElfDependencies_t(getFileIR());
-	auto plt_zafl_initAflForkServer=ed.appendPltEntry("zafl_initAflForkServer");
-
 	// insert the instrumentation
 	auto tmp=p_entry;
     	(void)insertAssemblyBefore(tmp," push rdi") ;
@@ -551,7 +550,7 @@ void Zafl_t::insertForkServer(Instruction_t* p_entry)
 	tmp=  insertAssemblyAfter(tmp," push r14 ") ;
 	tmp=  insertAssemblyAfter(tmp," push r15 ") ;
 	tmp=  insertAssemblyAfter(tmp," pushf ") ;
-	tmp=  insertAssemblyAfter(tmp," call 0 ", plt_zafl_initAflForkServer) ;
+	tmp=  insertAssemblyAfter(tmp," call 0 ", m_plt_zafl_initAflForkServer) ;
 	tmp=  insertAssemblyAfter(tmp," popf ") ;
 	tmp=  insertAssemblyAfter(tmp," pop r15 ") ;
 	tmp=  insertAssemblyAfter(tmp," pop r14 ") ;
@@ -725,11 +724,6 @@ int Zafl_t::execute()
 {
 	auto num_bb_instrumented = 0;
 	auto num_orphan_instructions = 0;
-
-	if (m_use_stars) {
-		cout << "Use STARS analysis engine" << endl;
-		m_stars_analysis_engine.do_STARS(getFileIR());
-	}
 
 	setupForkServer();
 
