@@ -21,7 +21,7 @@
  * E-mail: jwd@zephyr-software.com
  **************************************************************************/
 
-//#define OPTIMIZE_REGS
+#define OPTIMIZE_REGS
 
 #include "zafl.hpp"
 
