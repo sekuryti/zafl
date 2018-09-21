@@ -83,6 +83,7 @@ Zafl_t::Zafl_t(libIRDB::pqxxDB_t &p_dbinterface, libIRDB::FileIR_t *p_variantIR,
         m_prev_id = ed.appendGotEntry("zafl_prev_id");
 
 	// let's not instrument these functions ever
+	// see isBlacklisted() for other blacklisted functions
 	m_blacklist.insert("init");
 	m_blacklist.insert("_init");
 	m_blacklist.insert("fini");
@@ -550,7 +551,8 @@ void Zafl_t::insertForkServer(Instruction_t* p_entry)
 
 	// insert the instrumentation
 	auto tmp=p_entry;
-    	(void)insertAssemblyBefore(tmp," push rdi") ;
+	(void)insertAssemblyBefore(tmp, "lea rsp, [rsp-128]");
+    	tmp=  insertAssemblyAfter(tmp," push rdi") ;
 	tmp=  insertAssemblyAfter(tmp," push rsi ") ;
 	tmp=  insertAssemblyAfter(tmp," push rbp") ;
 	tmp=  insertAssemblyAfter(tmp," push rdx") ;
@@ -583,6 +585,7 @@ void Zafl_t::insertForkServer(Instruction_t* p_entry)
 	tmp=  insertAssemblyAfter(tmp," pop rbp");
 	tmp=  insertAssemblyAfter(tmp," pop rsi");
 	tmp=  insertAssemblyAfter(tmp," pop rdi");
+	tmp=  insertAssemblyAfter(tmp," lea rsp, [rsp+128]");
 }
 
 void Zafl_t::insertForkServer(string p_forkServerEntry)
@@ -757,6 +760,7 @@ int Zafl_t::execute()
 	auto num_bb_zero_preds_entry_point = 0;
 
 	// for all functions
+	//    build cfg and extract basic blocks
 	//    for all basic blocks
 	//          afl_instrument
 	set<Function_t*, BaseIDSorter> sortedFuncs(getFileIR()->GetFunctions().begin(), getFileIR()->GetFunctions().end());
@@ -897,13 +901,10 @@ int Zafl_t::execute()
 				}
 			}
 
-
 			// optimization (padding nop)
 			// bb with 1 instruction (nop), 0 preds, 1 succ ???
-			// @todo: make sure it's a no-op
 			if (bb->GetInstructions().size()==1 && bb->GetPredecessors().size()==0 && bb->GetSuccessors().size()==1)
 			{
-				//  @todo: verify it's a no-op
 				cout << "Skipping basic block #" << dec << bb_id << " because it's a padding instruction" << endl;
 				m_num_bb_skipped++;
 				continue;
