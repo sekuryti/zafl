@@ -1,2 +1,4 @@
 # env vars.
 file set_env_vars zfuzz
+directory bin zfuzz
+directory test zfuzz
