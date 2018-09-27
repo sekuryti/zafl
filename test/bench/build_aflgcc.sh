@@ -1,5 +1,8 @@
-#binutils_binaries="size strings readelf strip-new nm-new"
-binutils_binaries="size strings readelf objdump cxxfilt ar"
+SCRIPT=$(readlink -f $0)                                                                            
+
+cd $(dirname $SCRIPT)
+source binutils.spec
+
 echo "Build afl-gcc version of $binutils_binaries"
 
 for b in $binutils_binaries
