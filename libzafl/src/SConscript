@@ -2,7 +2,7 @@ import os
 
 Import('env')
 myenv=env.Clone()
-myenv.Replace(SECURITY_TRANSFORMS_HOME=os.environ['SECURITY_TRANSFORMS_HOME'])
+myenv.Replace(ZEST_RUNTIME=os.environ['ZEST_RUNTIME'])
 myenv.Replace(AFL_PATH=os.environ['AFL_PATH'])
 
 files="libzafl.c"
@@ -14,14 +14,12 @@ cpath='''
 
 myenv=myenv.Clone(CPPPATH=Split(cpath))
 
-#myenv.Append(CXXFLAGS = " -std=c++11 ")
-
 if int(env['autozafl']) == 1:
 	lib=myenv.SharedLibrary("autozafl",  Split(files))
 else:
 	lib=myenv.SharedLibrary("zafl",  Split(files))
 
-install=myenv.Install("$SECURITY_TRANSFORMS_HOME/lib/", lib)
+install=myenv.Install("$ZEST_RUNTIME/lib64/", lib)
 
 Default(install)
 
