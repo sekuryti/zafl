@@ -78,8 +78,6 @@ objdump -d $input_binary > $tmp_objdump
 grep "<main>:" $tmp_objdump >/dev/null 2>&1
 if [  $? -eq 0 ]; then
 	echo Zafl: Detected main program in $input_binary
-	ep=$(objdump -d $input_binary | grep '<main>:' | cut -d' ' -f1)
-	options=" $options -o zafl:'-e 0x$ep'"
 else
 	grep -B1 "libc_start_main@" $tmp_objdump >/dev/null 2>&1
 	if [ $? -eq 0 ]; then
