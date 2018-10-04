@@ -65,6 +65,7 @@ int main(int argc, char **argv)
 	auto whitelistFile=string();
 	auto blacklistFile=string();
 	auto bb_graph_optimize=false;
+	auto forkserver_enabled=true;
 	set<string> exitpoints;
 
 	srand(getpid()+time(NULL));
@@ -82,9 +83,11 @@ int main(int argc, char **argv)
 		{"autozafl", no_argument, 0, 'a'},
 		{"enable-bb-graph-optimization", no_argument, 0, 'g'},
 		{"disable-bb-graph-optimization", no_argument, 0, 'G'},
+		{"enable-forkserver", no_argument, 0, 'f'},
+		{"disable-forkserver", no_argument, 0, 'F'},
 		{0,0,0,0}
 	};
-	const char* short_opts="e:E:w:sv?hagG";
+	const char* short_opts="e:E:w:sv?hagGfF";
 
 	while(true)
 	{
@@ -122,10 +125,16 @@ int main(int argc, char **argv)
 			autozafl=true;
 			break;
 		case 'g':
-			bb_graph_optimize=true;;
+			bb_graph_optimize=true;
 			break;
 		case 'G':
 			bb_graph_optimize=false;
+			break;
+		case 'f':
+			forkserver_enabled=true;
+			break;
+		case 'F':
+			forkserver_enabled=false;
 			break;
 		default:
 			break;
@@ -168,6 +177,7 @@ int main(int argc, char **argv)
 			if (blacklistFile.size()>0)
 				zafl_transform.setBlacklist(blacklistFile);
 			zafl_transform.setBasicBlockOptimization(bb_graph_optimize);
+			zafl_transform.setEnableForkServer(forkserver_enabled);
 
 			int success=zafl_transform.execute();
 

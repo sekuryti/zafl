@@ -54,6 +54,7 @@ Zafl_t::Zafl_t(libIRDB::pqxxDB_t &p_dbinterface, libIRDB::FileIR_t *p_variantIR,
 	m_use_stars(p_use_stars),
 	m_autozafl(p_autozafl),
 	m_bb_graph_optimize(false),
+	m_forkserver_enabled(true),
 	m_verbose(p_verbose)
 {
 	if (m_use_stars) {
@@ -744,7 +745,10 @@ int Zafl_t::execute()
 	auto num_bb_instrumented = 0;
 	auto num_orphan_instructions = 0;
 
-	setupForkServer();
+	if (m_forkserver_enabled)
+		setupForkServer();
+	else
+		cout << "Fork server has been disabled" << endl;
 
 	insertExitPoints();
 

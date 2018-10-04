@@ -22,6 +22,7 @@ public:
 	void setWhitelist(const string&);
 	void setBlacklist(const string&);
 	void setBasicBlockOptimization(bool p_bb_graph_optimize) {m_bb_graph_optimize=p_bb_graph_optimize;}
+	void setEnableForkServer(bool p_forkserver_enabled) {m_forkserver_enabled=p_forkserver_enabled;}
 
 private:
 	void afl_instrument_bb(Instruction_t *inst, const bool p_hasLeafAnnotation);
@@ -46,6 +47,7 @@ private:
 	bool                         m_use_stars;
 	bool                         m_autozafl;
 	bool                         m_bb_graph_optimize;
+	bool                         m_forkserver_enabled;
 	bool                         m_verbose;
 
         std::pair<DataScoop_t*,int>  m_trace_map;  // afl shared memory trace map
