@@ -63,11 +63,6 @@ private:
 	unsigned m_num_temp_reg_saved;
 	unsigned m_num_tracemap_reg_saved;
 	unsigned m_num_previd_reg_saved;
-	unsigned m_num_bb_zero_predecessors;;
-	unsigned m_num_bb_single_predecessors;
-	unsigned m_num_bb_zero_successors;
-	unsigned m_num_bb_single_successors;
-	unsigned m_num_bb_skipped;
 };
 
 } 
