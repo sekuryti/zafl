@@ -77,6 +77,7 @@ Zafl_t::Zafl_t(libIRDB::pqxxDB_t &p_dbinterface, libIRDB::FileIR_t *p_variantIR,
 	else
 		cout << "verbose mode is off" << endl;
 
+	// bind to external symbols declared in libzafl.so
 	m_plt_zafl_initAflForkServer=ed.appendPltEntry("zafl_initAflForkServer");
         m_trace_map = ed.appendGotEntry("zafl_trace_map");
         m_prev_id = ed.appendGotEntry("zafl_prev_id");
@@ -186,7 +187,7 @@ void Zafl_t::setWhitelist(const string& p_whitelist)
 }
 
 /*
- * Disallow instrumentation in blackListed functions
+ * Disallow instrumentation in blacklisted functions
  */
 void Zafl_t::setBlacklist(const string& p_blackList)
 {
@@ -269,8 +270,7 @@ void Zafl_t::afl_instrument_bb(Instruction_t *p_inst, const bool p_hasLeafAnnota
 
 	if (m_use_stars) 
 	{
-		auto &annotations = m_stars_analysis_engine.getAnnotations();
-		auto regset = get_dead_regs(p_inst, annotations);
+		auto regset = get_dead_regs(p_inst, m_stars_analysis_engine.getAnnotations());
 		live_flags = regset.find(MEDS_Annotation::rn_EFLAGS)==regset.end();
 		auto free_regs = get_free_regs(regset);
 
@@ -532,6 +532,7 @@ void Zafl_t::insertForkServer(Instruction_t* p_entry)
 		cout << " function: " << p_entry->GetFunction()->GetName();
 	cout << endl;
 
+	// blacklist insertion point
 	m_blacklist.insert(ss.str());
 
 	// insert the instrumentation
@@ -920,7 +921,10 @@ int Zafl_t::execute()
 				{
 					cout << "Skipping basic block #" << dec << bb_id << " because conditional branch with 2 successors" << endl;
 					for (auto &s: bb->GetSuccessors())
-						keepers.insert(s);
+					{
+						if (s->GetIsExitBlock() || s->GetSuccessors().size()==0)
+							keepers.insert(s);
+					}
 					num_bb_skipped_cbranch++;
 					continue;
 				}
@@ -951,7 +955,7 @@ int Zafl_t::execute()
 				if (bb->GetPredecessors().size() == 1)
 				{
 					// optimization: @todo
-					//	bb has exactly 1 predecessor: just give it a hash (CollAFL-lite)
+					//	bb has exactly 1 predecessor: just give it a hash (cf. CollAFL-lite)
 					afl_instrument_bb(bb->GetInstructions()[0], leafAnnotation);
 				}
 				else
