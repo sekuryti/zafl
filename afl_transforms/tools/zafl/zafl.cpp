@@ -21,8 +21,6 @@
  * E-mail: jwd@zephyr-software.com
  **************************************************************************/
 
-#define OPTIMIZE_REGS
-
 #include "zafl.hpp"
 
 #include <stdlib.h>
@@ -158,13 +156,6 @@ static RegisterSet_t get_dead_regs(Instruction_t* insn, MEDS_AnnotationParser &m
         return RegisterSet_t();
 }
 
-
-static bool areFlagsDead(Instruction_t* insn, MEDS_AnnotationParser &meds_ap_param)
-{
-	RegisterSet_t regset=get_dead_regs(insn, meds_ap_param);
-	return (regset.find(MEDS_Annotation::rn_EFLAGS)!=regset.end());
-}
-
 static bool hasLeafAnnotation(Function_t* fn, MEDS_AnnotationParser &meds_ap_param)
 {
 	assert(fn);
@@ -233,7 +224,6 @@ zafl_blockid_t Zafl_t::get_blockid(unsigned p_max_mask)
 }
 
 // return intersection of candidates and allowed general-purpose registers
-#ifdef OPTIMIZE_REGS
 static std::set<RegisterName> get_free_regs(const RegisterSet_t candidates)
 {
 	std::set<RegisterName> free_regs;
@@ -244,7 +234,6 @@ static std::set<RegisterName> get_free_regs(const RegisterSet_t candidates)
 
 	return free_regs;
 }
-#endif
 
 void Zafl_t::insertExitPoint(Instruction_t *inst)
 {
@@ -284,9 +273,9 @@ void Zafl_t::afl_instrument_bb(Instruction_t *p_inst, const bool p_hasLeafAnnota
 
 	if (m_use_stars) 
 	{
-		live_flags = !(areFlagsDead(p_inst, m_stars_analysis_engine.getAnnotations()));
-#ifdef OPTIMIZE_REGS
-		auto regset = get_dead_regs(p_inst, m_stars_analysis_engine.getAnnotations());
+		auto &annotations = m_stars_analysis_engine.getAnnotations();
+		auto regset = get_dead_regs(p_inst, annotations);
+		live_flags = regset.find(MEDS_Annotation::rn_EFLAGS)==regset.end();
 		auto free_regs = get_free_regs(regset);
 
 		for (auto r : regset)
@@ -337,7 +326,6 @@ void Zafl_t::afl_instrument_bb(Instruction_t *p_inst, const bool p_hasLeafAnnota
 			save_prev_id = false;
 			free_regs.erase(r);
 		}
-#endif
 	}
 
 	if (!reg_temp)
