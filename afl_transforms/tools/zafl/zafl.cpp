@@ -750,6 +750,8 @@ int Zafl_t::execute()
 	auto num_orphan_instructions = 0;
 	auto num_bb_skipped_cbranch = 0;
 	auto num_bb_skipped = 0;
+	auto num_bb_preds_self = 0;
+	auto num_bb_succs_self = 0;
 
 	if (m_forkserver_enabled)
 		setupForkServer();
@@ -890,13 +892,23 @@ int Zafl_t::execute()
 				num_bb_single_successors++;
 			if (bb->GetInstructions()[0] == f->GetEntryPoint())
 				num_bb_zero_preds_entry_point++;
+			// 20181012 basic block edges can point back to self
+			auto point_to_self = false;
+			if (bb->GetPredecessors().find(bb)!=bb->GetPredecessors().end()) {
+				point_to_self = true;
+				num_bb_preds_self++;
+			}
+			if (bb->GetSuccessors().find(bb)!=bb->GetSuccessors().end()) {
+				point_to_self = true;
+				num_bb_succs_self++;
+			}
 			
 			// optimization:
 			//        bb has 1 predecessor 
 			//        predecessor has only 1 successor (namely this bb)
 			if (m_bb_graph_optimize)
 			{
-				if (bb->GetPredecessors().size() == 1)
+				if (bb->GetPredecessors().size()==1 && !point_to_self)
 				{
 					const auto pred = *(bb->GetPredecessors().begin());
 					if (pred->GetSuccessors().size() == 1)
@@ -919,19 +931,23 @@ int Zafl_t::execute()
 				// about 1500 of these in objdump
 				if (bb->GetSuccessors().size() == 2 && isConditionalBranch(bb->GetInstructions()[bb->GetInstructions().size()-1]))
 				{
-					cout << "Skipping basic block #" << dec << bb_id << " because conditional branch with 2 successors" << endl;
-					for (auto &s: bb->GetSuccessors())
+					if (point_to_self) 
+						keepers.insert(bb);
+					else 
 					{
-						if (s->GetIsExitBlock() || s->GetSuccessors().size()==0)
-							keepers.insert(s);
+						cout << "Skipping basic block #" << dec << bb_id << " because conditional branch with 2 successors" << endl;
+						for (auto &s: bb->GetSuccessors())
+						{
+							if (s->GetIsExitBlock() || s->GetSuccessors().size()==0 || s->GetInstructions()[0] == bb->GetInstructions()[0])
+								keepers.insert(s);
+						}
+						num_bb_skipped_cbranch++;
+						continue;
 					}
-					num_bb_skipped_cbranch++;
-					continue;
 				}
 			}
 
 			// optimization (padding nop)
-			// bb with 1 instruction (nop), 0 preds, 1 succ ???
 			if (bb->GetInstructions().size()==1 && bb->GetPredecessors().size()==0 && bb->GetSuccessors().size()==1 && isNop(bb->GetInstructions()[0]))
 			{
 				cout << "Skipping basic block #" << dec << bb_id << " because it's a padding instruction: " << bb->GetInstructions()[0]->getDisassembly() << endl;
@@ -950,18 +966,10 @@ int Zafl_t::execute()
 		set<BasicBlock_t*, BBSorter> sortedBasicBlocks(keepers.begin(), keepers.end());
 		for (auto &bb : sortedBasicBlocks)
 		{
-			if (m_bb_graph_optimize)
+			if (m_bb_graph_optimize && bb->GetPredecessors().size() == 1)
 			{
-				if (bb->GetPredecessors().size() == 1)
-				{
-					// optimization: @todo
-					//	bb has exactly 1 predecessor: just give it a hash (cf. CollAFL-lite)
-					afl_instrument_bb(bb->GetInstructions()[0], leafAnnotation);
-				}
-				else
-				{
-					afl_instrument_bb(bb->GetInstructions()[0], leafAnnotation);
-				}
+				// @todo: colAfl-style; select hash index instead of computing
+				afl_instrument_bb(bb->GetInstructions()[0], leafAnnotation);
 			}
 			else 
 			{
@@ -998,6 +1006,8 @@ int Zafl_t::execute()
 	cout << "#ATTRIBUTE num_bb_single_predecessors=" << dec << num_bb_single_predecessors << endl;
 	cout << "#ATTRIBUTE num_bb_single_successors=" << dec << num_bb_single_successors << endl;
 	cout << "#ATTRIBUTE num_orphan_instructions=" << dec << num_orphan_instructions << endl;
+	cout << "#ATTRIBUTE num_bb_preds_self=" << dec << num_bb_preds_self << endl;
+	cout << "#ATTRIBUTE num_bb_succs_self=" << dec << num_bb_succs_self << endl;
 
 	return 1;
 }
