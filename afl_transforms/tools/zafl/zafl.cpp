@@ -220,6 +220,13 @@ zafl_blockid_t Zafl_t::get_blockid(unsigned p_max_mask)
 	return blockid;
 }
 
+static unsigned get_labelid() 
+{
+	static unsigned labelid = 0;
+	labelid++;
+	return labelid;
+}
+
 // return intersection of candidates and allowed general-purpose registers
 static std::set<RegisterName> get_free_regs(const RegisterSet_t candidates)
 {
@@ -249,10 +256,16 @@ void Zafl_t::insertExitPoint(Instruction_t *inst)
 
 /*
 	Original afl instrumentation:
+	        id = zafl_prev_id ^ id;
 	        zafl_trace_bits[zafl_prev_id ^ id]++;
 		zafl_prev_id = id >> 1;     
+
+	CollAfl optimization when (#predecessors==1) (goal of CollAfl is to reduce collisions):
+	        id = <some unique value for this block>
+	        zafl_trace_bits[id]++;
+		zafl_prev_id = id >> 1;     
 */
-void Zafl_t::afl_instrument_bb(Instruction_t *p_inst, const bool p_hasLeafAnnotation)
+void Zafl_t::afl_instrument_bb(Instruction_t *p_inst, const bool p_hasLeafAnnotation, const bool p_collafl_optimization)
 {
 	assert(p_inst);
 
@@ -397,8 +410,7 @@ void Zafl_t::afl_instrument_bb(Instruction_t *p_inst, const bool p_hasLeafAnnota
 	}
 
 	const auto blockid = get_blockid();
-	static unsigned labelid = 0; 
-	labelid++;
+	const auto labelid = get_labelid(); 
 
 	cerr << "labelid: " << labelid << " baseid: " << p_inst->GetBaseID() << " address: 0x" << hex << p_inst->GetAddress()->GetVirtualOffset() << dec << " instruction: " << p_inst->getDisassembly();
 
@@ -421,12 +433,18 @@ void Zafl_t::afl_instrument_bb(Instruction_t *p_inst, const bool p_hasLeafAnnota
 /*
    0:   48 8b 15 00 00 00 00    mov    rdx,QWORD PTR [rip+0x0]        # 7 <f+0x7>
    7:   48 8b 0d 00 00 00 00    mov    rcx,QWORD PTR [rip+0x0]        # e <f+0xe>
+
+<no collafl optimization>
    e:   0f b7 02                movzx  eax,WORD PTR [rdx]                      
   11:   66 35 34 12             xor    ax,0x1234                              
   15:   0f b7 c0                movzx  eax,ax                                
+
+<collafl-style optimization>
+                                mov    eax, <blockid>
+
   18:   48 03 01                add    rax,QWORD PTR [rcx]                  
   1b:   80 00 01                add    BYTE PTR [rax],0x1                  
-  1e:   b8 1a 09 00 00          mov    eax,0x91a                          
+  1e:   b8 1a 09 00 00          mov    eax,0x91a                         
   23:   66 89 02                mov    WORD PTR [rdx],ax       
 */	
 
@@ -448,15 +466,25 @@ void Zafl_t::afl_instrument_bb(Instruction_t *p_inst, const bool p_hasLeafAnnota
 	tmp = insertAssemblyAfter(tmp, buf);
 	create_got_reloc(getFileIR(), m_trace_map, tmp);
 
+	if (!p_collafl_optimization)
+	{
 //   e:   0f b7 02                movzx  eax,WORD PTR [rdx]                      
 				sprintf(buf,"movzx  %s,WORD [%s]", reg_temp32, reg_prev_id);
-	tmp = insertAssemblyAfter(tmp, buf);
+		tmp = insertAssemblyAfter(tmp, buf);
 //  11:   66 35 34 12             xor    ax,0x1234                              
 				sprintf(buf, "xor   %s,0x%x", reg_temp16, blockid);
-	tmp = insertAssemblyAfter(tmp, buf);
+		tmp = insertAssemblyAfter(tmp, buf);
 //  15:   0f b7 c0                movzx  eax,ax                                
 				sprintf(buf,"movzx  %s,%s", reg_temp32, reg_temp16);
-	tmp = insertAssemblyAfter(tmp, buf);
+		tmp = insertAssemblyAfter(tmp, buf);
+	}
+	else
+	{
+//                                mov    rax, <blockid>
+				sprintf(buf,"mov   %s,0x%x", reg_temp, blockid);
+		tmp = insertAssemblyAfter(tmp, buf);
+	}
+
 //  18:   48 03 01                add    rax,QWORD PTR [rcx]                  
 				sprintf(buf,"add    %s,QWORD [%s]", reg_temp, reg_trace_map);
 	tmp = insertAssemblyAfter(tmp, buf);                  
@@ -499,26 +527,6 @@ void Zafl_t::afl_instrument_bb(Instruction_t *p_inst, const bool p_hasLeafAnnota
 	free(reg_temp16);
 	free(reg_trace_map);
 	free(reg_prev_id);
-}
-
-// just give it a hash value!
-void Zafl_t::afl_instrument_bb1(Instruction_t *p_inst, const bool p_hasLeafAnnotation)
-{
-	assert(p_inst);
-
-	// @todo: placeholder for now
-	assert(false);
-
-	// collAfl optimization:
-	//     for basic blocks with only 1 predecessor, 
-	//     we can just use a slot in the tracemap directly
-
-/*
-	mov    rcx,QWORD PTR [rip+0x0]        # e <f+0xe>   tracemap
-	mov    rax, <hash_value>
-	add    rax,QWORD PTR [rcx]                  
-	add    BYTE PTR [rax],0x1                  
-*/	
 }
 
 void Zafl_t::insertForkServer(Instruction_t* p_entry)
@@ -752,6 +760,8 @@ int Zafl_t::execute()
 	auto num_bb_skipped = 0;
 	auto num_bb_preds_self = 0;
 	auto num_bb_succs_self = 0;
+	auto num_style_afl = 0;
+	auto num_style_collafl = 0;
 
 	if (m_forkserver_enabled)
 		setupForkServer();
@@ -966,15 +976,16 @@ int Zafl_t::execute()
 		set<BasicBlock_t*, BBSorter> sortedBasicBlocks(keepers.begin(), keepers.end());
 		for (auto &bb : sortedBasicBlocks)
 		{
-			if (m_bb_graph_optimize && bb->GetPredecessors().size() == 1)
+			auto collAflSingleton = false;
+			if (bb->GetPredecessors().size() == 1)
 			{
-				// @todo: colAfl-style; select hash index instead of computing
-				afl_instrument_bb(bb->GetInstructions()[0], leafAnnotation);
+				collAflSingleton = true;
+				num_style_collafl++;
 			}
-			else 
-			{
-				afl_instrument_bb(bb->GetInstructions()[0], leafAnnotation);
-			}
+			else
+				num_style_afl++;
+
+			afl_instrument_bb(bb->GetInstructions()[0], leafAnnotation, collAflSingleton);
 		}
 
 		num_bb_instrumented += keepers.size();
@@ -1008,6 +1019,8 @@ int Zafl_t::execute()
 	cout << "#ATTRIBUTE num_orphan_instructions=" << dec << num_orphan_instructions << endl;
 	cout << "#ATTRIBUTE num_bb_preds_self=" << dec << num_bb_preds_self << endl;
 	cout << "#ATTRIBUTE num_bb_succs_self=" << dec << num_bb_succs_self << endl;
+	cout << "#ATTRIBUTE num_style_afl=" << dec << num_style_afl << endl;
+	cout << "#ATTRIBUTE num_style_collafl=" << dec << num_style_collafl << endl;
 
 	return 1;
 }
