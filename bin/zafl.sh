@@ -14,8 +14,8 @@ usage()
 	echo "     --rida                     Do not use IDAPro"
 	echo "     --stars                    Use STARS (default)"
 	echo "     --no-stars                 Do not use STARS"
-	echo "     --graph-optimization       Use basic block graph optimizations (default)"
-	echo "     --no-graph-optimization    Do not use basic block graph optimizations"
+	echo "     --graph-optimization       Use basic block graph optimizations"
+	echo "     --no-graph-optimization    Do not use basic block graph optimizations (default)"
 }
 
 if [ "$1" = "-h" -o "$1" = "--help" ];
@@ -38,7 +38,7 @@ shift
 #ida_or_rida_opt=" "
 ida_or_rida_opt=" -s meds_static=off -s rida=on "
 stars_opt=" -o zafl:--stars "
-graph_opt=" -o zafl:-g "
+graph_opt=" "
 
 other_args=""
 # parse args
