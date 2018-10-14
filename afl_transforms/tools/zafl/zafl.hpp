@@ -25,8 +25,7 @@ public:
 	void setEnableForkServer(bool p_forkserver_enabled) {m_forkserver_enabled=p_forkserver_enabled;}
 
 private:
-	void afl_instrument_bb(Instruction_t *inst, const bool p_hasLeafAnnotation);
-	void afl_instrument_bb1(Instruction_t *inst, const bool p_hasLeafAnnotation);
+	void afl_instrument_bb(Instruction_t *inst, const bool p_hasLeafAnnotation, const bool p_collafl_optimization=false);
 	void insertExitPoint(Instruction_t *inst);
 	zafl_blockid_t get_blockid(const unsigned = 0xFFFF);
 	void insertForkServer(Instruction_t* p_entry);
@@ -63,11 +62,6 @@ private:
 	unsigned m_num_temp_reg_saved;
 	unsigned m_num_tracemap_reg_saved;
 	unsigned m_num_previd_reg_saved;
-	unsigned m_num_bb_zero_predecessors;;
-	unsigned m_num_bb_single_predecessors;
-	unsigned m_num_bb_zero_successors;
-	unsigned m_num_bb_single_successors;
-	unsigned m_num_bb_skipped;
 };
 
 } 
