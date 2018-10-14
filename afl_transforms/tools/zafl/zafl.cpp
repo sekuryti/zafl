@@ -977,7 +977,7 @@ int Zafl_t::execute()
 		for (auto &bb : sortedBasicBlocks)
 		{
 			auto collAflSingleton = false;
-			if (bb->GetPredecessors().size() == 1)
+			if (m_bb_graph_optimize && bb->GetPredecessors().size() == 1)
 			{
 				collAflSingleton = true;
 				num_style_collafl++;
