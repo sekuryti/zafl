@@ -756,8 +756,12 @@ int Zafl_t::execute()
 	auto num_bb_single_successors = 0;
 	auto num_bb_instrumented = 0;
 	auto num_orphan_instructions = 0;
-	auto num_bb_skipped_cbranch = 0;
 	auto num_bb_skipped = 0;
+	auto num_bb_skipped_cbranch = 0;
+	auto num_bb_skipped_innernode = 0;
+	auto num_bb_skipped_onlychild = 0;
+	auto num_bb_skipped_pushjmp = 0;
+	auto num_bb_skipped_nop_padding = 0;
 	auto num_bb_preds_self = 0;
 	auto num_bb_succs_self = 0;
 	auto num_style_afl = 0;
@@ -863,6 +867,7 @@ int Zafl_t::execute()
 				continue;
 
 /*
+                        // exit block can end in: call, ret, jmp?
 			if (bb->GetInstructions().size()==1 && bb->GetIsExitBlock())
 			{
 				cout << "Skip basic block b/c it's an exit block and only has 1 instruction: " << bb->GetInstructions()[0]->getDisassembly() << endl;
@@ -874,6 +879,7 @@ int Zafl_t::execute()
 			if (bb->GetInstructions().size()==2 && bb->GetInstructions()[0]->getDisassembly().find("push")!=string::npos && bb->GetInstructions()[1]->getDisassembly().find("jmp")!=string::npos)
 			{
 				cout << "Skip basic block b/c it consists of push/jmp pair" << endl;
+				num_bb_skipped_pushjmp++;
 				continue;
 			}
 
@@ -914,22 +920,35 @@ int Zafl_t::execute()
 			}
 			
 			// optimization:
-			//        bb has 1 predecessor 
-			//        predecessor has only 1 successor (namely this bb)
+			//    inner node: 1 predecessor and 1 successor
+			//    
+			//    predecessor has only 1 successor (namely this bb)
+			//    bb has 1 predecessor 
 			if (m_bb_graph_optimize)
 			{
 				if (bb->GetPredecessors().size()==1 && !point_to_self)
 				{
+					if (bb->GetSuccessors().size() == 1 && 
+						(!bb->GetInstructions()[0]->GetIndirectBranchTargetAddress()))
+					{
+						cout << "Skipping basic block #" << dec << bb_id << " because inner node with 1 predecessor and 1 successor" << endl;
+						num_bb_skipped_innernode++;
+						continue;
+					}
+					
 					const auto pred = *(bb->GetPredecessors().begin());
 					if (pred->GetSuccessors().size() == 1)
 					{
 						if (!bb->GetInstructions()[0]->GetIndirectBranchTargetAddress())
 						{
 							cout << "Skipping basic block #" << dec << bb_id << " because not ibta, <1,*> and preds <*,1>" << endl;
+							num_bb_skipped_onlychild++;
 							continue;
 						} 
-						else if (pred->GetIsExitBlock())
+
+						if (pred->GetIsExitBlock())
 						{
+							num_bb_skipped_onlychild++;
 							cout << "Skipping basic block #" << dec << bb_id << " because ibta, <1,*> and preds(exit_block) <*,1>" << endl;
 							continue;
 						}
@@ -961,6 +980,7 @@ int Zafl_t::execute()
 			if (bb->GetInstructions().size()==1 && bb->GetPredecessors().size()==0 && bb->GetSuccessors().size()==1 && isNop(bb->GetInstructions()[0]))
 			{
 				cout << "Skipping basic block #" << dec << bb_id << " because it's a padding instruction: " << bb->GetInstructions()[0]->getDisassembly() << endl;
+				num_bb_skipped_nop_padding++;
 				continue;
 			}
 
@@ -977,6 +997,8 @@ int Zafl_t::execute()
 		for (auto &bb : sortedBasicBlocks)
 		{
 			auto collAflSingleton = false;
+			// for collAfl-style instrumentation, we want #predecessors==1
+			// if the basic block entry point is an IBTA, we don't know the #predecessors
 			if (m_bb_graph_optimize && (bb->GetPredecessors().size() == 1)
 						&& (!bb->GetInstructions()[0]->GetIndirectBranchTargetAddress()))
 			{
@@ -988,13 +1010,13 @@ int Zafl_t::execute()
 				num_style_afl++;
 
 			afl_instrument_bb(bb->GetInstructions()[0], leafAnnotation, collAflSingleton);
-			cout << "Function " << f->GetName() << " bb_num_instructions: " << bb->GetInstructions().size() << " :  collAfl instrumentation: " << boolalpha << collAflSingleton << " ibta: " << (bb->GetInstructions()[0]->GetIndirectBranchTargetAddress()!=0) << " num_predecessors: " << bb->GetPredecessors().size() << " num_successors: " << bb->GetSuccessors().size() << endl;
+			cout << "Function " << f->GetName() << ": bb_num_instructions: " << bb->GetInstructions().size() << " collAfl: " << boolalpha << collAflSingleton << " ibta: " << (bb->GetInstructions()[0]->GetIndirectBranchTargetAddress()!=0) << " num_predecessors: " << bb->GetPredecessors().size() << " num_successors: " << bb->GetSuccessors().size() << " is_exit_block: " << bb->GetIsExitBlock() << endl;
 		}
 
 		num_bb_instrumented += keepers.size();
 		num_bb_skipped += (num_blocks_in_func - keepers.size());
 
-		cout << "Function " << f->GetName() << " :  " << dec << keepers.size() << "/" << num_blocks_in_func << " basic blocks instrumented." << endl;
+		cout << "Function " << f->GetName() << ":  " << dec << keepers.size() << "/" << num_blocks_in_func << " basic blocks instrumented." << endl;
 	});
 
 	// count orphan instructions
@@ -1008,6 +1030,10 @@ int Zafl_t::execute()
 	cout << "#ATTRIBUTE num_bb_instrumented=" << dec << num_bb_instrumented << endl;
 	cout << "#ATTRIBUTE num_bb_skipped=" << dec << num_bb_skipped << endl;
 	cout << "#ATTRIBUTE num_bb_skipped_cond_branch=" << dec << num_bb_skipped_cbranch << endl;
+	cout << "#ATTRIBUTE num_bb_skipped_innernode=" << dec << num_bb_skipped_innernode << endl;
+	cout << "#ATTRIBUTE num_bb_skipped_onlychild=" << dec << num_bb_skipped_onlychild << endl;
+	cout << "#ATTRIBUTE num_bb_skipped_pushjmp=" << dec << num_bb_skipped_pushjmp << endl;
+	cout << "#ATTRIBUTE num_bb_skipped_nop_padding=" << dec << num_bb_skipped_nop_padding << endl;
 	cout << "#ATTRIBUTE num_flags_saved=" << m_num_flags_saved << endl;
 	cout << "#ATTRIBUTE num_temp_reg_saved=" << m_num_temp_reg_saved << endl;
 	cout << "#ATTRIBUTE num_tracemap_reg_saved=" << m_num_tracemap_reg_saved << endl;
