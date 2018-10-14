@@ -787,8 +787,9 @@ int Zafl_t::execute()
 
 	// for all functions
 	//    build cfg and extract basic blocks
-	//    for all basic blocks
-	//          afl_instrument
+	//    for all basic blocks, figure out whether should be kept
+	//    for all kept basic blocks
+	//          add afl-compatible instrumentation
 	set<Function_t*, BaseIDSorter> sortedFuncs(getFileIR()->GetFunctions().begin(), getFileIR()->GetFunctions().end());
 	for_each( sortedFuncs.begin(), sortedFuncs.end(), [&](Function_t* f)
 	{
@@ -823,6 +824,7 @@ int Zafl_t::execute()
 
 		set<BasicBlock_t*> keepers;
 
+		// figure out which basic blocks to keep
 		for (auto &bb : cfg.GetBlocks())
 		{
 			assert(bb->GetInstructions().size() > 0);
@@ -835,7 +837,7 @@ int Zafl_t::execute()
  
 			if (m_verbose)
 			{
-				cout << "---" << endl;
+				cout << "@@@" << endl;
 				cout << "basic block id#" << bb_id << " has " << bb->GetInstructions().size() << " instructions";
 				cout << " instr: " << bb->GetInstructions()[0]->getDisassembly();
 				if (bb->GetInstructions()[0]->GetIndirectBranchTargetAddress())
@@ -878,7 +880,7 @@ int Zafl_t::execute()
 			// push/jmp pair, don't bother instrumenting
 			if (bb->GetInstructions().size()==2 && bb->GetInstructions()[0]->getDisassembly().find("push")!=string::npos && bb->GetInstructions()[1]->getDisassembly().find("jmp")!=string::npos)
 			{
-				cout << "Skip basic block b/c it consists of push/jmp pair" << endl;
+				cout << "Skip basic block b/c it is a push/jmp pair" << endl;
 				num_bb_skipped_pushjmp++;
 				continue;
 			}
@@ -1010,6 +1012,7 @@ int Zafl_t::execute()
 				num_style_afl++;
 
 			afl_instrument_bb(bb->GetInstructions()[0], leafAnnotation, collAflSingleton);
+
 			cout << "Function " << f->GetName() << ": bb_num_instructions: " << bb->GetInstructions().size() << " collAfl: " << boolalpha << collAflSingleton << " ibta: " << (bb->GetInstructions()[0]->GetIndirectBranchTargetAddress()!=0) << " num_predecessors: " << bb->GetPredecessors().size() << " num_successors: " << bb->GetSuccessors().size() << " is_exit_block: " << bb->GetIsExitBlock() << endl;
 		}
 

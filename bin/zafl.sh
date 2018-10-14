@@ -59,20 +59,24 @@ do
 			ida_or_rida_opt=" -s meds_static=off -s rida=on "
 			shift
 			;;
-		--stars)
+		-s | --stars)
 			stars_opt=" -o zafl:--stars "
 			shift
 			;;
-		--no-stars)
+		-S | --no-stars)
 			stars_opt=" "
 			shift
 			;;
-		--graph-optimization)
+		-g | --graph-optimization)
 			graph_opt=" -o zafl:-g "
 			shift
 			;;
-		--no-graph-optimization)
+		-G | --no-graph-optimization)
 			graph_opt=" "
+			shift
+			;;
+		-v | --verbose)
+			verbose_opt=" -o zafl:-v "
 			shift
 			;;
     		*)    # unknown option
@@ -119,7 +123,7 @@ fi
 rm $tmp_objdump
 
 echo "Zafl: Transforming input binary $input_binary into $output_zafl_binary"
-cmd="$PSZ $input_binary $output_zafl_binary $ida_or_rida_opt -c move_globals=on -c zafl=on -o move_globals:--elftables-only -o zipr:--traceplacement:on $stars_opt $graph_opt $options $other_args"
+cmd="$PSZ $input_binary $output_zafl_binary $ida_or_rida_opt -c move_globals=on -c zafl=on -o move_globals:--elftables-only -o zipr:--traceplacement:on $stars_opt $graph_opt $verbose_opt $options $other_args"
 echo "Zafl: Issuing command: $cmd"
 eval $cmd
 if [ $? -eq 0 ]; then
