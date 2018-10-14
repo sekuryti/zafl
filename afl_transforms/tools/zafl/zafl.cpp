@@ -977,23 +977,24 @@ int Zafl_t::execute()
 		for (auto &bb : sortedBasicBlocks)
 		{
 			auto collAflSingleton = false;
-			if (m_bb_graph_optimize && bb->GetPredecessors().size() == 1)
+			if (m_bb_graph_optimize && (bb->GetPredecessors().size() == 1)
+						&& (!bb->GetInstructions()[0]->GetIndirectBranchTargetAddress()))
 			{
 				collAflSingleton = true;
 				num_style_collafl++;
+
 			}
 			else
 				num_style_afl++;
 
 			afl_instrument_bb(bb->GetInstructions()[0], leafAnnotation, collAflSingleton);
+			cout << "Function " << f->GetName() << " bb_num_instructions: " << bb->GetInstructions().size() << " :  collAfl instrumentation: " << boolalpha << collAflSingleton << " ibta: " << (bb->GetInstructions()[0]->GetIndirectBranchTargetAddress()!=0) << " num_predecessors: " << bb->GetPredecessors().size() << " num_successors: " << bb->GetSuccessors().size() << endl;
 		}
 
 		num_bb_instrumented += keepers.size();
 		num_bb_skipped += (num_blocks_in_func - keepers.size());
 
-		if (f) {
-			cout << "Function " << f->GetName() << " :  " << dec << keepers.size() << "/" << num_blocks_in_func << " basic blocks instrumented." << endl;
-		}
+		cout << "Function " << f->GetName() << " :  " << dec << keepers.size() << "/" << num_blocks_in_func << " basic blocks instrumented." << endl;
 	});
 
 	// count orphan instructions
