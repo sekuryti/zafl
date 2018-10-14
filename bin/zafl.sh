@@ -127,6 +127,7 @@ cmd="$PSZ $input_binary $output_zafl_binary $ida_or_rida_opt -c move_globals=on 
 echo "Zafl: Issuing command: $cmd"
 eval $cmd
 if [ $? -eq 0 ]; then
+	# verify library dependency set
 	ldd $output_zafl_binary | grep -e libzafl -e libautozafl >/dev/null 2>&1
 	if [ $? -eq 0 ]; then
 		echo
@@ -139,6 +140,7 @@ if [ $? -eq 0 ]; then
 		exit 1
 	fi
 
+	# sanity check symbols in zafl library resolve
 	ldd -d $output_zafl_binary | grep symbol | grep 'not defined' >/dev/null 2>&1
 	if [ $? -eq 0 ]; then
 		echo Zafl: error: something went wrong in resolving Zafl symnbols
