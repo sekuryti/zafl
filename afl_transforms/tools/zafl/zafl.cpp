@@ -1105,6 +1105,7 @@ int Zafl_t::execute()
 	cout << "#ATTRIBUTE num_bb_keep_exit_block=" << num_bb_keep_exit_block << endl;
 	cout << "#ATTRIBUTE num_style_afl=" << num_style_afl << endl;
 	cout << "#ATTRIBUTE num_style_collafl=" << num_style_collafl << endl;
+	cout << "#ATTRIBUTE graph_optimize=" << boolalpha << m_bb_graph_optimize << endl;
 
 	return 1;
 }
