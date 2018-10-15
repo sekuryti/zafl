@@ -139,13 +139,14 @@ find_main()
 {
 	main_addr=""
 	tmp_objdump=$tmp_dir/tmp.objdump
+	tmp_main=$tmp_dir/tmp.main
 
 	objdump -d $input_binary > $tmp_objdump
 
-	grep "<main>:" $tmp_objdump >/dev/null 2>&1
+	grep "<main>:" $tmp_objdump > $tmp_main
 
 	if [  $? -eq 0 ]; then
-		main_addr=$(cut -d' ' -f1 $tmp_objdump)
+		main_addr=$(cut -d' ' -f1 $tmp_main)
 		log_msg "detected main at: 0x$main_addr"
 		options=" $options -o zafl:'-e 0x$main_addr'"
 	else
