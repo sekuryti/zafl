@@ -1,11 +1,12 @@
 export AFL_TIMEOUT=15
 export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$SECURITY_TRANSFORMS_HOME/lib/:. 
 
-session=/tmp/tmp.bc.$$
+user=$(whoami)
+session=/tmp/${user}/tmp.bc.$$
 
 cleanup()
 {
-	rm -fr /tmp/gzip.tmp* gzip*.zafl peasoup_exec*.gzip* zafl_in zafl_out $session
+	rm -fr $session
 }
 
 log_error()
@@ -52,11 +53,10 @@ fuzz_with_zafl()
 
 }
 
-mkdir $session
+mkdir -p $session
 pushd $session
 
 # build ZAFL version of bc executable
-#$PSZ `which bc` bc.stars.zafl -c move_globals=on -c zafl=on -o move_globals:--elftables -o zipr:--traceplacement:on -o zipr:true -o zafl:--stars  
 zafl.sh `which bc` bc.stars.zafl --tempdir analysis.bc.stars.zafl
 if [ $? -eq 0 ]; then
 	log_success "build bc.stars.zafl"
@@ -64,9 +64,18 @@ else
 	log_error "build bc.stars.zafl"
 fi
 grep ATTR analysis.bc.stars.zafl/logs/zafl.log
-
 log_message "Fuzz for $AFL_TIMEOUT secs"
 fuzz_with_zafl $(realpath ./bc.stars.zafl)
+
+# build with graph optimization
+zafl.sh `which bc` bc.stars.zafl.g -g --tempdir analysis.bc.stars.zafl.g
+if [ $? -eq 0 ]; then
+	log_success "build bc.stars.zafl.g"
+else
+	log_error "build bc.stars.zafl.g"
+fi
+log_message "Fuzz for $AFL_TIMEOUT secs"
+fuzz_with_zafl $(realpath ./bc.stars.zafl.g)
 
 # build ZAFL version of readline shared library
 readline=$( ldd `which bc` | grep libreadline | cut -d'>' -f2 | cut -d'(' -f1 )
@@ -81,12 +90,28 @@ else
 	log_error "build zafl version of $readline_basename at $readline_realpath"
 fi
 
-ls -lt
-
 ldd bc.stars.zafl
 
 log_message "Fuzz for $AFL_TIMEOUT secs (with readline library zafl'ed)"
 fuzz_with_zafl $(realpath ./bc.stars.zafl)
+
+# test functionality
+echo "2+3" | `which bc` > out.bc.orig
+echo "2+3" | ./bc.stars.zafl > out.bc.stars.zafl
+echo "2+3" | ./bc.stars.zafl.g > out.bc.stars.zafl.g
+diff out.bc.orig out.bc.stars.zafl >/dev/null 2>&1
+if [ $? -eq 0 ]; then
+	log_success "bc.stars.zafl basic functionality"
+else
+	log_error "bc.stars.zafl basic functionality"
+fi
+diff out.bc.orig out.bc.stars.zafl.g >/dev/null 2>&1
+if [ $? -eq 0 ]; then
+	log_success "bc.stars.zafl.g basic functionality"
+else
+	log_error "bc.stars.zafl.g basic functionality"
+fi
+
 popd
 
 cleanup
