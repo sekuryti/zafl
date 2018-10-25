@@ -40,21 +40,6 @@ Type "help" for help.
 
 peasoup_XXX=> 
 ```
-### Optional configuration of Zafl with IDA
-
-*Skip this step if you don't have IDA*
-
-*The default Zafl toolchain does not use IDA*
-
-Once you get a license from IDA, put your license key file in: ```$IDAROOT/```
-
-Then you must run IDA once in interactive mode and accept the licensing terms: 
-```
-cd $IDAROOT
-./idat64
-```
-
-**Be sure to check the box that says "Don't display in the future"**
 
 ## Testing Zafl
 
@@ -215,30 +200,6 @@ afl-cmin -i out/queue/ -o out.cmin -- ./ls.zafl @@
 ```
 
 Et voila!
-
-## Options to zafl.sh
-To specify the entry point for the fork server (by default, zafl.sh will look for main()):
-
-```zafl.sh <target_binary> <zafl_output_binary> -o zafl:--entrypoint {<functionName> | 0xaddress}```
-
-To specify exit points:
-
-```zafl.sh <target_binary> <zafl_output_binary> -o zafl:--exitpoint {<functionName> | 0xaddress}```
-
-To specify multiple exit points:
-
-```zafl.sh <target_binary> <zafl_output_binary> -o zafl:--exitpoint {<functionName> | 0xaddress} ... -o zafl:--exitpoint {<functionName> | 0xaddress}```
-
-To specify a whitelist of functions to instrument:
-
-```zafl.sh <target_binary> <zafl_output_binary> -o zafl:--whitelist <whitelistFile>```
-
-To specify a blacklist of functions to skip:
-
-```zafl.sh <target_binary> <zafl_output_binary> -o zafl:--blacklist <blacklistFile>```
-
-The white and black list files contain one entry per line. 
-Options may be combined.
 
 # TL;DR
 Once everything is installed properly:
