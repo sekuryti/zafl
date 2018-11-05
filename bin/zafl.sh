@@ -24,6 +24,8 @@ usage()
 	echo "     -g, --graph-optimization       Use basic block graph optimizations"
 	echo "     -G, --no-graph-optimization    Do not use basic block graph optimizations (default)"
 	echo "     -t, --tempdir                  Specify location of analysis directory"
+	echo "     -e, --entry                    Specify fork server entry point"
+	echo "     -E, --exit                     Specify fork server exit point(s)"
 }
 
 ida_or_rida_opt=" -s meds_static=off -s rida=on "
@@ -97,6 +99,16 @@ parse_args()
 				;;
 			-G | --no-graph-optimization)
 				graph_opt=" "
+				shift
+				;;
+			-e | --entry)
+				shift
+				entry_opt=" -o zafl:\"-e $1\" "
+				shift
+				;;
+			-E | --exit)
+				shift
+				exit_opt=" -o zafl:\"-E $1\" "
 				shift
 				;;
 			-v | --verbose)
@@ -196,7 +208,18 @@ verify_zafl_symbols()
 }
 
 parse_args $*
-find_main
+if [ -z "$entry_opt" ]; then
+	find_main
+else
+	options=" $options $entry_opt "
+fi
+
+echo "entry_opt: $entry_opt"
+echo "exit_opt: $exit_opt"
+
+if [ ! -z "$exit_opt" ]; then
+	options=" $options $exit_opt "
+fi
 
 #
 # Execute Zipr toolchain with Zafl options
