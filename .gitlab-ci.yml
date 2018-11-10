@@ -1,0 +1,89 @@
+before_script:
+  - "source ~gitlab-runner/cicd_support/cicd_support.shinc" 
+
+after_script:
+  - "source ~gitlab-runner/cicd_support/cicd_support.shinc" 
+
+stages:
+  - clean
+  - build
+  - test
+
+
+#
+# Cleaning
+#
+.do-nightly-clean: &do-nightly-clean
+  stage: clean
+  script:
+    - ./cicd_testing/do-clean.sh 
+
+do-nightly-clean-ubuntu18:
+  <<: *do-nightly-clean
+  tags:
+    - ubuntu18
+
+do-nightly-clean-ubuntu16:
+  <<: *do-nightly-clean
+  tags:
+    - ubuntu16
+
+#
+# Building
+#
+
+.do-build: &do-build
+  stage: build
+  script:
+    - ./cicd_testing/do-build.sh 
+
+do-build-ubuntu18:
+  <<: *do-build
+  tags:
+    - ubuntu18
+
+do-build-ubuntu16:
+  <<: *do-build
+  tags:
+    - ubuntu16
+
+#
+# $PSZ ls
+#
+
+.xform-ls: &xform-ls
+  stage: test
+  script:
+    - ./cicd_testing/xform-ls.sh
+
+
+xform-ls-ubuntu18:
+  <<: *xform-ls
+  tags:
+    - ubuntu18
+
+xform-ls-ubuntu16:
+  <<: *xform-ls
+  tags:
+    - ubuntu16
+
+
+
+#
+# test_cmds.sh zafl
+#
+.basic-pgms-rida: &basic-pgms-rida
+  stage: test
+  script:
+    - ./cicd_testing/basic-pgms-zafl.sh
+
+basic-pgms-zafl-ubuntu18:
+  <<: *basic-pgms-zafl
+  tags:
+    - ubuntu18
+
+basic-pgms-zafl-ubuntu16:
+  <<: *basic-pgms-zafl
+  tags:
+    - ubuntu16
+
