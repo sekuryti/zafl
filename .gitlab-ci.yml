@@ -72,7 +72,7 @@ xform-ls-ubuntu16:
 #
 # test_cmds.sh zafl
 #
-.basic-pgms-rida: &basic-pgms-rida
+.basic-pgms-zafl: &basic-pgms-zafl
   stage: test
   script:
     - ./cicd_testing/basic-pgms-zafl.sh
