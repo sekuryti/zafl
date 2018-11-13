@@ -28,6 +28,12 @@ do-nightly-clean-ubuntu16:
   tags:
     - ubuntu16
 
+do-nightly-clean-centos75:
+  <<: *do-nightly-clean
+  tags:
+    - centos75
+
+
 #
 # Building
 #
@@ -46,6 +52,12 @@ do-build-ubuntu16:
   <<: *do-build
   tags:
     - ubuntu16
+
+do-build-centos75:
+  <<: *do-build
+  tags:
+    - centos75
+
 
 #
 # $PSZ ls
@@ -67,7 +79,10 @@ xform-ls-ubuntu16:
   tags:
     - ubuntu16
 
-
+xform-ls-centos75:
+  <<: *xform-ls
+  tags:
+    - centos75
 
 #
 # test_cmds.sh zafl
@@ -86,4 +101,9 @@ basic-pgms-zafl-ubuntu16:
   <<: *basic-pgms-zafl
   tags:
     - ubuntu16
+
+basic-pgms-zafl-centos75:
+  <<: *basic-pgms-zafl
+  tags:
+    - centos75
 
