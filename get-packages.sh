@@ -1,4 +1,4 @@
-PKGS="libtool glib2.0-dev texinfo"
+PKGS="libtool glib2.0-dev texinfo libtool-bin"
 
 for i in $PKGS
 do
