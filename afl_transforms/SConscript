@@ -12,7 +12,7 @@ env['BASE_IRDB_LIBS']="IRDB-core", "pqxx", "pq", "BeaEngine_s_d", "EXEIO", "ElfD
 
 if sysname != "SunOS":
 	# setup libraries needed for linking
-	env['BASE_IRDB_LIBS']="IRDB-core", "pqxx", "pq", "BeaEngine_s_d", "EXEIO", "pebliss", "ElfDep"
+	env['BASE_IRDB_LIBS']="IRDB-core", "pqxx", "pq", "BeaEngine_s_d", "EXEIO", "pebliss", "ElfDep", "capstone"
 
 # pebliss requires iconv, which needs to be explicit on cygwin.
 if "CYGWIN" in sysname:
