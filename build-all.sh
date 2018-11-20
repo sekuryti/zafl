@@ -19,6 +19,9 @@ if [ ! -e afl ]; then
 	mv afl-* afl
 	cd afl && make
 	cd qemu_mode && ./build_qemu_support.sh
+
+	# afl wants this
+	echo core >/proc/sys/kernel/core_pattern
 fi
 
 cd $AFL_TRANSFORMS
