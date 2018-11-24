@@ -1,11 +1,11 @@
 export AFL_TIMEOUT=15
 export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$SECURITY_TRANSFORMS_HOME/lib/:. 
 
-session=/tmp/tmp.strings.$$
+session=/tmp/tmp.zafl.strings.$$.$(whoami)
 
 cleanup()
 {
-	rm -fr /tmp/strings.tmp* strings*.zafl peasoup_exec*.strings* zafl_in zafl_out $session
+	rm -fr /tmp/tmp.zafl.strings.*.$(whoami) 
 }
 
 log_error()
@@ -66,18 +66,6 @@ grep ATTR analysis.strings.zafl/logs/zafl.log
 
 log_message "Fuzz for $AFL_TIMEOUT secs"
 fuzz_with_zafl $(realpath ./strings.zafl)
-
-# build ZAFL (no Ida) version of strings executable
-zafl.sh `which strings` strings.rida.zafl --tempdir analysis.strings.rida.zafl
-if [ $? -eq 0 ]; then
-	log_success "build strings.rida.zafl"
-else
-	log_error "build strings.rida.zafl"
-fi
-grep ATTR analysis.strings.rida.zafl/logs/zafl.log
-
-log_message "Fuzz rida.zafl for $AFL_TIMEOUT secs"
-fuzz_with_zafl $(realpath ./strings.rida.zafl)
 
 cleanup
 popd
