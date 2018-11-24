@@ -108,7 +108,7 @@ parse_args()
 				;;
 			-E | --exit)
 				shift
-				exit_opt=" -o zafl:\"-E $1\" "
+				exit_opt=" $exit_opt -o zafl:\"-E $1\" "
 				shift
 				;;
 			-v | --verbose)
@@ -226,7 +226,8 @@ fi
 #
 log_msg "Transforming input binary $input_binary into $output_zafl_binary"
 
-cmd="$PSZ $input_binary $output_zafl_binary $ida_or_rida_opt -c move_globals=on -c zafl=on -o move_globals:--elftables-only -o zipr:--traceplacement:on $stars_opt $graph_opt $verbose_opt $options $other_args"
+#cmd="$PSZ $input_binary $output_zafl_binary $ida_or_rida_opt -c move_globals=on -c zafl=on -o move_globals:--elftables-only -o zipr:--traceplacement:on $stars_opt $graph_opt $verbose_opt $options $other_args"
+cmd="$PSZ $input_binary $output_zafl_binary $ida_or_rida_opt -c move_globals=on -c zafl=on -o move_globals:--elftables-only $stars_opt $graph_opt $verbose_opt $options $other_args"
 
 log_msg "Issuing command: $cmd"
 eval $cmd

@@ -239,19 +239,24 @@ static std::set<RegisterName> get_free_regs(const RegisterSet_t candidates)
 	return free_regs;
 }
 
-void Zafl_t::insertExitPoint(Instruction_t *inst)
+void Zafl_t::insertExitPoint(Instruction_t *p_inst)
 {
-	assert(inst);
+	assert(p_inst->GetAddress()->GetVirtualOffset());
 
-	if (inst->GetFunction())
-		cout << "in function: " << inst->GetFunction()->GetName() << " ";
+	if (p_inst->GetFunction())
+		cout << "in function: " << p_inst->GetFunction()->GetName() << " ";
 
-	cout << "insert exit point at: 0x" << hex << inst->GetAddress()->GetVirtualOffset() << dec << " " << inst->getDisassembly() << endl;
+	stringstream ss;
+	ss << "0x" << hex << p_inst->GetAddress()->GetVirtualOffset();
+
+	cout << "insert exit point at: 0x" << ss.str() << endl;
+	m_blacklist.insert(ss.str());
 	
-	auto tmp = inst;
+	auto tmp = p_inst;
 	     insertAssemblyBefore(tmp, "xor edi, edi"); //  rdi=0
 	tmp = insertAssemblyAfter(tmp, "mov eax, 231"); //  231 = __NR_exit_group   from <asm/unistd_64.h>
 	tmp = insertAssemblyAfter(tmp, "syscall");      //  sys_exit_group(edi)
+//	insertAssemblyBefore(p_inst, "hlt"); 
 }
 
 /*
@@ -536,6 +541,8 @@ void Zafl_t::insertForkServer(Instruction_t* p_entry)
 	stringstream ss;
 	ss << "0x" << hex << p_entry->GetAddress()->GetVirtualOffset();
 	cout << "inserting fork server code at address: " << ss.str() << dec << endl;
+	assert(p_entry->GetAddress()->GetVirtualOffset());
+
 	if (p_entry->GetFunction())
 		cout << " function: " << p_entry->GetFunction()->GetName();
 	cout << endl;
@@ -620,6 +627,12 @@ void Zafl_t::insertForkServer(string p_forkServerEntry)
 
 		cout << "inserting fork server code at entry point of function: " << p_forkServerEntry << endl;
 		auto entrypoint = (*entryfunc)->GetEntryPoint();
+		
+		if (!entrypoint) 
+		{
+			cerr << "Could not find entry point for: " << p_forkServerEntry << endl;
+			throw;
+		}
 		insertForkServer(entrypoint);
 	}
 }
@@ -680,16 +693,20 @@ void Zafl_t::insertExitPoints()
 				throw;
 			}
 
-			cout << "inserting fork server code at exit point of function: " << exitp << endl;
+			cout << "inserting exit code at return points of function: " << exitp << endl;
 			for (auto i : (*func_iter)->GetInstructions())
 			{
 				// if it's a return instruction, instrument exit point
 				const auto d=DecodedInstruction_t(i);
+
+				// warning: 
 				if (d.isReturn())
 				{
 					insertExitPoint(i);
 				}
 			}
+
+			assert(return_counter > 0);
 		}
 	}
 }
