@@ -705,8 +705,6 @@ void Zafl_t::insertExitPoints()
 					insertExitPoint(i);
 				}
 			}
-
-			assert(return_counter > 0);
 		}
 	}
 }
