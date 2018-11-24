@@ -1,16 +1,17 @@
 export AFL_TIMEOUT=15
 export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$SECURITY_TRANSFORMS_HOME/lib/:. 
 
-session=/tmp/tmp.zafl.strings.$$.$(whoami)
+session=/tmp/tmp.$(whoami).zafl.strings.$$
 
 cleanup()
 {
-	rm -fr /tmp/tmp.zafl.strings.*.$(whoami) 
+	rm -fr $session
 }
 
 log_error()
 {
 	echo "TEST FAIL: $1"
+	cleanup
 	exit 1
 }
 

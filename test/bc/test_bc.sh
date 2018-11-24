@@ -2,7 +2,7 @@ export AFL_TIMEOUT=15
 export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$SECURITY_TRANSFORMS_HOME/lib/:. 
 
 user=$(whoami)
-session=/tmp/${user}/tmp.bc.$$
+session=/tmp/tmp.${user}.zafl.bc.$$
 
 cleanup()
 {
@@ -12,6 +12,7 @@ cleanup()
 log_error()
 {
 	echo "TEST FAIL: $1"
+	cleanup
 	exit 1
 }
 
