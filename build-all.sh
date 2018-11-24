@@ -21,7 +21,7 @@ if [ ! -e afl ]; then
 	cd qemu_mode && ./build_qemu_support.sh
 
 	# afl wants this
-	echo core >/proc/sys/kernel/core_pattern
+	sudo $ZFUZZ_HOME/util/afl_setup_core_pattern.sh
 fi
 
 cd $AFL_TRANSFORMS
