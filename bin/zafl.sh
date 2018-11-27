@@ -183,7 +183,7 @@ find_main()
 				options=" $options -o zafl:'-e 0x$main_addr'"
 			fi
 		else
-			log_warning "no main() detected, probably a library ==> no fork server"
+			log_warning "no main() detected, probably a library ==> no automated insertion of fork server"
 		fi
 	fi
 	rm $tmp_objdump >/dev/null 2>&1

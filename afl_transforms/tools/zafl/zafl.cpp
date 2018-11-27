@@ -543,11 +543,14 @@ void Zafl_t::insertForkServer(Instruction_t* p_entry)
 	cout << "inserting fork server code at address: " << ss.str() << dec << endl;
 	assert(p_entry->GetAddress()->GetVirtualOffset());
 
-	if (p_entry->GetFunction())
+	if (p_entry->GetFunction()) {
 		cout << " function: " << p_entry->GetFunction()->GetName();
+		cout << " ep instr: " << p_entry->getDisassembly() << endl;
+	}
 	cout << endl;
 
 	// blacklist insertion point
+	cout << "Blacklisting entry point: " << ss.str() << endl;
 	m_blacklist.insert(ss.str());
 
 	// insert the instrumentation
@@ -958,6 +961,10 @@ int Zafl_t::execute()
 				if (bb_id >= atoi(getenv("ZAFL_LIMIT_END"))) 
 					continue;
 			}
+
+			// make sure we're not trying to instrument code we just inserted, e.g., the fork server
+			if (bb->GetInstructions()[0]->GetBaseID() < 0)
+				continue;
 
 			// collect stats
 			if (bb->GetPredecessors().size() == 0)
