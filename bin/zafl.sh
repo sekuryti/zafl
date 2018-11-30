@@ -78,7 +78,7 @@ parse_args()
 				exit 0
 				;;
 			--ida)
-				ida_or_rida_opt=" "
+				ida_or_rida_opt=" -s meds_static=on -s rida=off "
 				shift
 				;;
 			--rida)
@@ -213,9 +213,6 @@ if [ -z "$entry_opt" ]; then
 else
 	options=" $options $entry_opt "
 fi
-
-echo "entry_opt: $entry_opt"
-echo "exit_opt: $exit_opt"
 
 if [ ! -z "$exit_opt" ]; then
 	options=" $options $exit_opt "
