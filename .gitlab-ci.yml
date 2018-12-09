@@ -60,50 +60,49 @@ do-build-centos75:
 
 
 #
-# $PSZ ls
-#
-
-.xform-ls: &xform-ls
-  stage: test
-  script:
-    - ./cicd_testing/xform-ls.sh
-
-
-xform-ls-ubuntu18:
-  <<: *xform-ls
-  tags:
-    - ubuntu18
-
-xform-ls-ubuntu16:
-  <<: *xform-ls
-  tags:
-    - ubuntu16
-
-xform-ls-centos75:
-  <<: *xform-ls
-  tags:
-    - centos75
-
-#
 # test_cmds.sh zafl
 #
-.basic-pgms-zafl: &basic-pgms-zafl
+#.basic-pgms-zafl: &basic-pgms-zafl
+#  stage: test
+#  script:
+#    - ./cicd_testing/basic-pgms-zafl.sh
+#
+#basic-pgms-zafl-ubuntu18:
+#  <<: *basic-pgms-zafl
+#  tags:
+#    - ubuntu18
+#
+#basic-pgms-zafl-ubuntu16:
+#  <<: *basic-pgms-zafl
+#  tags:
+#    - ubuntu16
+#
+#basic-pgms-zafl-centos75:
+#  <<: *basic-pgms-zafl
+#  tags:
+#    - centos75
+#
+
+#
+# test zafl with afl
+#
+.afl-zafl: &afl-zafl
   stage: test
   script:
-    - ./cicd_testing/basic-pgms-zafl.sh
+    - ./cicd_testing/afl-zafl.sh
 
-basic-pgms-zafl-ubuntu18:
-  <<: *basic-pgms-zafl
+afl-zafl-ubuntu18:
+  <<: *afl-zafl
   tags:
     - ubuntu18
 
-basic-pgms-zafl-ubuntu16:
-  <<: *basic-pgms-zafl
+afl-zafl-ubuntu16:
+  <<: *afl-zafl
   tags:
     - ubuntu16
 
-basic-pgms-zafl-centos75:
-  <<: *basic-pgms-zafl
+afl-zafl-centos75:
+  <<: *afl-zafl
   tags:
     - centos75
 
