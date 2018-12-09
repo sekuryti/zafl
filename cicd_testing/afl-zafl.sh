@@ -13,9 +13,8 @@ sudo cat /proc/sys/kernel/core_pattern > $save_core_pattern
 echo "Setup core pattern for afl"
 sudo $ZAFL_HOME/zfuzz/util/afl_setup_core_pattern.sh
 
+echo "Test various zafl configurations"
 $ZAFL_HOME/zfuzz/test/strings/test_strings.sh
+$ZAFL_HOME/zfuzz/test/bc/test_bc.sh
+$ZAFL_HOME/zfuzz/test/sha256sum/test_sha256sum.sh
 
-echo "Restore original core pattern"
-sudo cat $save_core_pattern > /proc/sys/kernel/core_pattern
-
-rm $save_core_pattern
