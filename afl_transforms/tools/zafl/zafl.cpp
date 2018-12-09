@@ -247,7 +247,7 @@ void Zafl_t::insertExitPoint(Instruction_t *p_inst)
 		cout << "in function: " << p_inst->GetFunction()->GetName() << " ";
 
 	stringstream ss;
-	ss << "0x" << hex << p_inst->GetAddress()->GetVirtualOffset();
+	ss << hex << p_inst->GetAddress()->GetVirtualOffset();
 
 	cout << "insert exit point at: 0x" << ss.str() << endl;
 	m_blacklist.insert(ss.str());
@@ -700,6 +700,8 @@ void Zafl_t::insertExitPoints()
 			for (auto i : (*func_iter)->GetInstructions())
 			{
 				// if it's a return instruction, instrument exit point
+				if (i->GetBaseID() < 0)
+					continue;
 				const auto d=DecodedInstruction_t(i);
 
 				// warning: 
