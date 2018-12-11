@@ -27,7 +27,7 @@
 #include <sys/types.h>
 #include <unistd.h>
 
-#include "zafl.hpp"
+#include "zax.hpp"
 
 using namespace std;
 using namespace libIRDB;
@@ -171,7 +171,7 @@ int main(int argc, char **argv)
 
 		try
 		{
-			Zafl_t zafl_transform(pqxx_interface, firp, entry_fork_server, exitpoints, use_stars, autozafl, verbose);
+			Zax_t zafl_transform(pqxx_interface, firp, entry_fork_server, exitpoints, use_stars, autozafl, verbose);
 			if (whitelistFile.size()>0)
 				zafl_transform.setWhitelist(whitelistFile);
 			if (blacklistFile.size()>0)

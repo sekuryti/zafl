@@ -11,13 +11,13 @@ namespace Zafl
 typedef unsigned zafl_blockid_t;
 
 // the actual transform.
-class Zafl_t : public libTransform::Transform
+class Zax_t : public libTransform::Transform
 {
 public:
 	// explicitly disable default and copy constructors
-	Zafl_t() = delete;
-	Zafl_t(const Zafl::Zafl_t&) = delete;
-	Zafl_t(libIRDB::pqxxDB_t &p_dbinterface, libIRDB::FileIR_t *p_variantIR, string p_entry, set<string> p_exits, bool p_use_stars=false, bool p_autozafl=false, bool p_verbose=false);
+	Zax_t() = delete;
+	Zax_t(const Zafl::Zax_t&) = delete;
+	Zax_t(libIRDB::pqxxDB_t &p_dbinterface, libIRDB::FileIR_t *p_variantIR, string p_entry, set<string> p_exits, bool p_use_stars=false, bool p_autozafl=false, bool p_verbose=false);
 	int execute();
 	void setWhitelist(const string&);
 	void setBlacklist(const string&);

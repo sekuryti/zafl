@@ -21,7 +21,7 @@ cpppath='''
 files=Glob( Dir('.').srcnode().abspath+"/*.cpp")
 
 
-pgm="zafl.exe"
+pgm="zax.exe"
 
 LIBPATH="$SECURITY_TRANSFORMS_HOME/lib"
 LIBS=Split("stars "+ env.subst('$BASE_IRDB_LIBS')+ "  IRDB-cfg IRDB-util transform MEDSannotation ") 
