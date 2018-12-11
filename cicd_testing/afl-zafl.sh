@@ -17,4 +17,5 @@ echo "Test various zafl configurations"
 $ZAFL_HOME/zfuzz/test/strings/test_strings.sh
 $ZAFL_HOME/zfuzz/test/bc/test_bc.sh
 $ZAFL_HOME/zfuzz/test/sha256sum/test_sha256sum.sh
+$ZAFL_HOME/zfuzz/test/od/test_od.sh
 
