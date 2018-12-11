@@ -208,8 +208,8 @@ main()
 	local split_flags="   --step-option fill_in_indtargs:--split-eh-frame "
 	local icall_flags="   --step-option fix_calls:--no-fix-icalls "
 	local p1flags=" 	-c p1transform=on " 
-	local zafl_flags="    --backend zipr -s meds_static=off -s rida=on -c move_globals=on -c zafl=on -o move_globals:--elftables-only "
-	local zafl_opt_flags="--backend zipr -s meds_static=off -s rida=on -c move_globals=on -c zafl=on -o move_globals:--elftables-only -o zipr:--traceplacement:on -o zafl:--stars "
+	local zafl_flags="    --backend zipr -s meds_static=off -s rida=on -c move_globals=on -c zax=on -o move_globals:--elftables-only "
+	local zafl_opt_flags="--backend zipr -s meds_static=off -s rida=on -c move_globals=on -c zax=on -o move_globals:--elftables-only -o zipr:--traceplacement:on -o zax:--stars "
 
 	# sets $SPEC
 	setup

@@ -4,7 +4,7 @@ Import('env')
 
 dirs='''
 	constant_decompose
-	zafl
+	zax
 	'''
 
 

@@ -23,19 +23,19 @@ do
 	cd $MYDIR/${b}_zafl
 	echo building in $PWD
 	if [ ! -e $b.zafl ]; then
-		$PSZ $b $b.zafl -c move_globals=on -c zafl=on -o move_globals:--elftables -o zipr:'--zipr:seed 123'
+		$PSZ $b $b.zafl -c move_globals=on -c zax=on -o move_globals:--elftables -o zipr:'--zipr:seed 123'
 	fi
 #	if [ ! -e $b.zafl.stars ]; then
-#		$PSZ $b $b.zafl.stars -c move_globals=on -c zafl=on -o move_globals:--elftables -o zafl:--stars -o zipr:'--zipr:seed 123'
+#		$PSZ $b $b.zafl.stars -c move_globals=on -c zax=on -o move_globals:--elftables -o zafl:--stars -o zipr:'--zipr:seed 123'
 #	fi
 #	if [ ! -e $b.zafl.trace ]; then
-#		$PSZ $b $b.zafl.trace -c move_globals=on -c zafl=on -o move_globals:--elftables -o zipr:--traceplacement:on -o zipr:'--zipr:seed 123'
+#		$PSZ $b $b.zafl.trace -c move_globals=on -c zax=on -o move_globals:--elftables -o zipr:--traceplacement:on -o zipr:'--zipr:seed 123'
 #	fi
 #	if [ ! -e $b.zafl.stars.trace ]; then
-#		$PSZ $b $b.zafl.stars.trace -c move_globals=on -c zafl=on -o move_globals:--elftables -o zipr:--traceplacement:on -o zipr:true -o zafl:--stars -o zipr:'--zipr:seed 123'
+#		$PSZ $b $b.zafl.stars.trace -c move_globals=on -c zax=on -o move_globals:--elftables -o zipr:--traceplacement:on -o zipr:true -o zafl:--stars -o zipr:'--zipr:seed 123'
 #	fi
 #	if [ ! -e $b.zafl.stars.relax ]; then
-#		$PSZ $b $b.zafl.stars.relax -c move_globals=on -c zafl=on -o move_globals:--elftables -o zipr:--relax:on -o zafl:--stars -o zipr:'--zipr:seed 123'
+#		$PSZ $b $b.zafl.stars.relax -c move_globals=on -c zax=on -o move_globals:--elftables -o zipr:--relax:on -o zafl:--stars -o zipr:'--zipr:seed 123'
 #	fi
 done
 

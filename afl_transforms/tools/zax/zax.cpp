@@ -21,7 +21,7 @@
  * E-mail: jwd@zephyr-software.com
  **************************************************************************/
 
-#include "zafl.hpp"
+#include "zax.hpp"
 
 #include <stdlib.h>
 #include <string.h> 
@@ -42,7 +42,7 @@ using namespace Zafl;
 using namespace IRDBUtility;
 using namespace MEDS_Annotation;
 
-Zafl_t::Zafl_t(libIRDB::pqxxDB_t &p_dbinterface, libIRDB::FileIR_t *p_variantIR, string p_forkServerEntryPoint, set<string> p_exitPoints, bool p_use_stars, bool p_autozafl, bool p_verbose)
+Zax_t::Zax_t(libIRDB::pqxxDB_t &p_dbinterface, libIRDB::FileIR_t *p_variantIR, string p_forkServerEntryPoint, set<string> p_exitPoints, bool p_use_stars, bool p_autozafl, bool p_verbose)
 	:
 	Transform(NULL, p_variantIR, NULL),
 	m_dbinterface(p_dbinterface),
@@ -172,7 +172,7 @@ static bool hasLeafAnnotation(Function_t* fn, MEDS_AnnotationParser &meds_ap_par
 /*
  * Only allow instrumentation in whitelisted functions
  */
-void Zafl_t::setWhitelist(const string& p_whitelist)
+void Zax_t::setWhitelist(const string& p_whitelist)
 {
 	std::ifstream whitelistFile(p_whitelist);
 	if (!whitelistFile.is_open())
@@ -189,7 +189,7 @@ void Zafl_t::setWhitelist(const string& p_whitelist)
 /*
  * Disallow instrumentation in blacklisted functions
  */
-void Zafl_t::setBlacklist(const string& p_blackList)
+void Zax_t::setBlacklist(const string& p_blackList)
 {
 	std::ifstream blackListFile(p_blackList);
 	if (!blackListFile.is_open())
@@ -204,7 +204,7 @@ void Zafl_t::setBlacklist(const string& p_blackList)
 }
 
 
-zafl_blockid_t Zafl_t::get_blockid(unsigned p_max_mask) 
+zafl_blockid_t Zax_t::get_blockid(unsigned p_max_mask) 
 {
 	auto counter = 0;
 	auto blockid = 0;
@@ -239,7 +239,7 @@ static std::set<RegisterName> get_free_regs(const RegisterSet_t candidates)
 	return free_regs;
 }
 
-void Zafl_t::insertExitPoint(Instruction_t *p_inst)
+void Zax_t::insertExitPoint(Instruction_t *p_inst)
 {
 	assert(p_inst->GetAddress()->GetVirtualOffset());
 
@@ -270,7 +270,7 @@ void Zafl_t::insertExitPoint(Instruction_t *p_inst)
 	        zafl_trace_bits[id]++;
 		zafl_prev_id = id >> 1;     
 */
-void Zafl_t::afl_instrument_bb(Instruction_t *p_inst, const bool p_hasLeafAnnotation, const bool p_collafl_optimization)
+void Zax_t::afl_instrument_bb(Instruction_t *p_inst, const bool p_hasLeafAnnotation, const bool p_collafl_optimization)
 {
 	assert(p_inst);
 
@@ -534,7 +534,7 @@ void Zafl_t::afl_instrument_bb(Instruction_t *p_inst, const bool p_hasLeafAnnota
 	free(reg_prev_id);
 }
 
-void Zafl_t::insertForkServer(Instruction_t* p_entry)
+void Zax_t::insertForkServer(Instruction_t* p_entry)
 {
 	assert(p_entry);
 
@@ -592,7 +592,7 @@ void Zafl_t::insertForkServer(Instruction_t* p_entry)
 	tmp=  insertAssemblyAfter(tmp," lea rsp, [rsp+128]");
 }
 
-void Zafl_t::insertForkServer(string p_forkServerEntry)
+void Zax_t::insertForkServer(string p_forkServerEntry)
 {
 	assert(p_forkServerEntry.size() > 0);
 
@@ -640,7 +640,7 @@ void Zafl_t::insertForkServer(string p_forkServerEntry)
 	}
 }
 
-void Zafl_t::setupForkServer()
+void Zax_t::setupForkServer()
 {
 	if (m_fork_server_entry.size()>0)
 	{
@@ -662,7 +662,7 @@ void Zafl_t::setupForkServer()
 	// it's ok not to have a fork server at all, e.g. libraries
 }
 
-void Zafl_t::insertExitPoints()
+void Zax_t::insertExitPoints()
 {
 	for (auto exitp : m_exitpoints)
 	{
@@ -730,20 +730,20 @@ static bool isNop(const Instruction_t *i)
 //     - in blacklist
 //     - that start with '.'
 //     - that end with @plt
-bool Zafl_t::isBlacklisted(const Function_t *p_func) const
+bool Zax_t::isBlacklisted(const Function_t *p_func) const
 {
 	return (p_func->GetName()[0] == '.' || 
 	        p_func->GetName().find("@plt") != string::npos ||
 	        m_blacklist.find(p_func->GetName())!=m_blacklist.end());
 }
 
-bool Zafl_t::isWhitelisted(const Function_t *p_func) const
+bool Zax_t::isWhitelisted(const Function_t *p_func) const
 {
 	if (m_whitelist.size() == 0) return true;
 	return (m_whitelist.find(p_func->GetName())!=m_whitelist.end());
 }
 
-bool Zafl_t::isBlacklisted(const Instruction_t *p_inst) const
+bool Zax_t::isBlacklisted(const Instruction_t *p_inst) const
 {
 	const auto vo = p_inst->GetAddress()->GetVirtualOffset();
 	char tmp[1024];
@@ -751,7 +751,7 @@ bool Zafl_t::isBlacklisted(const Instruction_t *p_inst) const
 	return (m_blacklist.count(tmp) > 0 || isBlacklisted(p_inst->GetFunction()));
 }
 
-bool Zafl_t::isWhitelisted(const Instruction_t *p_inst) const
+bool Zax_t::isWhitelisted(const Instruction_t *p_inst) const
 {
 	if (m_whitelist.size() == 0) return true;
 
@@ -809,7 +809,7 @@ static bool hasBackEdge(BasicBlock_t *p_bb)
  * postcondition: instructions added to auto-initialize stack for each specified function
  *
  */
-int Zafl_t::execute()
+int Zax_t::execute()
 {
 	auto num_bb_zero_predecessors = 0;
 	auto num_bb_zero_successors = 0;
