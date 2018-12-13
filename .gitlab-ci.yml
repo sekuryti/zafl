@@ -110,7 +110,7 @@ afl-zafl-centos75:
 # test installer
 #
 .install-zafl: &install-zafl
-  stage: test
+  stage: install
   script:
     - ./cicd_testing/installer.sh
 
