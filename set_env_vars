@@ -12,4 +12,6 @@ source ./set_env_vars
 cd $ZAFL_HOME/zfuzz
 source ./set_env_vars
 
+export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$ZAFL_HOME/zest_runtime/lib
+
 cd $ZAFL_HOME
