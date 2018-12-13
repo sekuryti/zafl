@@ -63,26 +63,25 @@ do-build-centos75:
 #
 # test_cmds.sh zafl
 #
-#.basic-pgms-zafl: &basic-pgms-zafl
-#  stage: test
-#  script:
-#    - ./cicd_testing/basic-pgms-zafl.sh
-#
-#basic-pgms-zafl-ubuntu18:
-#  <<: *basic-pgms-zafl
-#  tags:
-#    - ubuntu18
-#
-#basic-pgms-zafl-ubuntu16:
-#  <<: *basic-pgms-zafl
-#  tags:
-#    - ubuntu16
-#
-#basic-pgms-zafl-centos75:
-#  <<: *basic-pgms-zafl
-#  tags:
-#    - centos75
-#
+.basic-pgms-zafl: &basic-pgms-zafl
+  stage: test
+  script:
+    - ./cicd_testing/basic-pgms-zafl.sh
+
+basic-pgms-zafl-ubuntu18:
+  <<: *basic-pgms-zafl
+  tags:
+    - ubuntu18
+
+basic-pgms-zafl-ubuntu16:
+  <<: *basic-pgms-zafl
+  tags:
+    - ubuntu16
+
+basic-pgms-zafl-centos75:
+  <<: *basic-pgms-zafl
+  tags:
+    - centos75
 
 #
 # test zafl with afl
