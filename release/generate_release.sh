@@ -47,7 +47,7 @@ main()
 	cp -r $ZAFL_HOME/install/zfuzz $zaflinstalldir
 	cp -r $ZAFL_HOME/install/set_env_vars $zaflinstalldir
 	echo "Creating installation archive"
-	tar czf zafl.tgz zafl_install
+	tar czf zafl_install.tgz zafl_install
 
 	echo "Cleaning up"
 	post_cleanup
