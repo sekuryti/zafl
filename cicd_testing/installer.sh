@@ -74,8 +74,8 @@ install_release()
 }
 
 # generate and sanity check installer 
-#cd /tmp/zafl_test
-#source set_env_vars
+cd /tmp/zafl_test
+source set_env_vars
 
 generate_release
 install_release
