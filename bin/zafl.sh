@@ -17,8 +17,6 @@ usage()
 	echo "zafl.sh <input_binary> <output_zafl_binary> [options]"
 	echo 
 	echo "options:"
-	echo "     --ida                          Use IDAPro (default)"
-	echo "     --rida                         Do not use IDAPro"
 	echo "     -s, --stars                    Use STARS (default)"
 	echo "     -S, --no-stars                 Do not use STARS"
 	echo "     -g, --graph-optimization       Use basic block graph optimizations"
@@ -78,11 +76,11 @@ parse_args()
 				exit 0
 				;;
 			--ida)
-				ida_or_rida_opt=" -s meds_static=on -s rida=off "
+				ida_or_rida_opt=" -c meds_static=on -s rida=off "
 				shift
 				;;
 			--rida)
-				ida_or_rida_opt=" -s meds_static=off -s rida=on "
+				ida_or_rida_opt=" -s meds_static=off -c rida=on "
 				shift
 				;;
 			-s | --stars)

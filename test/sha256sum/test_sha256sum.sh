@@ -55,26 +55,14 @@ fuzz_with_zafl()
 mkdir $session
 pushd $session
 
-# build ZAFL version of sha256sum executable
-zafl.sh `which sha256sum` sha256sum.ida.zafl --tempdir analysis.sha256sum.ida.zafl --ida
-if [ $? -eq 0 ]; then
-	log_success "build sha256sum.ida.zafl"
-else
-	log_error "build sha256sum.ida.zafl"
-fi
-grep ATTR analysis.sha256sum.ida.zafl/logs/zafl.log
-
-log_message "Fuzz ida.zafl for $AFL_TIMEOUT secs"
-fuzz_with_zafl $(realpath ./sha256sum.ida.zafl)
-
 # build ZAFL (no Ida) version of sha256sum executable
-zafl.sh `which sha256sum` sha256sum.rida.zafl --tempdir analysis.sha256sum.rida.zafl --rida
+zafl.sh `which sha256sum` sha256sum.rida.zafl --tempdir analysis.sha256sum
 if [ $? -eq 0 ]; then
 	log_success "build sha256sum.rida.zafl"
 else
 	log_error "build sha256sum.rida.zafl"
 fi
-grep ATTR analysis.sha256sum.rida.zafl/logs/zafl.log
+grep ATTR analysis.sha256sum/logs/zax.log
 
 log_message "Fuzz rida.zafl for $AFL_TIMEOUT secs"
 fuzz_with_zafl $(realpath ./sha256sum.rida.zafl)
