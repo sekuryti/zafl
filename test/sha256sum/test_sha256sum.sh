@@ -63,9 +63,27 @@ else
 	log_error "build sha256sum.rida.zafl"
 fi
 grep ATTR analysis.sha256sum/logs/zax.log
+if [ ! $? -eq 0 ]; then
+	log_error "zax transform did not run"
+fi
 
 log_message "Fuzz rida.zafl for $AFL_TIMEOUT secs"
 fuzz_with_zafl $(realpath ./sha256sum.rida.zafl)
+
+# build ZAFL (with Ida) version of sha256sum executable
+zafl.sh `which sha256sum` sha256sum.ida.zafl --tempdir analysis.sha256sum.ida
+if [ $? -eq 0 ]; then
+	log_success "build sha256sum.ida.zafl"
+else
+	log_error "build sha256sum.ida.zafl"
+fi
+grep ATTR analysis.sha256sum.ida/logs/zax.log
+if [ ! $? -eq 0 ]; then
+	log_error "zax transform did not run"
+fi
+
+log_message "Fuzz ida.zafl for $AFL_TIMEOUT secs"
+fuzz_with_zafl $(realpath ./sha256sum.ida.zafl)
 
 cleanup
 popd
