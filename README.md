@@ -203,7 +203,7 @@ Et voila!
 
 # TL;DR
 Once everything is installed properly:
-```zafl.sh <target_binary> <zafl_output_binary> [options]```
+```zafl.sh <target_binary> <zafl_output_binary>```
 
 
 
