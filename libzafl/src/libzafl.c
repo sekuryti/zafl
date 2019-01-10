@@ -93,7 +93,7 @@ void zafl_initAflForkServer()
 
 	zafl_setupSharedMemory();
 	if (debug)
-		printf("libzafl: map is at 0x%x\n", zafl_trace_map);
+		printf("libzafl: map is at 0x%p\n", zafl_trace_map);
 
 	if (!zafl_trace_map) {
 		zafl_trace_map = (u8*)malloc(MAP_SIZE);
@@ -148,16 +148,13 @@ void zafl_bbInstrument(unsigned short id) {
 
 void zafl_dumpTracemap()
 {
+	int i;
 	if (!debug) return;
-	PRINT_DEBUG("zafl_dumpTracemap(): enter\n");
 	if (!zafl_trace_map) return;
 
-	printf("tracemap at: 0x%x\n", zafl_trace_map);
-
-	for (int i = 0; i < 0xFFFF; ++i)
+	for (i = 0; i < 0xFFFF; ++i)
 	{
 		if (zafl_trace_map[i]!=0)
 			printf("%x:%d\n",i, zafl_trace_map[i]); 
 	}
-	PRINT_DEBUG("zafl_dumpTracemap(): exit\n");
 }
