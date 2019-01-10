@@ -1,5 +1,5 @@
 /***************************************************************************
- * Copyright (c)  2018  Zephyr Software LLC. All rights reserved.
+ * Copyright (c)  2018-2019  Zephyr Software LLC. All rights reserved.
  *
  * This software is furnished under a license and/or other restrictive
  * terms and may be used and copied only in accordance with such terms
@@ -46,6 +46,7 @@ static void usage(char* name)
 	cerr<<"\t[--enable-bb-graph-optimization|-g]            Elide instrumentation if basic block has 1 successor"<<endl;
 	cerr<<"\t[--disable-bb-graph-optimization|-G]           Elide instrumentation if basic block has 1 successor"<<endl;
 	cerr<<"\t[--autozafl|-a]                                Auto-initialize fork server (incompatible with --entrypoint)"<<endl;
+	cerr<<"\t[--untracer|-u]                                Untracer-style block-coverage instrumentation"<<endl;
 }
 
 int main(int argc, char **argv)
@@ -66,6 +67,7 @@ int main(int argc, char **argv)
 	auto blacklistFile=string();
 	auto bb_graph_optimize=false;
 	auto forkserver_enabled=true;
+	auto untracer_mode=false;
 	set<string> exitpoints;
 
 	srand(getpid()+time(NULL));
@@ -85,9 +87,10 @@ int main(int argc, char **argv)
 		{"disable-bb-graph-optimization", no_argument, 0, 'G'},
 		{"enable-forkserver", no_argument, 0, 'f'},
 		{"disable-forkserver", no_argument, 0, 'F'},
+		{"untracer", no_argument, 0, 'u'},
 		{0,0,0,0}
 	};
-	const char* short_opts="e:E:w:sv?hagGfF";
+	const char* short_opts="e:E:w:sv?hagGfFu";
 
 	while(true)
 	{
@@ -136,6 +139,9 @@ int main(int argc, char **argv)
 		case 'F':
 			forkserver_enabled=false;
 			break;
+		case 'u':
+			untracer_mode=true;
+			break;
 		default:
 			break;
 		}
@@ -171,27 +177,34 @@ int main(int argc, char **argv)
 
 		try
 		{
-			Zax_t zafl_transform(pqxx_interface, firp, entry_fork_server, exitpoints, use_stars, autozafl, verbose);
+			Zax_t* zax;
+			if (untracer_mode)
+				zax = new ZUntracer_t(pqxx_interface, firp, entry_fork_server, exitpoints, use_stars, autozafl, verbose);
+			else
+				zax = new Zax_t(pqxx_interface, firp, entry_fork_server, exitpoints, use_stars, autozafl, verbose);
 			if (whitelistFile.size()>0)
-				zafl_transform.setWhitelist(whitelistFile);
+				zax->setWhitelist(whitelistFile);
 			if (blacklistFile.size()>0)
-				zafl_transform.setBlacklist(blacklistFile);
-			zafl_transform.setBasicBlockOptimization(bb_graph_optimize);
-			zafl_transform.setEnableForkServer(forkserver_enabled);
+				zax->setBlacklist(blacklistFile);
+			zax->setBasicBlockOptimization(bb_graph_optimize);
+			zax->setEnableForkServer(forkserver_enabled);
 
-			int success=zafl_transform.execute();
+			int success=zax->execute();
 
 			if (success)
 			{
 				cout<<"Writing changes for "<<this_file->GetURL()<<endl;
 				one_success = true;
 				firp->WriteToDB();
+
+				// ???: after we write the DB, do Instructions_t* have their IDs updated?
 				delete firp;
 			}
 			else
 			{
 				cout<<"Skipping (no changes) "<<this_file->GetURL()<<endl;
 			}
+			delete zax;
 		}
 		catch (const DatabaseError_t pnide)
 		{

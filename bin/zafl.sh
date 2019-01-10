@@ -28,7 +28,7 @@ usage()
 
 ida_or_rida_opt=" -s meds_static=off -s rida=on "
 stars_opt=" -o zax:--stars "
-graph_opt=" "
+zax_opt=" "
 other_args=""
 
 me=$(whoami)
@@ -92,11 +92,11 @@ parse_args()
 				shift
 				;;
 			-g | --graph-optimization)
-				graph_opt=" -o zax:-g "
+				zax_opt=" -o zax:-g "
 				shift
 				;;
 			-G | --no-graph-optimization)
-				graph_opt=" "
+				zax_opt=" "
 				shift
 				;;
 			-e | --entry)
@@ -116,6 +116,10 @@ parse_args()
 			-t | --tempdir)
 				shift
 				other_args=" --tempdir $1"
+				shift
+				;;
+			-u | --untracer)
+				zax_opt=" $zax_opt -o zax:--untracer "
 				shift
 				;;
 			-*|--*=) # unsupported flags
@@ -221,8 +225,8 @@ fi
 #
 log_msg "Transforming input binary $input_binary into $output_zafl_binary"
 
-#cmd="$PSZ $input_binary $output_zafl_binary $ida_or_rida_opt -c move_globals=on -c zax=on -o move_globals:--elftables-only -o zipr:--traceplacement:on $stars_opt $graph_opt $verbose_opt $options $other_args"
-cmd="$PSZ $input_binary $output_zafl_binary $ida_or_rida_opt -c move_globals=on -c zax=on -o move_globals:--elftables-only $stars_opt $graph_opt $verbose_opt $options $other_args"
+#cmd="$PSZ $input_binary $output_zafl_binary $ida_or_rida_opt -c move_globals=on -c zax=on -o move_globals:--elftables-only -o zipr:--traceplacement:on $stars_opt $zax_opt $verbose_opt $options $other_args"
+cmd="$PSZ $input_binary $output_zafl_binary $ida_or_rida_opt -c move_globals=on -c zax=on -o move_globals:--elftables-only $stars_opt $zax_opt $verbose_opt $options $other_args"
 
 log_msg "Issuing command: $cmd"
 eval $cmd

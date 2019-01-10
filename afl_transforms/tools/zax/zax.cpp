@@ -1,5 +1,5 @@
 /***************************************************************************
- * Copyright (c)  2018  Zephyr Software LLC. All rights reserved.
+ * Copyright (c)  2018-2019  Zephyr Software LLC. All rights reserved.
  *
  * This software is furnished under a license and/or other restrictive
  * terms and may be used and copied only in accordance with such terms
@@ -96,6 +96,7 @@ Zax_t::Zax_t(libIRDB::pqxxDB_t &p_dbinterface, libIRDB::FileIR_t *p_variantIR, s
 	m_blacklist.insert("__libc_csu_init");
 	m_blacklist.insert("__libc_csu_fini");
 	m_blacklist.insert("start");
+	m_blacklist.insert("_start");
 	m_blacklist.insert("__libc_start_main");
 	m_blacklist.insert("__gmon_start__");
 	m_blacklist.insert("__cxa_atexit");
@@ -113,11 +114,19 @@ Zax_t::Zax_t(libIRDB::pqxxDB_t &p_dbinterface, libIRDB::FileIR_t *p_variantIR, s
 	m_blacklist.insert("argp_error");
 	m_blacklist.insert("argp_parse");
 
+	m_labelid = 0;
+
 	// stats
 	m_num_flags_saved = 0;
 	m_num_temp_reg_saved = 0;
 	m_num_tracemap_reg_saved = 0;
 	m_num_previd_reg_saved = 0;
+	m_num_bb = 0;
+	m_num_bb_instrumented = 0;
+	m_num_bb_skipped = 0;
+	m_num_bb_skipped_pushjmp = 0;
+	m_num_bb_skipped_nop_padding = 0;
+	m_num_bb_skipped_innernode = 0;
 }
 
 static void create_got_reloc(FileIR_t* fir, pair<DataScoop_t*,int> wrt, Instruction_t* i)
@@ -170,7 +179,8 @@ static bool hasLeafAnnotation(Function_t* fn, MEDS_AnnotationParser &meds_ap_par
 }
 
 /*
- * Only allow instrumentation in whitelisted functions
+ * Only allow instrumentation in whitelisted functions/instructions
+ * Each line in file is either a function name or address
  */
 void Zax_t::setWhitelist(const string& p_whitelist)
 {
@@ -187,7 +197,8 @@ void Zax_t::setWhitelist(const string& p_whitelist)
 }
 
 /*
- * Disallow instrumentation in blacklisted functions
+ * Disallow instrumentation in blacklisted functions/instructions
+ * Each line in file is either a function name or address
  */
 void Zax_t::setBlacklist(const string& p_blackList)
 {
@@ -203,14 +214,15 @@ void Zax_t::setBlacklist(const string& p_blackList)
 	blackListFile.close();
 }
 
-
-zafl_blockid_t Zax_t::get_blockid(unsigned p_max_mask) 
+zafl_blockid_t Zax_t::get_blockid(const unsigned p_max) 
 {
 	auto counter = 0;
 	auto blockid = 0;
 
+	// only try getting new block id 100 times
+	// avoid returning duplicate if we can help it
 	while (counter++ < 100) {
-		blockid = rand() % p_max_mask;
+		blockid = rand() % p_max; 
 		if (m_used_blockid.find(blockid) == m_used_blockid.end())
 		{
 			m_used_blockid.insert(blockid);
@@ -220,11 +232,10 @@ zafl_blockid_t Zax_t::get_blockid(unsigned p_max_mask)
 	return blockid;
 }
 
-static unsigned get_labelid() 
+zafl_labelid_t Zax_t::get_labelid(const unsigned p_max) 
 {
-	static unsigned labelid = 0;
-	labelid++;
-	return labelid;
+	assert (m_labelid < p_max);
+	return m_labelid++;
 }
 
 // return intersection of candidates and allowed general-purpose registers
@@ -261,14 +272,14 @@ void Zax_t::insertExitPoint(Instruction_t *p_inst)
 
 /*
 	Original afl instrumentation:
-	        id = zafl_prev_id ^ id;
-	        zafl_trace_bits[zafl_prev_id ^ id]++;
-		zafl_prev_id = id >> 1;     
+	        block_id = <random>;
+	        zafl_trace_bits[zafl_prev_id ^ block_id]++;
+		zafl_prev_id = block_id >> 1;     
 
 	CollAfl optimization when (#predecessors==1) (goal of CollAfl is to reduce collisions):
-	        id = <some unique value for this block>
-	        zafl_trace_bits[id]++;
-		zafl_prev_id = id >> 1;     
+	        block_id = <some unique value for this block>
+	        zafl_trace_bits[block_id]++;
+		zafl_prev_id = block_id >> 1;     
 */
 void Zax_t::afl_instrument_bb(Instruction_t *p_inst, const bool p_hasLeafAnnotation, const bool p_collafl_optimization)
 {
@@ -684,7 +695,7 @@ void Zax_t::insertExitPoints()
 		}
 		else
 		{
-			// find function
+			// find function by name
 			auto func_iter=find_if(getFileIR()->GetFunctions().begin(), getFileIR()->GetFunctions().end(), [&](const Function_t* f) {
 				return f->GetName()==exitp;
 			});
@@ -699,15 +710,15 @@ void Zax_t::insertExitPoints()
 			cout << "inserting exit code at return points of function: " << exitp << endl;
 			for (auto i : (*func_iter)->GetInstructions())
 			{
-				// if it's a return instruction, instrument exit point
-				if (i->GetBaseID() < 0)
-					continue;
-				const auto d=DecodedInstruction_t(i);
-
-				// warning: 
-				if (d.isReturn())
+				if (i->GetBaseID() >= 0)
 				{
-					insertExitPoint(i);
+					const auto d=DecodedInstruction_t(i);
+
+					// if it's a return instruction, add exit point
+					if (d.isReturn())
+					{
+						insertExitPoint(i);
+					}
 				}
 			}
 		}
@@ -815,14 +826,9 @@ int Zax_t::execute()
 	auto num_bb_zero_successors = 0;
 	auto num_bb_single_predecessors = 0;
 	auto num_bb_single_successors = 0;
-	auto num_bb_instrumented = 0;
 	auto num_orphan_instructions = 0;
-	auto num_bb_skipped = 0;
 	auto num_bb_skipped_cbranch = 0;
-	auto num_bb_skipped_innernode = 0;
 	auto num_bb_skipped_onlychild = 0;
-	auto num_bb_skipped_pushjmp = 0;
-	auto num_bb_skipped_nop_padding = 0;
 	auto num_bb_preds_self = 0;
 	auto num_bb_succs_self = 0;
 	auto num_style_afl = 0;
@@ -845,7 +851,6 @@ int Zax_t::execute()
 	};
 
 	auto bb_id = -1;
-	auto num_bb = 0;
 	auto num_bb_zero_preds_entry_point = 0;
 
 	// for all functions
@@ -873,7 +878,7 @@ int Zax_t::execute()
 
 		ControlFlowGraph_t cfg(f);
 		const auto num_blocks_in_func = cfg.GetBlocks().size();
-		num_bb += num_blocks_in_func;
+		m_num_bb += num_blocks_in_func;
 
 		if (leafAnnotation)
 			cout << "Processing leaf function: ";
@@ -946,7 +951,7 @@ int Zax_t::execute()
 			if (bb->GetInstructions().size()==2 && bb->GetInstructions()[0]->getDisassembly().find("push")!=string::npos && bb->GetInstructions()[1]->getDisassembly().find("jmp")!=string::npos)
 			{
 				cout << "Skip basic block b/c it is a push/jmp pair" << endl;
-				num_bb_skipped_pushjmp++;
+				m_num_bb_skipped_pushjmp++;
 				continue;
 			}
 
@@ -964,7 +969,7 @@ int Zax_t::execute()
 					continue;
 			}
 
-			// make sure we're not trying to instrument code we just inserted, e.g., the fork server
+			// make sure we're not trying to instrument code we just inserted, e.g., fork server, added exit points
 			if (bb->GetInstructions()[0]->GetBaseID() < 0)
 				continue;
 
@@ -1003,7 +1008,7 @@ int Zax_t::execute()
 						(!bb->GetInstructions()[0]->GetIndirectBranchTargetAddress()))
 					{
 						cout << "Skipping bb #" << dec << bb_id << " because inner node with 1 predecessor and 1 successor" << endl;
-						num_bb_skipped_innernode++;
+						m_num_bb_skipped_innernode++;
 						continue;
 					}
 					
@@ -1058,7 +1063,7 @@ int Zax_t::execute()
 			if (bb->GetInstructions().size()==1 && bb->GetPredecessors().size()==0 && bb->GetSuccessors().size()==1 && isNop(bb->GetInstructions()[0]))
 			{
 				cout << "Skipping bb #" << dec << bb_id << " because it's a padding instruction: " << bb->GetInstructions()[0]->getDisassembly() << endl;
-				num_bb_skipped_nop_padding++;
+				m_num_bb_skipped_nop_padding++;
 				continue;
 			}
 
@@ -1092,8 +1097,8 @@ int Zax_t::execute()
 			cout << "Function " << f->GetName() << ": bb_num_instructions: " << bb->GetInstructions().size() << " collAfl: " << boolalpha << collAflSingleton << " ibta: " << (bb->GetInstructions()[0]->GetIndirectBranchTargetAddress()!=0) << " num_predecessors: " << bb->GetPredecessors().size() << " num_successors: " << bb->GetSuccessors().size() << " is_exit_block: " << bb->GetIsExitBlock() << endl;
 		}
 
-		num_bb_instrumented += keepers.size();
-		num_bb_skipped += (num_blocks_in_func - keepers.size());
+		m_num_bb_instrumented += keepers.size();
+		m_num_bb_skipped += (num_blocks_in_func - keepers.size());
 
 		cout << "Function " << f->GetName() << ":  " << dec << keepers.size() << "/" << num_blocks_in_func << " basic blocks instrumented." << endl;
 	});
@@ -1105,18 +1110,11 @@ int Zax_t::execute()
 			num_orphan_instructions++;
 	}
 
-	cout << "#ATTRIBUTE num_bb=" << dec << num_bb << endl;
-	cout << "#ATTRIBUTE num_bb_instrumented=" << num_bb_instrumented << endl;
-	cout << "#ATTRIBUTE num_bb_skipped=" << num_bb_skipped << endl;
+	getFileIR()->SetBaseIDS();
+
+	dump_stats();
+
 	cout << "#ATTRIBUTE num_bb_skipped_cond_branch=" << num_bb_skipped_cbranch << endl;
-	cout << "#ATTRIBUTE num_bb_skipped_innernode=" << num_bb_skipped_innernode << endl;
-	cout << "#ATTRIBUTE num_bb_skipped_onlychild=" << num_bb_skipped_onlychild << endl;
-	cout << "#ATTRIBUTE num_bb_skipped_pushjmp=" << num_bb_skipped_pushjmp << endl;
-	cout << "#ATTRIBUTE num_bb_skipped_nop_padding=" << num_bb_skipped_nop_padding << endl;
-	cout << "#ATTRIBUTE num_flags_saved=" << m_num_flags_saved << endl;
-	cout << "#ATTRIBUTE num_temp_reg_saved=" << m_num_temp_reg_saved << endl;
-	cout << "#ATTRIBUTE num_tracemap_reg_saved=" << m_num_tracemap_reg_saved << endl;
-	cout << "#ATTRIBUTE num_previd_reg_saved=" << m_num_previd_reg_saved << endl;
 	cout << "#ATTRIBUTE num_bb_zero_predecessors_entry_point=" << num_bb_zero_preds_entry_point << endl;
 	cout << "#ATTRIBUTE num_bb_zero_predecessors=" << num_bb_zero_predecessors << endl;
 	cout << "#ATTRIBUTE num_bb_zero_successors=" << num_bb_zero_successors << endl;
@@ -1129,7 +1127,245 @@ int Zax_t::execute()
 	cout << "#ATTRIBUTE num_bb_keep_exit_block=" << num_bb_keep_exit_block << endl;
 	cout << "#ATTRIBUTE num_style_afl=" << num_style_afl << endl;
 	cout << "#ATTRIBUTE num_style_collafl=" << num_style_collafl << endl;
-	cout << "#ATTRIBUTE graph_optimize=" << boolalpha << m_bb_graph_optimize << endl;
+	cout << "#ATTRIBUTE num_bb_skipped_onlychild=" << num_bb_skipped_onlychild << endl;
 
 	return 1;
 }
+
+void Zax_t::dump_stats()
+{
+	cout << "#ATTRIBUTE num_bb=" << dec << m_num_bb << endl;
+	cout << "#ATTRIBUTE num_bb_instrumented=" << m_num_bb_instrumented << endl;
+	cout << "#ATTRIBUTE num_bb_skipped=" << m_num_bb_skipped << endl;
+	cout << "#ATTRIBUTE num_bb_skipped_innernode=" << m_num_bb_skipped_innernode << endl;
+	cout << "#ATTRIBUTE num_bb_skipped_pushjmp=" << m_num_bb_skipped_pushjmp << endl;
+	cout << "#ATTRIBUTE num_bb_skipped_nop_padding=" << m_num_bb_skipped_nop_padding << endl;
+	cout << "#ATTRIBUTE num_flags_saved=" << m_num_flags_saved << endl;
+	cout << "#ATTRIBUTE num_temp_reg_saved=" << m_num_temp_reg_saved << endl;
+	cout << "#ATTRIBUTE num_tracemap_reg_saved=" << m_num_tracemap_reg_saved << endl;
+	cout << "#ATTRIBUTE num_previd_reg_saved=" << m_num_previd_reg_saved << endl;
+	cout << "#ATTRIBUTE graph_optimize=" << boolalpha << m_bb_graph_optimize << endl;
+}
+
+ZUntracer_t::ZUntracer_t(libIRDB::pqxxDB_t &p_dbinterface, libIRDB::FileIR_t *p_variantIR, string p_forkServerEntryPoint, set<string> p_exitPoints, bool p_use_stars, bool p_autozafl, bool p_verbose) : Zax_t(p_dbinterface, p_variantIR, p_forkServerEntryPoint, p_exitPoints, p_use_stars, p_autozafl, p_verbose)
+{
+	m_blockid = 0;
+}
+
+zafl_blockid_t ZUntracer_t::get_blockid(const unsigned p_max) 
+{
+	assert (m_blockid < p_max);
+	return m_blockid++;
+}
+
+void ZUntracer_t::afl_instrument_bb(Instruction_t *p_inst, const bool p_hasLeafAnnotation, const bool p_collafl_optimization)
+{
+	assert(p_inst);
+
+	/*
+	Original afl instrumentation:
+	        block_id = <random>;
+	        zafl_trace_bits[zafl_prev_id ^ block_id]++;
+		zafl_prev_id = block_id >> 1;     
+
+	Zuntracer instrumentation (block coverage)
+		zafl_trace_bits[block_id] = 1;
+	*/
+
+	char buf[8192];
+	auto tmp = p_inst;
+
+	// 1st instruction in block record is the new entry point of the block
+	// 2nd instruction in block record is where the instruction at the old entry point is now at
+	BBRecord_t block_record;
+
+	block_record.push_back(p_inst);
+	
+	const auto blockid = get_blockid();
+	const auto labelid = get_labelid(); 
+
+	cout << "working with blockid: " << blockid << " labelid: " << labelid << endl;
+
+	// @todo: optimize instrumentation (no red zone, free reg)
+	
+	// red zone
+	const auto orig = insertAssemblyBefore(tmp, "lea rsp, [rsp-128]");
+	block_record.push_back(orig);
+
+	// save register
+	tmp = insertAssemblyAfter(tmp, "push rcx");
+	block_record.push_back(tmp);
+
+	// load address trace map into rcx
+	sprintf(buf, "T%d: mov  rcx, QWORD [rel T%d]", labelid, labelid); 
+	tmp = insertAssemblyAfter(tmp, buf);
+	create_got_reloc(getFileIR(), m_trace_map, tmp);
+	block_record.push_back(tmp);
+
+	// update trace map
+	tmp = insertAssemblyAfter(tmp, "mov rcx, [rcx]");
+	sprintf(buf,"mov BYTE [rcx+0x%x], 1", blockid);
+	tmp = insertAssemblyAfter(tmp, buf);
+	block_record.push_back(tmp);
+
+	// restore register
+	tmp = insertAssemblyAfter(tmp, "pop rcx");
+	block_record.push_back(tmp);
+	
+	// red zone
+	tmp = insertAssemblyAfter(tmp, "lea rsp, [rsp+128]");
+	block_record.push_back(tmp);
+
+	// record modified blocks, indexed by the block id
+	assert(orig == tmp->GetFallthrough()); // sanity check invariant of transform
+	// @todo: may need to record all inserted instructions
+	m_modifiedBlocks[blockid] = block_record;
+}
+
+int ZUntracer_t::execute()
+{
+	if (m_forkserver_enabled)
+		setupForkServer();
+	else
+		cout << "Fork server has been disabled" << endl;
+
+	insertExitPoints();
+
+	struct BaseIDSorter
+	{
+	    bool operator()( const Function_t* lhs, const Function_t* rhs ) const {
+		return lhs->GetBaseID() < rhs->GetBaseID();
+	    }
+	};
+
+	auto bb_id = -1;
+
+	// for all functions
+	//    build cfg and extract basic blocks
+	//    for all basic blocks, figure out whether should be kept
+	//    for all kept basic blocks
+	//          add afl-compatible instrumentation
+	set<Function_t*, BaseIDSorter> sortedFuncs(getFileIR()->GetFunctions().begin(), getFileIR()->GetFunctions().end());
+	for_each( sortedFuncs.begin(), sortedFuncs.end(), [&](Function_t* f)
+	{
+		if (!f) return;
+		// skip instrumentation for blacklisted functions 
+		if (isBlacklisted(f)) return;
+		// skip if function has no entry point
+		if (!f->GetEntryPoint())
+			return;
+
+		bool leafAnnotation = true;
+		if (m_use_stars) 
+		{
+			leafAnnotation = hasLeafAnnotation(f, m_stars_analysis_engine.getAnnotations());
+		}
+
+		cout << endl;
+
+		ControlFlowGraph_t cfg(f);
+		const auto num_blocks_in_func = cfg.GetBlocks().size();
+		m_num_bb += num_blocks_in_func;
+
+		if (leafAnnotation)
+			cout << "Processing leaf function: ";
+		else
+			cout << "Processing function: ";
+		cout << f->GetName();
+		cout << " " << num_blocks_in_func << " basic blocks" << endl;
+
+		
+		if (m_verbose)
+			cout << cfg << endl;
+
+		// figure out which basic blocks to keep
+		set<BasicBlock_t*> keepers;
+		for (auto &bb : cfg.GetBlocks())
+		{
+			assert(bb->GetInstructions().size() > 0);
+
+			// already marked as a keeper
+			if (keepers.find(bb) != keepers.end())
+				continue;
+
+			// if whitelist specified, only allow instrumentation for functions/addresses in whitelist
+			if (m_whitelist.size() > 0) {
+				if (!isWhitelisted(bb->GetInstructions()[0]))
+				{
+					continue;
+				}
+			}
+
+			if (isBlacklisted(bb->GetInstructions()[0]))
+				continue;
+
+			// push/jmp pair, don't bother instrumenting
+			if (bb->GetInstructions().size()==2 && bb->GetInstructions()[0]->getDisassembly().find("push")!=string::npos && bb->GetInstructions()[1]->getDisassembly().find("jmp")!=string::npos)
+			{
+				cout << "Skip basic block b/c it is a push/jmp pair" << endl;
+				m_num_bb_skipped_pushjmp++;
+				continue;
+			}
+
+			// make sure we're not trying to instrument code we just inserted, e.g., the fork server
+			if (bb->GetInstructions()[0]->GetBaseID() < 0)
+				continue;
+
+			// optimization (padding nop)
+			if (bb->GetInstructions().size()==1 && bb->GetPredecessors().size()==0 && bb->GetSuccessors().size()==1 && isNop(bb->GetInstructions()[0]))
+			{
+				cout << "Skipping bb #" << dec << bb_id << " because it's a padding instruction: " << bb->GetInstructions()[0]->getDisassembly() << endl;
+				m_num_bb_skipped_nop_padding++;
+				continue;
+			}
+
+			keepers.insert(bb);
+		}
+		
+		struct BBSorter
+		{
+		    bool operator()( const BasicBlock_t* lhs, const BasicBlock_t* rhs ) const {
+			return lhs->GetInstructions()[0]->GetBaseID() < rhs->GetInstructions()[0]->GetBaseID();
+		    }
+		};
+		set<BasicBlock_t*, BBSorter> sortedBasicBlocks(keepers.begin(), keepers.end());
+		for (auto &bb : sortedBasicBlocks)
+		{
+			afl_instrument_bb(bb->GetInstructions()[0], leafAnnotation, false);
+		}
+
+		m_num_bb_instrumented += keepers.size();
+		m_num_bb_skipped += (num_blocks_in_func - keepers.size());
+
+		cout << "Function " << f->GetName() << ":  " << dec << keepers.size() << "/" << num_blocks_in_func << " basic blocks instrumented." << endl;
+	});
+
+	// set all base IDs
+	getFileIR()->SetBaseIDS();
+	
+	dump_stats();
+	
+	return 1;
+}
+
+void ZUntracer_t::dump_stats()
+{
+	std::ofstream mapfile("zaxbb.map");
+
+	mapfile << "# BLOCK_ID  ID_EP  ID_OLDEP  ID_INSTRUMENTATION" << endl;
+	// dump out all the info i need
+	for (auto &mb : m_modifiedBlocks)
+	{
+		const auto blockid = mb.first;
+		mapfile << dec << blockid << " ";
+		mapfile << hex;
+		for (auto &entry : mb.second)
+		{
+			mapfile << entry->GetBaseID() << " ";
+		}
+		mapfile << endl;
+	}
+
+	Zax_t::dump_stats();
+}
+

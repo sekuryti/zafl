@@ -30,8 +30,8 @@
 #include "config.h"
 
 // externally visible so that Zipr transformations can access directly
-u8* zafl_trace_map;
-unsigned short zafl_prev_id;
+u8* zafl_trace_map = NULL;
+unsigned short zafl_prev_id = 0;
 
 static s32 shm_id;
 static int __afl_temp_data;
@@ -49,6 +49,8 @@ void __attribute__((constructor)) zafl_initAflForkServer();
 #else
 void __attribute__((constructor)) zafl_setupSharedMemory();
 #endif
+
+void __attribute__((destructor)) zafl_dumpTracemap();
 
 // always setup a trace map so that an instrumented applicatin will run
 // even if not running under AFL
@@ -90,6 +92,8 @@ void zafl_initAflForkServer()
 	if (getenv("ZAFL_DEBUG")) debug = 1;
 
 	zafl_setupSharedMemory();
+	if (debug)
+		printf("libzafl: map is at 0x%x\n", zafl_trace_map);
 
 	if (!zafl_trace_map) {
 		zafl_trace_map = (u8*)malloc(MAP_SIZE);
@@ -140,4 +144,20 @@ void zafl_initAflForkServer()
 void zafl_bbInstrument(unsigned short id) {
 	zafl_trace_map[zafl_prev_id ^ id]++;
 	zafl_prev_id = id >> 1;
+}
+
+void zafl_dumpTracemap()
+{
+	if (!debug) return;
+	PRINT_DEBUG("zafl_dumpTracemap(): enter\n");
+	if (!zafl_trace_map) return;
+
+	printf("tracemap at: 0x%x\n", zafl_trace_map);
+
+	for (int i = 0; i < 0xFFFF; ++i)
+	{
+		if (zafl_trace_map[i]!=0)
+			printf("%x:%d\n",i, zafl_trace_map[i]); 
+	}
+	PRINT_DEBUG("zafl_dumpTracemap(): exit\n");
 }
