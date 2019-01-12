@@ -67,13 +67,6 @@ protected:
 
 	map<zafl_blockid_t, BBRecord_t> m_modifiedBlocks;  // keep track of modified blocks
 
-	unsigned m_num_bb;
-	unsigned m_num_bb_instrumented;
-	unsigned m_num_bb_skipped;
-	unsigned m_num_bb_skipped_pushjmp;
-	unsigned m_num_bb_skipped_nop_padding;
-	unsigned m_num_bb_skipped_innernode;
-
 private:
 	std::set<zafl_blockid_t>     m_used_blockid;      // internal bookkeeping to keep track of used block ids
 	unsigned m_num_flags_saved;
