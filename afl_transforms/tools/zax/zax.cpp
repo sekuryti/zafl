@@ -86,6 +86,8 @@ Zax_t::Zax_t(libIRDB::pqxxDB_t &p_dbinterface, libIRDB::FileIR_t *p_variantIR, s
 	// see isBlacklisted() for other blacklisted functions
 	m_blacklist.insert("init");
 	m_blacklist.insert("_init");
+	m_blacklist.insert("start");
+	m_blacklist.insert("_start");
 	m_blacklist.insert("fini");
 	m_blacklist.insert("_fini");
 	m_blacklist.insert("register_tm_clones");
@@ -95,8 +97,6 @@ Zax_t::Zax_t(libIRDB::pqxxDB_t &p_dbinterface, libIRDB::FileIR_t *p_variantIR, s
 	m_blacklist.insert("__do_global_dtors_aux");
 	m_blacklist.insert("__libc_csu_init");
 	m_blacklist.insert("__libc_csu_fini");
-	m_blacklist.insert("start");
-	m_blacklist.insert("_start");
 	m_blacklist.insert("__libc_start_main");
 	m_blacklist.insert("__gmon_start__");
 	m_blacklist.insert("__cxa_atexit");
@@ -297,6 +297,10 @@ void Zax_t::afl_instrument_bb(Instruction_t *p_inst, const bool p_hasLeafAnnotat
 	auto save_prev_id = true;
 	auto tmp = p_inst;
 
+	BBRecord_t block_record;
+
+	block_record.push_back(p_inst);
+
 	if (m_use_stars) 
 	{
 		auto regset = get_dead_regs(p_inst, m_stars_analysis_engine.getAnnotations());
@@ -386,8 +390,9 @@ void Zax_t::afl_instrument_bb(Instruction_t *p_inst, const bool p_hasLeafAnnotat
 	if (p_hasLeafAnnotation) 
 	{
 		// leaf function, must respect the red zone
-		insertAssemblyBefore(tmp, "lea rsp, [rsp-128]");
+		const auto orig = insertAssemblyBefore(tmp, "lea rsp, [rsp-128]");
 		inserted_before = true;
+		block_record.push_back(orig);
 	}
 
 	if (save_temp)
@@ -395,33 +400,43 @@ void Zax_t::afl_instrument_bb(Instruction_t *p_inst, const bool p_hasLeafAnnotat
 		if (inserted_before)
 		{
 			tmp = insertAssemblyAfter(tmp, "push rax");
+			block_record.push_back(tmp);
 		}
 		else
 		{
-			insertAssemblyBefore(tmp, "push rax");
+			const auto orig = insertAssemblyBefore(tmp, "push rax");
 			inserted_before = true;
+			block_record.push_back(orig);
 		}
 	}
 
 	if (save_trace_map)
 	{
 		if (inserted_before)
+		{
 			tmp = insertAssemblyAfter(tmp, "push rcx");
+			block_record.push_back(tmp);
+		}
 		else
 		{
-			insertAssemblyBefore(tmp, "push rcx");
+			const auto orig = insertAssemblyBefore(tmp, "push rcx");
 			inserted_before = true;
+			block_record.push_back(orig);
 		}
 	}
 
 	if (save_prev_id)
 	{
 		if (inserted_before)
+		{
 			tmp = insertAssemblyAfter(tmp, "push rdx");
+			block_record.push_back(tmp);
+		}
 		else
 		{
-			insertAssemblyBefore(tmp, "push rdx");
+			const auto orig = insertAssemblyBefore(tmp, "push rdx");
 			inserted_before = true;
+			block_record.push_back(orig);
 		}
 	}
 
@@ -434,11 +449,15 @@ void Zax_t::afl_instrument_bb(Instruction_t *p_inst, const bool p_hasLeafAnnotat
 	{
 		cerr << "   flags are live" << endl;
 		if (inserted_before)
+		{
 			tmp = insertAssemblyAfter(tmp, "pushf"); 
+			block_record.push_back(tmp);
+		}
 		else
 		{
-			insertAssemblyBefore(tmp, "pushf"); 
+			const auto orig = insertAssemblyBefore(tmp, "pushf"); 
 			inserted_before = true;
+			block_record.push_back(orig);
 		}
 	}
 	else {
@@ -469,11 +488,13 @@ void Zax_t::afl_instrument_bb(Instruction_t *p_inst, const bool p_hasLeafAnnotat
 	if (inserted_before)
 	{
 		tmp = insertAssemblyAfter(tmp, buf);
+		block_record.push_back(tmp);
 	}
 	else
 	{
-		insertAssemblyBefore(tmp, buf);
+		const auto orig = insertAssemblyBefore(tmp, buf);
 		inserted_before = true;
+		block_record.push_back(orig);
 	}
 	create_got_reloc(getFileIR(), m_prev_id, tmp);
 
@@ -481,63 +502,79 @@ void Zax_t::afl_instrument_bb(Instruction_t *p_inst, const bool p_hasLeafAnnotat
 				sprintf(buf, "T%d: mov  %s, QWORD [rel T%d]", labelid, reg_trace_map, labelid); // rcx
 	tmp = insertAssemblyAfter(tmp, buf);
 	create_got_reloc(getFileIR(), m_trace_map, tmp);
+	block_record.push_back(tmp);
 
 	if (!p_collafl_optimization)
 	{
 //   e:   0f b7 02                movzx  eax,WORD PTR [rdx]                      
 				sprintf(buf,"movzx  %s,WORD [%s]", reg_temp32, reg_prev_id);
 		tmp = insertAssemblyAfter(tmp, buf);
+		block_record.push_back(tmp);
 //  11:   66 35 34 12             xor    ax,0x1234                              
 				sprintf(buf, "xor   %s,0x%x", reg_temp16, blockid);
 		tmp = insertAssemblyAfter(tmp, buf);
+		block_record.push_back(tmp);
 //  15:   0f b7 c0                movzx  eax,ax                                
 				sprintf(buf,"movzx  %s,%s", reg_temp32, reg_temp16);
 		tmp = insertAssemblyAfter(tmp, buf);
+		block_record.push_back(tmp);
 	}
 	else
 	{
 //                                mov    rax, <blockid>
 				sprintf(buf,"mov   %s,0x%x", reg_temp, blockid);
 		tmp = insertAssemblyAfter(tmp, buf);
+		block_record.push_back(tmp);
 	}
 
 //  18:   48 03 01                add    rax,QWORD PTR [rcx]                  
 				sprintf(buf,"add    %s,QWORD [%s]", reg_temp, reg_trace_map);
 	tmp = insertAssemblyAfter(tmp, buf);                  
+	block_record.push_back(tmp);
 //  1b:   80 00 01                add    BYTE PTR [rax],0x1                  
 				sprintf(buf,"add    BYTE [%s],0x1", reg_temp);
 	tmp = insertAssemblyAfter(tmp, buf);                  
+	block_record.push_back(tmp);
 //  1e:   b8 1a 09 00 00          mov    eax,0x91a                          
 				sprintf(buf, "mov   %s, 0x%x", reg_temp32, blockid >> 1);
 	tmp = insertAssemblyAfter(tmp, buf);
+	block_record.push_back(tmp);
 	sprintf(buf,"baseid: %d labelid: %d", tmp->GetBaseID(), labelid);
 //  23:   66 89 02                mov    WORD PTR [rdx],ax       
 				sprintf(buf, "mov    WORD [%s], %s", reg_prev_id, reg_temp16);
 	tmp = insertAssemblyAfter(tmp, buf);
+	block_record.push_back(tmp);
 
 	if (live_flags) 
 	{
 		tmp = insertAssemblyAfter(tmp, "popf");
+		block_record.push_back(tmp);
 	}
 
 	if (save_prev_id) 
 	{
 		tmp = insertAssemblyAfter(tmp, "pop rdx");
+		block_record.push_back(tmp);
 	}
 	if (save_trace_map) 
 	{
 		tmp = insertAssemblyAfter(tmp, "pop rcx");
+		block_record.push_back(tmp);
 	}
 	if (save_temp) 
 	{
 		tmp = insertAssemblyAfter(tmp, "pop rax");
+		block_record.push_back(tmp);
 	}
 
 	if (p_hasLeafAnnotation) 
 	{
 		tmp = insertAssemblyAfter(tmp, "lea rsp, [rsp+128]");
+		block_record.push_back(tmp);
 	}
 	
+	m_modifiedBlocks[blockid] = block_record;
+
 	free(reg_temp); 
 	free(reg_temp32);
 	free(reg_temp16);
@@ -904,29 +941,6 @@ int Zax_t::execute()
 			if (keepers.find(bb) != keepers.end())
 				continue;
  
-				/*
-			if (m_verbose)
-			{
-				cout << "basic block id#" << bb_id << " has " << bb->GetInstructions().size() << " instructions";
-				cout << " instr: " << bb->GetInstructions()[0]->getDisassembly();
-				if (bb->GetInstructions()[0]->GetIndirectBranchTargetAddress())
-					cout << " ibta";
-				cout << " | preds: " << bb->GetPredecessors().size() << " succs: " << bb->GetSuccessors().size();
-				if (bb->GetPredecessors().size()==1)
-				{
-					const auto pred = *(bb->GetPredecessors().begin());
-					cout << " succ(pred): " << pred->GetSuccessors().size();
-					if (pred->GetSuccessors().size() == 2)
-					{
-						auto num_instruction_in_prev_bb = pred->GetInstructions().size();
-						cout << " last_instr_in_pred: " <<
-							pred->GetInstructions()[num_instruction_in_prev_bb-1]->getDisassembly();
-					}
-				}
-				cout << endl;
-			}
-				*/
-
 			// if whitelist specified, only allow instrumentation for functions/addresses in whitelist
 			if (m_whitelist.size() > 0) {
 				if (!isWhitelisted(bb->GetInstructions()[0]))
@@ -1110,16 +1124,13 @@ int Zax_t::execute()
 			num_orphan_instructions++;
 	}
 
-	getFileIR()->SetBaseIDS();
-
 	dump_stats();
 
 	cout << "#ATTRIBUTE num_bb_skipped_cond_branch=" << num_bb_skipped_cbranch << endl;
 	cout << "#ATTRIBUTE num_bb_zero_predecessors_entry_point=" << num_bb_zero_preds_entry_point << endl;
 	cout << "#ATTRIBUTE num_bb_zero_predecessors=" << num_bb_zero_predecessors << endl;
 	cout << "#ATTRIBUTE num_bb_zero_successors=" << num_bb_zero_successors << endl;
-	cout << "#ATTRIBUTE num_bb_single_predecessors=" << num_bb_single_predecessors << endl;
-	cout << "#ATTRIBUTE num_bb_single_successors=" << num_bb_single_successors << endl;
+	cout << "#ATTRIBUTE num_bb_single_predecessors=" << num_bb_single_predecessors << endl; cout << "#ATTRIBUTE num_bb_single_successors=" << num_bb_single_successors << endl;
 	cout << "#ATTRIBUTE num_orphan_instructions=" << num_orphan_instructions << endl;
 	cout << "#ATTRIBUTE num_bb_preds_self=" << num_bb_preds_self << endl;
 	cout << "#ATTRIBUTE num_bb_succs_self=" << num_bb_succs_self << endl;
@@ -1145,6 +1156,25 @@ void Zax_t::dump_stats()
 	cout << "#ATTRIBUTE num_tracemap_reg_saved=" << m_num_tracemap_reg_saved << endl;
 	cout << "#ATTRIBUTE num_previd_reg_saved=" << m_num_previd_reg_saved << endl;
 	cout << "#ATTRIBUTE graph_optimize=" << boolalpha << m_bb_graph_optimize << endl;
+
+
+	// dump out modified basic block info
+	getFileIR()->SetBaseIDS();           // make sure instructions have IDs
+	getFileIR()->AssembleRegistry();     // make sure to assemble all instructions
+
+	std::ofstream mapfile("zax.map");
+
+	mapfile << "# BLOCK_ID  ID_EP:size  ID_OLDEP:size (ID_INSTRUMENTATION:size)*" << endl;
+	for (auto &mb : m_modifiedBlocks)
+	{
+		const auto blockid = mb.first;
+		mapfile << dec << blockid << " ";
+		for (auto &entry : mb.second)
+		{
+			mapfile << hex << entry->GetBaseID() << ":" << dec << entry->GetDataBits().size() << " ";
+		}
+		mapfile << endl;
+	}
 }
 
 ZUntracer_t::ZUntracer_t(libIRDB::pqxxDB_t &p_dbinterface, libIRDB::FileIR_t *p_variantIR, string p_forkServerEntryPoint, set<string> p_exitPoints, bool p_use_stars, bool p_autozafl, bool p_verbose) : Zax_t(p_dbinterface, p_variantIR, p_forkServerEntryPoint, p_exitPoints, p_use_stars, p_autozafl, p_verbose)
@@ -1222,6 +1252,7 @@ void ZUntracer_t::afl_instrument_bb(Instruction_t *p_inst, const bool p_hasLeafA
 	m_modifiedBlocks[blockid] = block_record;
 }
 
+#ifdef XXX
 int ZUntracer_t::execute()
 {
 	if (m_forkserver_enabled)
@@ -1341,31 +1372,12 @@ int ZUntracer_t::execute()
 	});
 
 	// set all base IDs
+	getFileIR()->AssembleRegistry();
 	getFileIR()->SetBaseIDS();
 	
 	dump_stats();
 	
 	return 1;
 }
-
-void ZUntracer_t::dump_stats()
-{
-	std::ofstream mapfile("zaxbb.map");
-
-	mapfile << "# BLOCK_ID  ID_EP  ID_OLDEP  ID_INSTRUMENTATION" << endl;
-	// dump out all the info i need
-	for (auto &mb : m_modifiedBlocks)
-	{
-		const auto blockid = mb.first;
-		mapfile << dec << blockid << " ";
-		mapfile << hex;
-		for (auto &entry : mb.second)
-		{
-			mapfile << entry->GetBaseID() << " ";
-		}
-		mapfile << endl;
-	}
-
-	Zax_t::dump_stats();
-}
+#endif
 
