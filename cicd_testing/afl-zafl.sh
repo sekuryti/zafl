@@ -19,3 +19,6 @@ $ZAFL_HOME/zfuzz/test/bc/test_bc.sh
 $ZAFL_HOME/zfuzz/test/sha256sum/test_sha256sum.sh
 $ZAFL_HOME/zfuzz/test/od/test_od.sh
 
+echo "Test zuntracer configurations"
+$ZAFL_HOME/zfuzz/test/ls.zuntracer/test_ls.sh
+
