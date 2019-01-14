@@ -882,21 +882,17 @@ int Zax_t::execute()
 
 	insertExitPoints();
 
+	// for all functions
+	//    build cfg and extract basic blocks
+	//    for all basic blocks, figure out whether should be kept
+	//    for all kept basic blocks
+	//          add afl-compatible instrumentation
 	struct BaseIDSorter
 	{
 	    bool operator()( const Function_t* lhs, const Function_t* rhs ) const {
 		return lhs->GetBaseID() < rhs->GetBaseID();
 	    }
 	};
-
-	auto bb_id = -1;
-	auto num_bb_zero_preds_entry_point = 0;
-
-	// for all functions
-	//    build cfg and extract basic blocks
-	//    for all basic blocks, figure out whether should be kept
-	//    for all kept basic blocks
-	//          add afl-compatible instrumentation
 	set<Function_t*, BaseIDSorter> sortedFuncs(getFileIR()->GetFunctions().begin(), getFileIR()->GetFunctions().end());
 	for_each( sortedFuncs.begin(), sortedFuncs.end(), [&](Function_t* f)
 	{
@@ -935,6 +931,8 @@ int Zax_t::execute()
 			cout << cfg << endl;
 
 		set<BasicBlock_t*> keepers;
+		auto bb_id = -1;
+
 		// figure out which basic blocks to keep
 		for (auto &bb : cfg.GetBlocks())
 		{
@@ -947,7 +945,8 @@ int Zax_t::execute()
 				continue;
  
 			// if whitelist specified, only allow instrumentation for functions/addresses in whitelist
-			if (m_whitelist.size() > 0) {
+			if (m_whitelist.size() > 0) 
+			{
 				if (!isWhitelisted(bb->GetInstructions()[0]))
 				{
 					continue;
@@ -956,15 +955,6 @@ int Zax_t::execute()
 
 			if (isBlacklisted(bb->GetInstructions()[0]))
 				continue;
-
-/*
-                        // exit block can end in: call, ret, jmp?
-			if (bb->GetInstructions().size()==1 && bb->GetIsExitBlock())
-			{
-				cout << "Skip basic block b/c it's an exit block and only has 1 instruction: " << bb->GetInstructions()[0]->getDisassembly() << endl;
-				continue;
-			}
-*/
 
 			// push/jmp pair, don't bother instrumenting
 			if (bb->GetInstructions().size()==2 && bb->GetInstructions()[0]->getDisassembly().find("push")!=string::npos && bb->GetInstructions()[1]->getDisassembly().find("jmp")!=string::npos)
@@ -1001,8 +991,7 @@ int Zax_t::execute()
 				num_bb_zero_successors++;
 			if (bb->GetSuccessors().size() == 1)
 				num_bb_single_successors++;
-			if (bb->GetInstructions()[0] == f->GetEntryPoint())
-				num_bb_zero_preds_entry_point++;
+
 			// 20181012 basic block edges can point back to self
 			auto point_to_self = false;
 			if (bb->GetPredecessors().find(bb)!=bb->GetPredecessors().end()) {
@@ -1132,7 +1121,6 @@ int Zax_t::execute()
 	dump_stats();
 
 	cout << "#ATTRIBUTE num_bb_skipped_cond_branch=" << num_bb_skipped_cbranch << endl;
-	cout << "#ATTRIBUTE num_bb_zero_predecessors_entry_point=" << num_bb_zero_preds_entry_point << endl;
 	cout << "#ATTRIBUTE num_bb_zero_predecessors=" << num_bb_zero_predecessors << endl;
 	cout << "#ATTRIBUTE num_bb_zero_successors=" << num_bb_zero_successors << endl;
 	cout << "#ATTRIBUTE num_bb_single_predecessors=" << num_bb_single_predecessors << endl; cout << "#ATTRIBUTE num_bb_single_successors=" << num_bb_single_successors << endl;
