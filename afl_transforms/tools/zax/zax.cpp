@@ -873,6 +873,7 @@ int Zax_t::execute()
 	auto num_style_collafl = 0;
 	auto num_bb_keep_cbranch_back_edge = 0;
 	auto num_bb_keep_exit_block = 0;
+	auto num_critical_edges = 0;
 
 	if (m_forkserver_enabled)
 		setupForkServer();
@@ -918,19 +919,22 @@ int Zax_t::execute()
 		const auto num_blocks_in_func = cfg.GetBlocks().size();
 		num_bb += num_blocks_in_func;
 
+		CriticalEdgeAnalyzer_t cea(cfg);
+		const auto critical_edges = cea.GetAllCriticalEdges();
+
 		if (leafAnnotation)
 			cout << "Processing leaf function: ";
 		else
 			cout << "Processing function: ";
 		cout << f->GetName();
-		cout << " " << num_blocks_in_func << " basic blocks" << endl;
-
+		cout << " " << num_blocks_in_func << " basic blocks";
+		cout << " " << critical_edges.size() <<  " critical edges" << endl;
+		num_critical_edges += critical_edges.size();
 		
 		if (m_verbose)
 			cout << cfg << endl;
 
 		set<BasicBlock_t*> keepers;
-
 		// figure out which basic blocks to keep
 		for (auto &bb : cfg.GetBlocks())
 		{
@@ -1146,6 +1150,7 @@ int Zax_t::execute()
 	cout << "#ATTRIBUTE num_bb_skipped_innernode=" << num_bb_skipped_innernode << endl;
 	cout << "#ATTRIBUTE num_bb_skipped_pushjmp=" << num_bb_skipped_pushjmp << endl;
 	cout << "#ATTRIBUTE num_bb_skipped_nop_padding=" << num_bb_skipped_nop_padding << endl;
+	cout << "#ATTRIBUTE num_critical_edges=" << num_critical_edges << endl;
 	cout << "#ATTRIBUTE num_flags_saved=" << m_num_flags_saved << endl;
 	cout << "#ATTRIBUTE num_temp_reg_saved=" << m_num_temp_reg_saved << endl;
 	cout << "#ATTRIBUTE num_tracemap_reg_saved=" << m_num_tracemap_reg_saved << endl;
