@@ -1,0 +1,107 @@
+AFL_TIMEOUT=30
+session=/tmp/tmp.ls.$$
+TMP_FILE_1="${session}/ls.tmp.$$"
+
+mkdir -p $session
+
+cleanup()
+{
+	rm -fr /tmp/ls.tmp* ls*.zafl peasoup_exec*.ls* zafl_in zafl_out ${session}
+}
+
+log_error()
+{
+	echo "TEST FAIL: $1"
+	exit 1
+}
+
+log_message()
+{
+	echo "TEST  MSG: $1"
+}
+
+log_success()
+{
+	echo "TEST PASS: $1"
+}
+
+setup()
+{
+	echo "hello" > $TMP_FILE_1
+}
+
+build_zuntracer()
+{
+	ls_zafl=$1
+	shift
+	zafl.sh `which ls` $ls_zafl --untracer --tempdir analysis.${ls_zafl}
+	if [ ! $? -eq 0 ]; then
+		log_error "$ls_zafl: unable to generate zafl version"	
+	else
+		log_message "$ls_zafl: built successfully"
+	fi
+
+	grep ATTR analysis.${ls_zafl}/logs/zax.log
+	if [ ! $? -eq 0 ]; then
+		log_error "$ls_zafl: no attributes or zax.log file produced"
+	fi
+
+	if [ ! -f analysis.${ls_zafl}/zax.map ]; then
+		log_error "$ls_zafl: zax.map file not found"
+	fi
+}
+
+test_zuntracer()
+{
+	ls_zafl=$( realpath $1 )
+	shift
+	$ls_zafl $* $TMP_FILE_1
+	if [ ! $? -eq 0 ]; then
+		log_error "$ls_zafl $*: unable to ls file using zafl version"
+	fi
+}
+
+fuzz_with_zafl()
+{
+	ls_zafl=$1
+	shift
+
+	# setup AFL directories
+	mkdir zafl_in
+	echo "1" > zafl_in/1
+
+	if [ -d zafl_out ]; then
+		rm -fr zafl_out
+	fi
+
+	# run for 30 seconds
+	LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$SECURITY_TRANSFORMS_HOME/lib/ timeout $AFL_TIMEOUT afl-fuzz -i zafl_in -o zafl_out -- $ls_zafl $*
+	if [ $? -eq 124 ]; then
+		if [ ! -e zafl_out/fuzzer_stats ]; then
+			log_error "$ls_zafl: something went wrong with afl -- no fuzzer stats file"
+		fi
+
+		cat zafl_out/fuzzer_stats
+		execs_per_sec=$( grep execs_per_sec zafl_out/fuzzer_stats )
+		log_success "$ls_zafl $*: ran zafl binary: $execs_per_sec"
+	else
+		log_error "$ls_zafl $*: unable to run with afl"
+	fi
+
+}
+
+pushd ${session}
+setup
+
+# test non-STARS version
+build_zuntracer ls.untracer
+test_zuntracer ./ls.untracer -lt
+
+# test STARS version on AFL
+log_message "Fuzz for $AFL_TIMEOUT seconds"
+fuzz_with_zafl ./ls.untracer -lt
+
+log_success "all tests passed: zafl/zuntracer instrumentation operational on ls"
+
+cleanup
+popd
