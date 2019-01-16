@@ -17,13 +17,16 @@ usage()
 	echo "zafl.sh <input_binary> <output_zafl_binary> [options]"
 	echo 
 	echo "options:"
-	echo "     -s, --stars                    Use STARS (default)"
-	echo "     -S, --no-stars                 Do not use STARS"
-	echo "     -g, --graph-optimization       Use basic block graph optimizations"
-	echo "     -G, --no-graph-optimization    Do not use basic block graph optimizations (default)"
-	echo "     -t, --tempdir                  Specify location of analysis directory"
-	echo "     -e, --entry                    Specify fork server entry point"
-	echo "     -E, --exit                     Specify fork server exit point(s)"
+	echo "     -s, --stars                            Use STARS (default)"
+	echo "     -S, --no-stars                         Do not use STARS"
+	echo "     -g, --graph-optimization               Use basic block graph optimizations"
+	echo "     -G, --no-graph-optimization            Do not use basic block graph optimizations (default)"
+	echo "     -t, --tempdir                          Specify location of analysis directory"
+	echo "     -e, --entry                            Specify fork server entry point"
+	echo "     -E, --exit                             Specify fork server exit point(s)"
+	echo "     -u, --untracer                         Specify untracer instrumentation"
+	echo "     -c, --enable-breakup-critical-edges    Breakup critical edges"
+	echo "     -C, --disable-breakup-critical-edges   Do not breakup critical edges"
 }
 
 ida_or_rida_opt=" -s meds_static=off -s rida=on "
@@ -120,6 +123,14 @@ parse_args()
 				;;
 			-u | --untracer)
 				zax_opt=" $zax_opt -o zax:--untracer "
+				shift
+				;;
+			-c | --enable-breakup-critical-edges)
+				zax_opt=" $zax_opt -o zax:-c "
+				shift
+				;;
+			-C | --disable-breakup-critical-edges)
+				zax_opt=" $zax_opt -o zax:-C "
 				shift
 				;;
 			-*|--*=) # unsupported flags
