@@ -47,6 +47,8 @@ static void usage(char* name)
 	cerr<<"\t[--disable-bb-graph-optimization|-G]           Elide instrumentation if basic block has 1 successor"<<endl;
 	cerr<<"\t[--autozafl|-a]                                Auto-initialize fork server (incompatible with --entrypoint)"<<endl;
 	cerr<<"\t[--untracer|-u]                                Untracer-style block-coverage instrumentation"<<endl;
+	cerr<<"\t[--enable-critical-edge-breakup|-c]            Breakup critical edges"<<endl;
+	cerr<<"\t[--disable-critical-edge-breakup|-C]           Do not breakup critical edges (default)"<<endl;
 }
 
 int main(int argc, char **argv)
@@ -68,6 +70,7 @@ int main(int argc, char **argv)
 	auto bb_graph_optimize=false;
 	auto forkserver_enabled=true;
 	auto untracer_mode=false;
+	auto breakup_critical_edges=false;
 	set<string> exitpoints;
 
 	srand(getpid()+time(NULL));
@@ -88,9 +91,11 @@ int main(int argc, char **argv)
 		{"enable-forkserver", no_argument, 0, 'f'},
 		{"disable-forkserver", no_argument, 0, 'F'},
 		{"untracer", no_argument, 0, 'u'},
+		{"enable-critical-edge-breakup", no_argument, 0, 'c'},
+		{"disable-critical-edge-breakup", no_argument, 0, 'C'},
 		{0,0,0,0}
 	};
-	const char* short_opts="e:E:w:sv?hagGfFu";
+	const char* short_opts="e:E:w:sv?hagGfFucC";
 
 	while(true)
 	{
@@ -142,6 +147,12 @@ int main(int argc, char **argv)
 		case 'u':
 			untracer_mode=true;
 			break;
+		case 'c':
+			breakup_critical_edges=true;
+			break;
+		case 'C':
+			breakup_critical_edges=false;
+			break;
 		default:
 			break;
 		}
@@ -178,16 +189,19 @@ int main(int argc, char **argv)
 		try
 		{
 			Zax_t* zax;
-			if (untracer_mode)
+			if (untracer_mode) 
 				zax = new ZUntracer_t(pqxx_interface, firp, entry_fork_server, exitpoints, use_stars, autozafl, verbose);
 			else
 				zax = new Zax_t(pqxx_interface, firp, entry_fork_server, exitpoints, use_stars, autozafl, verbose);
+
 			if (whitelistFile.size()>0)
 				zax->setWhitelist(whitelistFile);
 			if (blacklistFile.size()>0)
 				zax->setBlacklist(blacklistFile);
+
 			zax->setBasicBlockOptimization(bb_graph_optimize);
 			zax->setEnableForkServer(forkserver_enabled);
+			zax->setBreakupCriticalEdges(breakup_critical_edges);
 
 			int success=zax->execute();
 
