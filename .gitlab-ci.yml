@@ -9,6 +9,7 @@ stages:
   - build
   - test
   - install
+  - deploy
 
 
 #
@@ -129,3 +130,16 @@ install-zafl-centos75:
   tags:
     - centos75
 
+
+#
+# Deploy a docker image to gitlab.
+#
+.deploy-zafl: &deploy-zafl
+  stage: deploy
+  script:
+    - ./cicd_testing/deploy.sh
+
+deploy-zafl-ubuntu18:
+  <<: *deploy-zafl
+  tags:
+    - ubuntu18
