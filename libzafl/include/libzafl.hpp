@@ -5,8 +5,6 @@ extern "C" {
 // config.h is a header from the afl distro
 // make sure afl has been downloaded and AFL_PATH is set properly
 
-#include "config.h"
-
 extern void zafl_initAflForkServer();
 extern void zafl_bbInstrument(unsigned short id);
 

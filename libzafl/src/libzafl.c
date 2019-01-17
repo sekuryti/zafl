@@ -20,6 +20,7 @@
 
 
 #include <stdlib.h>
+#include <stdint.h>
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/shm.h>
@@ -27,7 +28,13 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "config.h"
+// these must match config.h in AFL source code
+#define SHM_ENV_VAR         "__AFL_SHM_ID"
+#define FORKSRV_FD          198
+#define MAP_SIZE_POW2       16
+#define MAP_SIZE            (1 << MAP_SIZE_POW2)
+typedef uint8_t  u8;
+typedef int32_t  s32;
 
 // externally visible so that Zipr transformations can access directly
 u8* zafl_trace_map = NULL;
