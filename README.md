@@ -77,13 +77,27 @@ Invoke the rewritten version of /bin/ls and make sure it runs normally:
 ``` 
 
 ### Testing Zafl
-#### Make sure afl itself is setup properly
+#### Download afl and install it locally
+```
+     wget http://lcamtuf.coredump.cx/afl/releases/afl-latest.tgz
+     tar -xzvf afl-latest.tgz
+     cd <afl_dir>
+     make
+     # build qemu support
+     cd qemu_mode
+     ./build_qemu_support.sh
+```
+
+#### Test afl 
 ```bash
 cd /tmp
 mkdir in
 echo "1" > in/1
 afl-fuzz -i in -o out -Q -- /bin/ls @@
 ```
+
+Alternatively, you may opt to build afl without QEMU support.
+In that case, you will need to make sure that afl works for you.
 
 You may see afl error messages such as this one that will need to be fixed:
 ```
