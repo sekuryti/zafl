@@ -15,7 +15,7 @@ if [[ $CICD_NIGHTLY == 1 ]] ; then
 	./test_cmds.sh -c "zafl" -l
 
 	# test other zafl configs on various apps
-	./test_cmds.sh -c "zafl_nostars zafl_opt_graph zafl_untracer" -a "bzip2 tar tcpdump ncal" -l
+	./test_cmds.sh -c "zafl_nostars zafl_opt_graph zafl_untracer zafl_untracer_critical_edges" -a "tcpdump ncal" -l
 
 else
 	./test_cmds.sh -c "zafl zafl_untracer" -a "bzip2 tar" -l
