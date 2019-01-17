@@ -1,10 +1,15 @@
 #ifndef _LIBTRANSFORM_ZAX_H
 #define _LIBTRANSFORM_ZAX_H
 
-
 #include <libIRDB-core.hpp>
 #include <stars.h>
 #include "transform.hpp"
+
+// utility functions
+// @todo: move these functions into other libs for reuse
+extern void create_got_reloc(FileIR_t* fir, pair<DataScoop_t*,int> wrt, Instruction_t* i);
+extern RegisterSet_t get_dead_regs(Instruction_t* insn, MEDS_AnnotationParser &meds_ap_param);
+extern RegisterSet_t get_free_regs(const RegisterSet_t candidates, const RegisterSet_t allowed);
 
 namespace Zafl
 {
@@ -29,8 +34,6 @@ public:
 	void setBasicBlockOptimization(bool p_bb_graph_optimize) {m_bb_graph_optimize=p_bb_graph_optimize;}
 	void setEnableForkServer(bool p_forkserver_enabled) {m_forkserver_enabled=p_forkserver_enabled;}
 	void setBreakupCriticalEdges(const bool p_breakupCriticalEdges);
-	virtual void setup();
-	virtual void teardown();
 
 protected:
 	virtual zafl_blockid_t get_blockid(const unsigned p_maxid=0xFFFF);
@@ -45,6 +48,8 @@ protected:
 	bool isWhitelisted(const Function_t*) const;
 	bool isBlacklisted(const Instruction_t*) const;
 	bool isWhitelisted(const Instruction_t*) const;
+	virtual void setup();
+	virtual void teardown();
 	virtual void dump_map();
 	virtual void dump_attributes();
 
@@ -81,24 +86,6 @@ protected:
 
 private:
 	std::set<zafl_blockid_t>     m_used_blockid;      // internal bookkeeping to keep track of used block ids
-};
-
-// Block-level instrumentation for Untracer
-class ZUntracer_t : public Zax_t
-{
-public:
-	ZUntracer_t() = delete;
-	ZUntracer_t(const ZUntracer_t&) = delete;
-	ZUntracer_t(libIRDB::pqxxDB_t &p_dbinterface, libIRDB::FileIR_t *p_variantIR, string p_entry, set<string> p_exits, bool p_use_stars=false, bool p_autozafl=false, bool p_verbose=false);
-	virtual ~ZUntracer_t() {};
-	virtual int execute();
-
-protected:
-	virtual zafl_blockid_t get_blockid(const unsigned p_maxid = 0xFFFF);
-	virtual void afl_instrument_bb(Instruction_t *p_inst, const bool p_hasLeafAnnotation, const bool p_collafl_optimization=false);
-
-private:
-	zafl_blockid_t   m_blockid;
 };
 
 } 

@@ -28,6 +28,7 @@
 #include <unistd.h>
 
 #include "zax.hpp"
+#include "zuntracer.hpp"
 
 using namespace std;
 using namespace libIRDB;
