@@ -1,4 +1,5 @@
 # env vars.
 file set_env_vars zfuzz
+file get-packages.sh zfuzz
 directory bin zfuzz
 directory test zfuzz
