@@ -1,0 +1,3 @@
+[submodule "libzafl"]
+	path = libzafl
+	url = git@git.zephyr-software.com:opensrc/libzafl.git
