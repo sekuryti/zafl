@@ -27,6 +27,7 @@ usage()
 	echo "     -u, --untracer                         Specify untracer instrumentation"
 	echo "     -c, --enable-breakup-critical-edges    Breakup critical edges"
 	echo "     -C, --disable-breakup-critical-edges   Do not breakup critical edges"
+	echo "     -f, --fork-server-only                 Fork server only"
 }
 
 ida_or_rida_opt=" -s meds_static=off -s rida=on "
@@ -131,6 +132,12 @@ parse_args()
 				;;
 			-C | --disable-breakup-critical-edges)
 				zax_opt=" $zax_opt -o zax:-C "
+				shift
+				;;
+			-f | --fork-server-only)
+				ZAFL_LIMIT_END=0
+				export ZAFL_LIMIT_END
+				log_warning "Fork Server Only mode: no block-level instrumentation will be performed"
 				shift
 				;;
 			-*|--*=) # unsupported flags
