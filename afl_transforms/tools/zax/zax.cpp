@@ -882,11 +882,9 @@ int Zax_t::execute()
 	auto num_bb_skipped_innernode = 0;
 	auto num_bb_skipped_cbranch = 0;
 	auto num_bb_skipped_onlychild = 0;
-	auto num_style_afl = 0;
 	auto num_style_collafl = 0;
 	auto num_bb_keep_cbranch_back_edge = 0;
 	auto num_bb_keep_exit_block = 0;
-	auto num_critical_edges = 0;
 
 	setup();
 
@@ -895,6 +893,9 @@ int Zax_t::execute()
 	//    for all basic blocks, figure out whether should be kept
 	//    for all kept basic blocks
 	//          add afl-compatible instrumentation
+	
+	auto bb_debug_id = -1;
+
 	struct BaseIDSorter
 	{
 	    bool operator()( const Function_t* lhs, const Function_t* rhs ) const {
@@ -923,24 +924,10 @@ int Zax_t::execute()
 		const auto num_blocks_in_func = cfg.GetBlocks().size();
 		m_num_bb += num_blocks_in_func;
 
-		CriticalEdgeAnalyzer_t cea(cfg);
-		const auto critical_edges = cea.GetAllCriticalEdges();
-
-		if (leafAnnotation)
-			cout << "Processing leaf function: ";
-		else
-			cout << "Processing function: ";
-		cout << f->GetName();
-		cout << " " << num_blocks_in_func << " basic blocks";
-		cout << " " << critical_edges.size() <<  " critical edges" << endl;
-		num_critical_edges += critical_edges.size();
-		
 		if (m_verbose)
 			cout << cfg << endl;
 
 		set<BasicBlock_t*> keepers;
-		auto bb_debug_id = -1;
-
 		// figure out which basic blocks to keep
 		for (auto &bb : cfg.GetBlocks())
 		{
@@ -1085,12 +1072,10 @@ int Zax_t::execute()
 				num_style_collafl++;
 
 			}
-			else
-				num_style_afl++;
 
 			afl_instrument_bb(bb->GetInstructions()[0], leafAnnotation, collAflSingleton);
 
-			cout << "Function " << f->GetName() << ": bb_num_instructions: " << bb->GetInstructions().size() << " collAfl: " << boolalpha << collAflSingleton << " ibta: " << (bb->GetInstructions()[0]->GetIndirectBranchTargetAddress()!=0) << " num_predecessors: " << bb->GetPredecessors().size() << " num_successors: " << bb->GetSuccessors().size() << " is_exit_block: " << bb->GetIsExitBlock() << endl;
+//			cout << "Function " << f->GetName() << ": bb_num_instructions: " << bb->GetInstructions().size() << " collAfl: " << boolalpha << collAflSingleton << " ibta: " << (bb->GetInstructions()[0]->GetIndirectBranchTargetAddress()!=0) << " num_predecessors: " << bb->GetPredecessors().size() << " num_successors: " << bb->GetSuccessors().size() << " is_exit_block: " << bb->GetIsExitBlock() << endl;
 		}
 
 
@@ -1116,8 +1101,6 @@ int Zax_t::execute()
 		cout << "#ATTRIBUTE num_bb_skipped_onlychild=" << num_bb_skipped_onlychild << endl;
 		cout << "#ATTRIBUTE num_bb_skipped_innernode=" << num_bb_skipped_innernode << endl;
 	}
-	cout << "#ATTRIBUTE num_style_afl=" << num_style_afl << endl;
-	cout << "#ATTRIBUTE num_critical_edges=" << num_critical_edges << endl;
 	cout << "#ATTRIBUTE graph_optimize=" << boolalpha << m_bb_graph_optimize << endl;
 
 	teardown();

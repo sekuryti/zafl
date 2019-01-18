@@ -110,10 +110,10 @@ unsigned CriticalEdgeBreaker_t::breakCriticalEdges(Function_t* p_func)
 		}
 	}
 
-	cout << "Number critical edge instrumented: " << num_critical_edges_instrumented << endl;
 
 	if (m_verbose)
 	{
+		cout << "Number critical edge instrumented: " << num_critical_edges_instrumented << endl;
 		ControlFlowGraph_t post_cfg(p_func);
 		m_IR->AssembleRegistry();
 		cout << "Post CFG: " << endl;

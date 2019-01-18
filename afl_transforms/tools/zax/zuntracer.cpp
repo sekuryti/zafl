@@ -43,7 +43,8 @@ void ZUntracer_t::afl_instrument_bb(Instruction_t *p_inst, const bool p_redZoneH
 	const auto blockid = get_blockid();
 	const auto labelid = get_labelid(); 
 
-	cout << "working with blockid: " << blockid << " labelid: " << labelid << endl;
+	if (m_verbose)
+		cout << "working with blockid: " << blockid << " labelid: " << labelid << endl;
 
 	if (m_use_stars) 
 	{
