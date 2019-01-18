@@ -2,21 +2,25 @@
 set -e
 set -x
 
-cd /tmp/zafl_test
-source set_env_vars
-cd $PEASOUP_HOME/tests; make clean; 
 
-# test kill_deads as zafl relies on it
-./test_cmds.sh -c "kill_deads" -a "bzip2 tar tcpdump" -l
+main()
+{
 
-if [[ $CICD_NIGHTLY == 1 ]] ; then
+	cd /tmp/zafl_test
+	source set_env_vars
+	cd $PEASOUP_HOME/tests; make clean; 
 
-	# test zafl config across all default apps
-	./test_cmds.sh -c "zafl" -l
+	local benchmarks=""
+
+	if [[ $CICD_NIGHTLY == 1 ]] ; then
+		benchmarks="tcpdump ncal bzip2 tar"
+	else
+		benchmarks="bzip2 tar"
+	fi
 
 	# test other zafl configs on various apps
-	./test_cmds.sh -c "zafl_nostars zafl_opt_graph zafl_untracer zafl_untracer_critical_edges" -a "tcpdump ncal" -l
+	./test_cmds.sh -c " zafl kill_deads.rida zafl_nostars zafl_opt_graph zafl_untracer zafl_untracer_critical_edges " -a "$benchmarks" -l 
 
-else
-	./test_cmds.sh -c "zafl zafl_untracer" -a "bzip2 tar" -l
-fi
+}
+
+main "$@"

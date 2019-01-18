@@ -17,7 +17,7 @@ fi
 
 if [ ! -f manifest.txt.config -o ! -d "$ZAFL_INSTALL" ]; then
 	mkdir -p "$ZAFL_INSTALL"
-        $PEDI_HOME/pedi --setup -m manifest.txt -l zafl -l zfuzz -l ps -l zipr -l stratafier -i $ZAFL_INSTALL || exit
+        $PEDI_HOME/pedi --setup -m manifest.txt -l zafl -l zfuzz -l ps -l zipr -l stratafier -l stars -i $ZAFL_INSTALL || exit
 fi
 
 cd zipr_umbrella
