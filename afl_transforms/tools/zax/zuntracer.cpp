@@ -164,8 +164,11 @@ int ZUntracer_t::execute()
 {
 	if (m_breakupCriticalEdges)
 	{
-		CriticalEdgeBreaker_t ceb(getFileIR(), true);
+		CriticalEdgeBreaker_t ceb(getFileIR(), m_verbose);
 		cout << "#ATTRIBUTE num_bb_extra_blocks=" << ceb.getNumberExtraNodes() << endl;
+
+		getFileIR()->SetBaseIDS();
+		getFileIR()->AssembleRegistry();
 	}
 
 	return Zax_t::execute();

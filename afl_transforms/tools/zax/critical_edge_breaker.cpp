@@ -52,9 +52,6 @@ void CriticalEdgeBreaker_t::breakCriticalEdges()
 		if (f && f->GetEntryPoint())
 			m_extra_nodes += breakCriticalEdges(f);
 	}
-
-	m_IR->SetBaseIDS();
-	m_IR->AssembleRegistry();
 }
 
 //
@@ -65,7 +62,7 @@ void CriticalEdgeBreaker_t::breakCriticalEdges()
 unsigned CriticalEdgeBreaker_t::breakCriticalEdges(Function_t* p_func)
 {
 	ControlFlowGraph_t cfg(p_func);
-	const CriticalEdgeAnalyzer_t cea(cfg);
+	const CriticalEdgeAnalyzer_t cea(cfg, false);
 	const auto critical_edges = cea.GetAllCriticalEdges();
 	auto num_critical_edges_instrumented = 0;
 
