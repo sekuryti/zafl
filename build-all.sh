@@ -14,5 +14,6 @@ scons $SCONSDEBUG -j 3 || exit
 
 cd $ZFUZZ_HOME/libzafl
 scons
-scons autozafl=1
+cp lib/* $ZEST_RUNTIME/lib64/
+
 
