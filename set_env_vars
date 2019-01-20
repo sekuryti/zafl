@@ -9,6 +9,9 @@ fi
 cd $ZAFL_HOME/zipr_umbrella
 source ./set_env_vars
 
+unset DAFFY_HOME
+export DAFFY_HOME
+
 cd $ZAFL_HOME/zfuzz
 source ./set_env_vars
 

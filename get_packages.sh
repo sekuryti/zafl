@@ -16,8 +16,6 @@ for arg in $args; do
 	esac
 done
 
-# @todo: zipr_umbrella should not include daffy by default
-unset DAFFY_HOME
 pushd zipr_umbrella
 sudo -E ./get-peasoup-packages.sh $args
 popd
