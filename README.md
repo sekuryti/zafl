@@ -76,13 +76,13 @@ Invoke the rewritten version of /bin/ls and make sure it runs normally:
 ### Testing Zafl
 #### Download afl and install it locally
 ```
-     wget http://lcamtuf.coredump.cx/afl/releases/afl-latest.tgz
-     tar -xzvf afl-latest.tgz
-     cd <afl_dir>
-     make
-     # build qemu support
-     cd qemu_mode
-     ./build_qemu_support.sh
+wget http://lcamtuf.coredump.cx/afl/releases/afl-latest.tgz
+tar -xzvf afl-latest.tgz
+cd <afl_dir>
+make
+# (optional) build qemu support
+cd qemu_mode
+./build_qemu_support.sh
 ```
 
 #### Test afl 
