@@ -53,6 +53,12 @@ fuzz_with_zafl()
 
 }
 
+loc_afl=$(which afl-fuzz)
+if [ -z "$loc_afl" ]; then
+	which afl-fuzz
+	log_error "afl-fuzz not found"
+fi
+
 mkdir $session
 pushd $session
 
@@ -63,7 +69,7 @@ if [ $? -eq 0 ]; then
 else
 	log_error "build strings.zafl"
 fi
-grep ATTR analysis.strings.zafl/logs/zafl.log
+grep ATTR analysis.strings.zafl/logs/zax.log
 
 log_message "Fuzz for $AFL_TIMEOUT secs"
 fuzz_with_zafl $(realpath ./strings.zafl)
