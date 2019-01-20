@@ -15,7 +15,7 @@ env|grep CICD
 time rsync -a --exclude='.git'  $CICD_TO_TEST_DIR/ /tmp/zafl_test
 cd /tmp/zafl_test
 source set_env_vars
-sudo ./get_packages.sh all
+sudo ./get-packages.sh all
 ./build-all.sh 
 cd $PEASOUP_UMBRELLA_DIR
 ./postgres_setup.sh
