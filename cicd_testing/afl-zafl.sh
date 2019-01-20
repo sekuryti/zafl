@@ -11,6 +11,7 @@ save_core_pattern=/tmp/$(whoami).core_pattern
 sudo cat /proc/sys/kernel/core_pattern > $save_core_pattern
 
 echo "Setup core pattern for afl"
+sudo $ZAFL_HOME/zfuzz/util/setup-afl.sh
 sudo $ZAFL_HOME/zfuzz/util/afl_setup_core_pattern.sh
 
 echo "Test various zafl configurations"

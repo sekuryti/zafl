@@ -17,7 +17,7 @@ Note that you will need **sudo** privileges to get and install all the required 
 git clone --recurse-submodules git@git.zephyr-software.com:allnp/zafl_umbrella.git
 cd zafl_umbrella
 . set_env_vars
-./get_packages.sh
+./get-packages.sh
 ./build-all.sh
 ```
 Note:

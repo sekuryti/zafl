@@ -5,4 +5,4 @@ submanifest zfuzz/manifest.txt
 # env vars.
 file set_env_vars zafl
 file set_env_vars zfuzz
-file get_packages.sh zafl
+file get-packages.sh zafl
