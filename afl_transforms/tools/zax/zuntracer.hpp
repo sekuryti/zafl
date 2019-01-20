@@ -1,8 +1,6 @@
 #ifndef _LIBTRANSFORM_ZUNTRACER_H
 #define _LIBTRANSFORM_ZUNTRACER_H
 
-#include <libIRDB-core.hpp>
-#include <stars.h>
 #include "zax.hpp"
 
 namespace Zafl

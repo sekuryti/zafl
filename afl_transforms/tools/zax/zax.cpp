@@ -122,6 +122,12 @@ Zax_t::Zax_t(libIRDB::pqxxDB_t &p_dbinterface, libIRDB::FileIR_t *p_variantIR, s
 	m_num_bb_skipped = 0;
 	m_num_bb_skipped_pushjmp = 0;
 	m_num_bb_skipped_nop_padding = 0;
+	m_num_bb_skipped_innernode = 0;
+	m_num_bb_skipped_cbranch = 0;
+	m_num_bb_skipped_onlychild = 0;
+	m_num_bb_keep_exit_block = 0;
+	m_num_bb_keep_cbranch_back_edge = 0;
+	m_num_style_collafl = 0;
 }
 
 void Zax_t::setBreakupCriticalEdges(const bool p_breakupEdges)
@@ -866,9 +872,147 @@ void Zax_t::setup()
 
 void Zax_t::teardown()
 {
-	dump_attributes();
-	dump_map();
+	dumpAttributes();
+	dumpMap();
 }	
+
+// in: control flow graph for a given function
+// out: set of basic blocks to instrument
+set<BasicBlock_t*> Zax_t::getBlocksToInstrument(ControlFlowGraph_t &cfg)
+{
+	static int bb_debug_id=-1;
+
+	if (m_verbose)
+		cout << cfg << endl;
+
+	auto keepers = set<BasicBlock_t*>();
+
+	for (auto &bb : cfg.GetBlocks())
+	{
+		assert(bb->GetInstructions().size() > 0);
+
+		bb_debug_id++;
+
+		// already marked as a keeper
+		if (keepers.find(bb) != keepers.end())
+			continue;
+ 
+		// if whitelist specified, only allow instrumentation for functions/addresses in whitelist
+		if (m_whitelist.size() > 0) 
+		{
+			if (!isWhitelisted(bb->GetInstructions()[0]))
+			{
+				continue;
+			}
+		}
+
+		if (isBlacklisted(bb->GetInstructions()[0]))
+			continue;
+
+		// debugging support
+		if (getenv("ZAFL_LIMIT_BEGIN"))
+		{
+			if (bb_debug_id < atoi(getenv("ZAFL_LIMIT_BEGIN")))
+				continue;	
+		}
+
+		// debugging support
+		if (getenv("ZAFL_LIMIT_END"))
+		{
+			if (bb_debug_id >= atoi(getenv("ZAFL_LIMIT_END"))) 
+				continue;
+		}
+
+		// make sure we're not trying to instrument code we just inserted, e.g., fork server, added exit points
+		if (bb->GetInstructions()[0]->GetBaseID() < 0)
+			continue;
+
+		// push/jmp pair, don't bother instrumenting
+		if (BB_isPushJmp(bb))
+		{
+			m_num_bb_skipped_pushjmp++;
+			continue;
+		}
+
+		// padding nop, don't bother
+		if (BB_isPaddingNop(bb))
+		{
+			m_num_bb_skipped_nop_padding++;
+			continue;
+		}
+
+		// optimization:
+		//    inner node: 1 predecessor and 1 successor
+		//    
+		//    predecessor has only 1 successor (namely this bb)
+		//    bb has 1 predecessor 
+		if (m_bb_graph_optimize)
+		{
+			auto point_to_self = false;
+			if (bb->GetPredecessors().find(bb)!=bb->GetPredecessors().end()) {
+				point_to_self = true;
+			}
+			if (bb->GetPredecessors().size()==1 && !point_to_self)
+			{
+				if (bb->GetSuccessors().size() == 1 && 
+					(!bb->GetInstructions()[0]->GetIndirectBranchTargetAddress()))
+				{
+					cout << "Skipping bb #" << dec << bb_debug_id << " because inner node with 1 predecessor and 1 successor" << endl;
+					m_num_bb_skipped_innernode++;
+					continue;
+				}
+					
+				const auto pred = *(bb->GetPredecessors().begin());
+				if (pred->GetSuccessors().size() == 1)
+				{
+					if (!bb->GetInstructions()[0]->GetIndirectBranchTargetAddress())
+					{
+						cout << "Skipping bb #" << dec << bb_debug_id << " because not ibta, <1,*> and preds <*,1>" << endl;
+						m_num_bb_skipped_onlychild++;
+						continue;
+					} 
+
+					if (pred->GetIsExitBlock())
+					{
+						m_num_bb_skipped_onlychild++;
+						cout << "Skipping bb #" << dec << bb_debug_id << " because ibta, <1,*> and preds(exit_block) <*,1>" << endl;
+						continue;
+					}
+				}
+			}
+
+			// optimization conditional branch:
+			//     elide conditional branch when no back edges
+			if (bb->GetSuccessors().size() == 2 && isConditionalBranch(bb->GetInstructions()[bb->GetInstructions().size()-1]))
+			{
+
+				if (hasBackEdge(bb)) 
+				{
+					cout << "Keeping bb #" << dec << bb_debug_id << " conditional branch has back edge" << endl;
+					m_num_bb_keep_cbranch_back_edge++;
+					keepers.insert(bb);
+					continue;
+				}
+				
+				for (auto &s: bb->GetSuccessors())
+				{
+					if (s->GetIsExitBlock() || s->GetSuccessors().size()==0)
+					{
+						m_num_bb_keep_exit_block++;
+						keepers.insert(s);
+					}
+				}
+
+				cout << "Skipping bb #" << dec << bb_debug_id << " because conditional branch with 2 successors" << endl;
+				m_num_bb_skipped_cbranch++;
+				continue;
+			}
+		}
+
+		keepers.insert(bb);
+	}
+	return keepers;
+}
 
 /*
  * Execute the transform.
@@ -879,13 +1023,6 @@ void Zax_t::teardown()
  */
 int Zax_t::execute()
 {
-	auto num_bb_skipped_innernode = 0;
-	auto num_bb_skipped_cbranch = 0;
-	auto num_bb_skipped_onlychild = 0;
-	auto num_style_collafl = 0;
-	auto num_bb_keep_cbranch_back_edge = 0;
-	auto num_bb_keep_exit_block = 0;
-
 	setup();
 
 	// for all functions
@@ -894,8 +1031,6 @@ int Zax_t::execute()
 	//    for all kept basic blocks
 	//          add afl-compatible instrumentation
 	
-	auto bb_debug_id = -1;
-
 	struct BaseIDSorter
 	{
 	    bool operator()( const Function_t* lhs, const Function_t* rhs ) const {
@@ -918,141 +1053,13 @@ int Zax_t::execute()
 			leafAnnotation = hasLeafAnnotation(f, m_stars_analysis_engine.getAnnotations());
 		}
 
-		cout << endl;
-
 		ControlFlowGraph_t cfg(f);
+
 		const auto num_blocks_in_func = cfg.GetBlocks().size();
 		m_num_bb += num_blocks_in_func;
 
-		if (m_verbose)
-			cout << cfg << endl;
-
-		set<BasicBlock_t*> keepers;
-		// figure out which basic blocks to keep
-		for (auto &bb : cfg.GetBlocks())
-		{
-			assert(bb->GetInstructions().size() > 0);
-
-			bb_debug_id++;
-
-			// already marked as a keeper
-			if (keepers.find(bb) != keepers.end())
-				continue;
- 
-			// if whitelist specified, only allow instrumentation for functions/addresses in whitelist
-			if (m_whitelist.size() > 0) 
-			{
-				if (!isWhitelisted(bb->GetInstructions()[0]))
-				{
-					continue;
-				}
-			}
-
-			if (isBlacklisted(bb->GetInstructions()[0]))
-				continue;
-
-			// debugging support
-			if (getenv("ZAFL_LIMIT_BEGIN"))
-			{
-				if (bb_debug_id < atoi(getenv("ZAFL_LIMIT_BEGIN")))
-					continue;	
-			}
-
-			// debugging support
-			if (getenv("ZAFL_LIMIT_END"))
-			{
-				if (bb_debug_id >= atoi(getenv("ZAFL_LIMIT_END"))) 
-					continue;
-			}
-
-			// make sure we're not trying to instrument code we just inserted, e.g., fork server, added exit points
-			if (bb->GetInstructions()[0]->GetBaseID() < 0)
-				continue;
-
-			// push/jmp pair, don't bother instrumenting
-			if (BB_isPushJmp(bb))
-			{
-				m_num_bb_skipped_pushjmp++;
-				continue;
-			}
-
-			if (BB_isPaddingNop(bb))
-			{
-				m_num_bb_skipped_nop_padding++;
-				continue;
-			}
-
-			// optimization:
-			//    inner node: 1 predecessor and 1 successor
-			//    
-			//    predecessor has only 1 successor (namely this bb)
-			//    bb has 1 predecessor 
-			if (m_bb_graph_optimize)
-			{
-				auto point_to_self = false;
-				if (bb->GetPredecessors().find(bb)!=bb->GetPredecessors().end()) {
-					point_to_self = true;
-				}
-				if (bb->GetPredecessors().size()==1 && !point_to_self)
-				{
-					if (bb->GetSuccessors().size() == 1 && 
-						(!bb->GetInstructions()[0]->GetIndirectBranchTargetAddress()))
-					{
-						cout << "Skipping bb #" << dec << bb_debug_id << " because inner node with 1 predecessor and 1 successor" << endl;
-						num_bb_skipped_innernode++;
-						continue;
-					}
-					
-					const auto pred = *(bb->GetPredecessors().begin());
-					if (pred->GetSuccessors().size() == 1)
-					{
-						if (!bb->GetInstructions()[0]->GetIndirectBranchTargetAddress())
-						{
-							cout << "Skipping bb #" << dec << bb_debug_id << " because not ibta, <1,*> and preds <*,1>" << endl;
-							num_bb_skipped_onlychild++;
-							continue;
-						} 
-
-						if (pred->GetIsExitBlock())
-						{
-							num_bb_skipped_onlychild++;
-							cout << "Skipping bb #" << dec << bb_debug_id << " because ibta, <1,*> and preds(exit_block) <*,1>" << endl;
-							continue;
-						}
-					}
-				}
-
-				// optimization conditional branch:
-				//     elide conditional branch when no back edges
-				if (bb->GetSuccessors().size() == 2 && isConditionalBranch(bb->GetInstructions()[bb->GetInstructions().size()-1]))
-				{
-
-					if (hasBackEdge(bb)) 
-					{
-						cout << "Keeping bb #" << dec << bb_debug_id << " conditional branch has back edge" << endl;
-						num_bb_keep_cbranch_back_edge++;
-						keepers.insert(bb);
-						continue;
-					}
-					
-					for (auto &s: bb->GetSuccessors())
-					{
-						if (s->GetIsExitBlock() || s->GetSuccessors().size()==0)
-						{
-							num_bb_keep_exit_block++;
-							keepers.insert(s);
-						}
-					}
-
-					cout << "Skipping bb #" << dec << bb_debug_id << " because conditional branch with 2 successors" << endl;
-					num_bb_skipped_cbranch++;
-					continue;
-				}
-			}
-
-			keepers.insert(bb);
-		}
 		
+		auto keepers = getBlocksToInstrument(cfg);
 		struct BBSorter
 		{
 		    bool operator()( const BasicBlock_t* lhs, const BasicBlock_t* rhs ) const {
@@ -1069,13 +1076,11 @@ int Zax_t::execute()
 						&& (!bb->GetInstructions()[0]->GetIndirectBranchTargetAddress()))
 			{
 				collAflSingleton = true;
-				num_style_collafl++;
+				m_num_style_collafl++;
 
 			}
 
 			afl_instrument_bb(bb->GetInstructions()[0], leafAnnotation, collAflSingleton);
-
-//			cout << "Function " << f->GetName() << ": bb_num_instructions: " << bb->GetInstructions().size() << " collAfl: " << boolalpha << collAflSingleton << " ibta: " << (bb->GetInstructions()[0]->GetIndirectBranchTargetAddress()!=0) << " num_predecessors: " << bb->GetPredecessors().size() << " num_successors: " << bb->GetSuccessors().size() << " is_exit_block: " << bb->GetIsExitBlock() << endl;
 		}
 
 
@@ -1092,32 +1097,31 @@ int Zax_t::execute()
 		cout << "Function " << f->GetName() << ":  " << dec << keepers.size() << "/" << num_blocks_in_func << " basic blocks instrumented." << endl;
 	});
 
-	if (m_bb_graph_optimize)
-	{
-		cout << "#ATTRIBUTE num_bb_skipped_cond_branch=" << num_bb_skipped_cbranch << endl;
-		cout << "#ATTRIBUTE num_bb_keep_cbranch_back_edge=" << num_bb_keep_cbranch_back_edge << endl;
-		cout << "#ATTRIBUTE num_bb_keep_exit_block=" << num_bb_keep_exit_block << endl;
-		cout << "#ATTRIBUTE num_style_collafl=" << num_style_collafl << endl;
-		cout << "#ATTRIBUTE num_bb_skipped_onlychild=" << num_bb_skipped_onlychild << endl;
-		cout << "#ATTRIBUTE num_bb_skipped_innernode=" << num_bb_skipped_innernode << endl;
-	}
-	cout << "#ATTRIBUTE graph_optimize=" << boolalpha << m_bb_graph_optimize << endl;
-
 	teardown();
 
 	return 1;
 }
 
-void Zax_t::dump_attributes()
+void Zax_t::dumpAttributes()
 {
 	cout << "#ATTRIBUTE num_bb=" << dec << m_num_bb << endl;
 	cout << "#ATTRIBUTE num_bb_instrumented=" << m_num_bb_instrumented << endl;
 	cout << "#ATTRIBUTE num_bb_skipped=" << m_num_bb_skipped << endl;
 	cout << "#ATTRIBUTE num_bb_skipped_pushjmp=" << m_num_bb_skipped_pushjmp << endl;
 	cout << "#ATTRIBUTE num_bb_skipped_nop_padding=" << m_num_bb_skipped_nop_padding << endl;
+	cout << "#ATTRIBUTE graph_optimize=" << boolalpha << m_bb_graph_optimize << endl;
+	if (m_bb_graph_optimize)
+	{
+		cout << "#ATTRIBUTE num_bb_skipped_cond_branch=" << m_num_bb_skipped_cbranch << endl;
+		cout << "#ATTRIBUTE num_bb_keep_cbranch_back_edge=" << m_num_bb_keep_cbranch_back_edge << endl;
+		cout << "#ATTRIBUTE num_bb_keep_exit_block=" << m_num_bb_keep_exit_block << endl;
+		cout << "#ATTRIBUTE num_style_collafl=" << m_num_style_collafl << endl;
+		cout << "#ATTRIBUTE num_bb_skipped_onlychild=" << m_num_bb_skipped_onlychild << endl;
+		cout << "#ATTRIBUTE num_bb_skipped_innernode=" << m_num_bb_skipped_innernode << endl;
+	}
 }
 
-void Zax_t::dump_map()
+void Zax_t::dumpMap()
 {
 	// dump out modified basic block info
 	getFileIR()->SetBaseIDS();           // make sure instructions have IDs

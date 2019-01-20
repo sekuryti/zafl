@@ -2,7 +2,9 @@
 #define _LIBTRANSFORM_ZAX_H
 
 #include <libIRDB-core.hpp>
+#include <libIRDB-cfg.hpp>
 #include <stars.h>
+
 #include "transform.hpp"
 
 // utility functions
@@ -38,6 +40,7 @@ public:
 protected:
 	virtual zafl_blockid_t get_blockid(const unsigned p_maxid=0xFFFF);
 	virtual zafl_labelid_t get_labelid(const unsigned p_maxid=0xFFFF);
+	virtual set<libIRDB::BasicBlock_t*> getBlocksToInstrument(ControlFlowGraph_t &cfg);
 	virtual void afl_instrument_bb(Instruction_t *inst, const bool p_hasLeafAnnotation, const bool p_collafl_optimization=false);
 	void insertExitPoint(Instruction_t *inst);
 	void insertForkServer(Instruction_t* p_entry);
@@ -50,8 +53,8 @@ protected:
 	bool isWhitelisted(const Instruction_t*) const;
 	virtual void setup();
 	virtual void teardown();
-	virtual void dump_map();
-	virtual void dump_attributes();
+	virtual void dumpMap();
+	virtual void dumpAttributes();
 
 protected:
 	libIRDB::pqxxDB_t&           m_dbinterface;
@@ -83,6 +86,12 @@ protected:
 	unsigned m_num_bb_skipped;
 	unsigned m_num_bb_skipped_pushjmp;
 	unsigned m_num_bb_skipped_nop_padding;
+	unsigned m_num_bb_skipped_innernode;
+	unsigned m_num_bb_skipped_cbranch;
+	unsigned m_num_bb_skipped_onlychild;
+	unsigned m_num_bb_keep_exit_block;
+	unsigned m_num_bb_keep_cbranch_back_edge;
+	unsigned m_num_style_collafl;
 
 private:
 	std::set<zafl_blockid_t>     m_used_blockid;      // internal bookkeeping to keep track of used block ids

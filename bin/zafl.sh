@@ -99,11 +99,11 @@ parse_args()
 				shift
 				;;
 			-g | --graph-optimization)
-				zax_opt=" -o zax:-g "
+				zax_opt=" $zax_opt -o zax:-g "
 				shift
 				;;
 			-G | --no-graph-optimization)
-				zax_opt=" "
+				zax_opt=" $zax_opt -o zax:-G "
 				shift
 				;;
 			-e | --entry)
