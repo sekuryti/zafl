@@ -51,6 +51,8 @@ protected:
 	bool isWhitelisted(const Function_t*) const;
 	bool isBlacklisted(const Instruction_t*) const;
 	bool isWhitelisted(const Instruction_t*) const;
+	bool BB_isPushJmp(const BasicBlock_t *p_bb);
+	bool BB_isPaddingNop(const BasicBlock_t *p_bb);
 	virtual void setup();
 	virtual void teardown();
 	virtual void dumpMap();

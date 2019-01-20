@@ -194,7 +194,7 @@ static bool hasLeafAnnotation(Function_t* fn, MEDS_AnnotationParser &meds_ap_par
 	return (sfa_it != ret.second);
 }
 
-static bool BB_isPaddingNop(const BasicBlock_t *p_bb)
+bool Zax_t::BB_isPaddingNop(const BasicBlock_t *p_bb)
 {
 	return p_bb->GetInstructions().size()==1 && 
 	       p_bb->GetPredecessors().size()==0 &&
@@ -202,12 +202,13 @@ static bool BB_isPaddingNop(const BasicBlock_t *p_bb)
 	       p_bb->GetInstructions()[0]->getDisassembly().find("nop")!=string::npos;
 }
 
-static bool BB_isPushJmp(const BasicBlock_t *p_bb)
+bool Zax_t::BB_isPushJmp(const BasicBlock_t *p_bb)
 {
 	return p_bb->GetInstructions().size()==2 && 
 	       p_bb->GetInstructions()[0]->getDisassembly().find("push")!=string::npos &&
 	       p_bb->GetInstructions()[1]->getDisassembly().find("jmp")!=string::npos;
 }
+
 /*
  * Only allow instrumentation in whitelisted functions/instructions
  * Each line in file is either a function name or address

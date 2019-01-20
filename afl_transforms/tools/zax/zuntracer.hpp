@@ -19,6 +19,7 @@ public:
 protected:
 	virtual zafl_blockid_t get_blockid(const unsigned p_maxid = 0xFFFF);
 	virtual void afl_instrument_bb(Instruction_t *p_inst, const bool p_hasLeafAnnotation, const bool p_collafl_optimization=false);
+	virtual set<libIRDB::BasicBlock_t*> getBlocksToInstrument(ControlFlowGraph_t &cfg);
 
 private:
 	zafl_blockid_t   m_blockid;

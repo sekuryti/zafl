@@ -157,6 +157,86 @@ void ZUntracer_t::afl_instrument_bb(Instruction_t *p_inst, const bool p_redZoneH
 	free(reg_trace_map);
 }
 
+set<BasicBlock_t*> ZUntracer_t::getBlocksToInstrument(ControlFlowGraph_t &cfg)
+{
+	static int bb_z_debug_id=-1;
+
+	if (m_verbose)
+		cout << cfg << endl;
+
+	auto keepers = set<BasicBlock_t*>();
+
+	for (auto &bb : cfg.GetBlocks())
+	{
+		bb_z_debug_id++;
+
+		// already marked as a keeper
+		if (keepers.find(bb) != keepers.end())
+			continue;
+ 
+		// if whitelist specified, only allow instrumentation for functions/addresses in whitelist
+		if (m_whitelist.size() > 0) 
+		{
+			if (!isWhitelisted(bb->GetInstructions()[0]))
+			{
+				continue;
+			}
+		}
+
+		if (isBlacklisted(bb->GetInstructions()[0]))
+			continue;
+
+		// debugging support
+		if (getenv("ZAFL_LIMIT_BEGIN"))
+		{
+			if (bb_z_debug_id < atoi(getenv("ZAFL_LIMIT_BEGIN")))
+				continue;	
+		}
+
+		// debugging support
+		if (getenv("ZAFL_LIMIT_END"))
+		{
+			if (bb_z_debug_id >= atoi(getenv("ZAFL_LIMIT_END"))) 
+				continue;
+		}
+
+		// make sure we're not trying to instrument code we just inserted, e.g., fork server, added exit points
+		if (bb->GetInstructions()[0]->GetBaseID() < 0)
+			continue;
+
+		// push/jmp pair, don't bother instrumenting
+		if (BB_isPushJmp(bb))
+		{
+			m_num_bb_skipped_pushjmp++;
+			continue;
+		}
+
+		// padding nop, don't bother
+		if (BB_isPaddingNop(bb))
+		{
+			m_num_bb_skipped_nop_padding++;
+			continue;
+		}
+
+		// optimization:
+		//    @warning @todo:
+		//    very experimental!
+		//    elide instrumentation for conditional branches
+		//
+		if (m_bb_graph_optimize)
+		{
+			if (bb->GetSuccessors().size() == 2 && bb->EndsInConditionalBranch())
+			{
+				m_num_bb_skipped_cbranch++;
+				continue;
+			}
+		}
+
+		keepers.insert(bb);
+	}
+	return keepers;
+}
+
 // 
 // breakup critical edges
 // use block-level instrumentation
