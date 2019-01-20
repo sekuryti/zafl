@@ -12,15 +12,6 @@ Key features of Zafl:
 ## Installation
 Note that you will need **sudo** privileges to get and install all the required packages.
 
-### Download and install afl locally
-```bash
-wget http://lcamtuf.coredump.cx/afl/releases/afl-latest.tgz
-tar -xzvf afl-latest.tgz
-cd afl-<latest_version>
-make
-sudo make install
-```
-
 ### Getting packages and compiling Zafl
 ```bash
 git clone --recurse-submodules git@git.zephyr-software.com:allnp/zafl_umbrella.git
