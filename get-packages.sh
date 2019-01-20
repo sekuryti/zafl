@@ -1,14 +1,11 @@
+#!/bin/bash
+
 #
 # skeleton get-packages.sh
 #
 
-#
-# do not need any additional packages above and beyond Zipr toolchain
-# those packages will be installed separately
-#
-
 args="$@"
-if [[ $args = "" ]]; then
+if [[ "$args" == "" ]]; then
         args="all"
 fi
 
