@@ -4,12 +4,14 @@
 # Invoke underlying Zipr toolchain with Zafl step and parameters
 #
 
-RED=`tput setaf 1`
-GREEN=`tput setaf 2`
-YELLOW=`tput setaf 3`
-ORANGE=`tput setaf 214`
-MAGENTA=`tput setaf 5`
-NC=`tput sgr0`
+if [ ! -z $TERM ] && [ "$TERM" != "dumb" ]; then
+	RED=`tput setaf 1`
+	GREEN=`tput setaf 2`
+	YELLOW=`tput setaf 3`
+	ORANGE=`tput setaf 214`
+	MAGENTA=`tput setaf 5`
+	NC=`tput sgr0`
+fi
 
 usage()
 {
@@ -28,6 +30,7 @@ usage()
 	echo "     -c, --enable-breakup-critical-edges    Breakup critical edges"
 	echo "     -C, --disable-breakup-critical-edges   Do not breakup critical edges"
 	echo "     -f, --fork-server-only                 Fork server only"
+	echo 
 }
 
 ida_or_rida_opt=" -s meds_static=off -s rida=on "
@@ -153,7 +156,7 @@ parse_args()
 
 	eval set -- "$PARAMS"
 	positional=($PARAMS)
-	input_binary=$(realpath ${positional[0]})
+	input_binary=${positional[0]}
 	output_zafl_binary=${positional[1]}
 
 	if [ -z $input_binary ]; then
@@ -165,6 +168,8 @@ parse_args()
 		usage
 		log_error_exit "You must specify the name of the output binary"
 	fi
+
+	input_binary=$(realpath $input_binary)
 }
 
 find_main()
