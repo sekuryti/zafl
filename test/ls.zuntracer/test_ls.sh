@@ -101,11 +101,18 @@ test_zuntracer ./ls.untracer.no_critical_edge -lt
 build_zuntracer ls.untracer.critical_edge -c
 test_zuntracer ./ls.untracer.critical_edge -lt
 
+# zuntracer, do break critical edges, optimize graph
+build_zuntracer ls.untracer.critical_edge.graph -c -g
+test_zuntracer ./ls.untracer.critical_edge.graph -lt
+
 log_message "Fuzz zuntracer (basic block coverage) for $AFL_TIMEOUT seconds"
 fuzz_with_zafl ./ls.untracer.no_critical_edge -lt
 
 log_message "Fuzz zuntracer (break critical edges) for $AFL_TIMEOUT seconds"
 fuzz_with_zafl ./ls.untracer.critical_edge -lt
+
+log_message "Fuzz zuntracer (break critical edges + graph optimization) for $AFL_TIMEOUT seconds"
+fuzz_with_zafl ./ls.untracer.critical_edge.graph -lt
 
 log_success "all tests passed: zafl/zuntracer instrumentation operational on ls"
 
