@@ -20,6 +20,7 @@ if [ ! -f manifest.txt.config -o ! -d "$ZAFL_INSTALL" ]; then
         $PEDI_HOME/pedi --setup -m manifest.txt -l zafl -l zfuzz -l ps -l zipr -l stratafier -l stars -i $ZAFL_INSTALL || exit
 fi
 
+unset DAFFY_HOME
 cd zipr_umbrella
 ./build-all.sh $build_all_flags  || exit
 
