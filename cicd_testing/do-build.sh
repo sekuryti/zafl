@@ -19,6 +19,3 @@ sudo ./get_packages.sh all
 ./build-all.sh 
 cd $PEASOUP_UMBRELLA_DIR
 ./postgres_setup.sh
-
-# build afl
-$ZFUZZ_HOME/util/setup-afl.sh
