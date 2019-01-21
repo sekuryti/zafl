@@ -1,8 +1,13 @@
 #!/bin/bash
 
 echo
-echo "Building Fuzzing Support"
+echo "Building Fuzzing Support ($ZFUZZ_HOME)"
 echo
+
+if [ -z "$ZFUZZ_HOME" ]; then
+	echo "error: environment var $ZFUZZ_HOME is undefined"
+	exit 1
+fi
 
 cd $ZFUZZ_HOME
 
@@ -19,10 +24,8 @@ if [ -z "$afl_loc" ]; then
 	mv afl-* afl
 	cd afl
 	make
+	sudo make install
 #	cd qemu_mode && ./build_qemu_support.sh
-
-	AFL_PATH=/home/tester/zafl_umbrella/zfuzz/afl
-	export AFL_PATH
 
 	# afl wants this
 	sudo $ZFUZZ_HOME/util/afl_setup_core_pattern.sh
