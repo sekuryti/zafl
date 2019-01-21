@@ -12,7 +12,7 @@ main()
 		whoami
 		env|grep CICD
 
-		rm -rf /tmp/zafl_test
+		sudo rm -rf /tmp/zafl_test
 	fi
 }
 
