@@ -12,7 +12,7 @@ zafl_blockid_t ZUntracer_t::get_blockid(const unsigned p_max)
 {
 //	assert (m_blockid < p_max);
 //	@todo: issue warning when wrapping around
-	m_blockid = (m_blockid+1) % (p_max-1);
+	m_blockid = (m_blockid+1) % p_max;
 	return m_blockid;
 }
 
