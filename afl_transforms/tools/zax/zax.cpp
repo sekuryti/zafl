@@ -265,7 +265,6 @@ zafl_blockid_t Zax_t::get_blockid(const unsigned p_max)
 
 zafl_labelid_t Zax_t::get_labelid(const unsigned p_max) 
 {
-	assert (m_labelid < p_max);
 	return m_labelid++;
 }
 
