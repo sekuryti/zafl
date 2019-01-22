@@ -8,7 +8,7 @@ export DOCKER_ZAFL=${ZAFL_PATH}${ZAFL_TAG}
 do_clean()
 {
 	if [[ $CICD_WEEKLY == 1 ]]; then
-		docker system prune -a
+		docker system prune -a -f
 	fi
 }
 
