@@ -10,8 +10,10 @@ ZUntracer_t::ZUntracer_t(libIRDB::pqxxDB_t &p_dbinterface, libIRDB::FileIR_t *p_
 
 zafl_blockid_t ZUntracer_t::get_blockid(const unsigned p_max) 
 {
-	assert (m_blockid < p_max);
-	return m_blockid++;
+//	assert (m_blockid < p_max);
+//	@todo: issue warning when wrapping around
+	m_blockid = (m_blockid+1) % (p_max-1);
+	return m_blockid;
 }
 
 void ZUntracer_t::afl_instrument_bb(Instruction_t *p_inst, const bool p_redZoneHint, const bool p_collafl_optimization)
