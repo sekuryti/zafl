@@ -27,11 +27,11 @@
 #include "critical_edge_breaker.hpp"
 
 using namespace std;
-using namespace libIRDB;
+using namespace IRDB_SDK;
 using namespace Zafl;
 using namespace IRDBUtility;
 
-CriticalEdgeBreaker_t::CriticalEdgeBreaker_t(libIRDB::FileIR_t *p_IR, const bool p_verbose) :
+CriticalEdgeBreaker_t::CriticalEdgeBreaker_t(IRDB_SDK::FileIR_t *p_IR, const bool p_verbose) :
 	m_IR(p_IR),
 	m_verbose(p_verbose),
 	m_extra_nodes(0)
@@ -47,9 +47,9 @@ unsigned CriticalEdgeBreaker_t::getNumberExtraNodes() const
 // iterate over each function and break critical edges
 void CriticalEdgeBreaker_t::breakCriticalEdges()
 {
-	for ( auto &f : m_IR->GetFunctions() )
+	for ( auto &f : m_IR->getFunctions() )
 	{
-		if (f && f->GetEntryPoint())
+		if (f && f->getEntryPoint())
 			m_extra_nodes += breakCriticalEdges(f);
 	}
 }
@@ -61,13 +61,13 @@ void CriticalEdgeBreaker_t::breakCriticalEdges()
 //        
 unsigned CriticalEdgeBreaker_t::breakCriticalEdges(Function_t* p_func)
 {
-	ControlFlowGraph_t cfg(p_func);
-	const CriticalEdgeAnalyzer_t cea(cfg, false);
+	libIRDB::ControlFlowGraph_t cfg(p_func);
+	const libIRDB::CriticalEdgeAnalyzer_t cea(cfg, false);
 	const auto critical_edges = cea.GetAllCriticalEdges();
 	auto num_critical_edges_instrumented = 0;
 
 	cout << endl;
-	cout << "Breaking critical edges for function: " << p_func->GetName();
+	cout << "Breaking critical edges for function: " << p_func->getName();
 	cout << " - " << critical_edges.size() << " critical edges detected" << endl;
 
 	if (m_verbose)
@@ -86,25 +86,25 @@ unsigned CriticalEdgeBreaker_t::breakCriticalEdges(Function_t* p_func)
 
 		if (source_block->EndsInConditionalBranch())
 		{
-			const auto fileID = last_instruction_in_source_block->GetAddress()->GetFileID();
-			const auto func = last_instruction_in_source_block->GetFunction();
+			const auto fileID = last_instruction_in_source_block->getAddress()->getFileID();
+			const auto func = last_instruction_in_source_block->getFunction();
 
-			if (last_instruction_in_source_block->GetTarget() == first_instruction_in_target_block)
+			if (last_instruction_in_source_block->getTarget() == first_instruction_in_target_block)
 			{
 				auto jmp = IRDBUtility::allocateNewInstruction(m_IR, fileID, func);
 				IRDBUtility::setInstructionAssembly(m_IR, jmp, "jmp 0", nullptr, first_instruction_in_target_block);
-				jmp->SetComment("break_critical_edge_jmp");
+				jmp->setComment("break_critical_edge_jmp");
 
-				last_instruction_in_source_block->SetTarget(jmp);
+				last_instruction_in_source_block->setTarget(jmp);
 				num_critical_edges_instrumented++;
 			}
-			else if (last_instruction_in_source_block->GetFallthrough() == first_instruction_in_target_block)
+			else if (last_instruction_in_source_block->getFallthrough() == first_instruction_in_target_block)
 			{
 				auto jmp = IRDBUtility::allocateNewInstruction(m_IR, fileID, func);
 				IRDBUtility::setInstructionAssembly(m_IR, jmp, "jmp 0", nullptr, first_instruction_in_target_block);
-				jmp->SetComment("break_critical_edge_fallthrough");
+				jmp->setComment("break_critical_edge_fallthrough");
 
-				last_instruction_in_source_block->SetFallthrough(jmp);
+				last_instruction_in_source_block->setFallthrough(jmp);
 				num_critical_edges_instrumented++;
 			}
 		}
@@ -114,8 +114,8 @@ unsigned CriticalEdgeBreaker_t::breakCriticalEdges(Function_t* p_func)
 	if (m_verbose)
 	{
 		cout << "Number critical edge instrumented: " << num_critical_edges_instrumented << endl;
-		ControlFlowGraph_t post_cfg(p_func);
-		m_IR->AssembleRegistry();
+		libIRDB::ControlFlowGraph_t post_cfg(p_func);
+		m_IR->assembleRegistry();
 		cout << "Post CFG: " << endl;
 		cout << post_cfg << endl;
 	}

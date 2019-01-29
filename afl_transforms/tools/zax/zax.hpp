@@ -1,7 +1,7 @@
 #ifndef _LIBTRANSFORM_ZAX_H
 #define _LIBTRANSFORM_ZAX_H
 
-#include <libIRDB-core.hpp>
+#include <irdb-core>
 #include <libIRDB-cfg.hpp>
 #include <stars.h>
 
@@ -9,15 +9,18 @@
 
 // utility functions
 // @todo: move these functions into other libs for reuse
-extern void create_got_reloc(FileIR_t* fir, pair<DataScoop_t*,int> wrt, Instruction_t* i);
-extern RegisterSet_t get_dead_regs(Instruction_t* insn, MEDS_AnnotationParser &meds_ap_param);
-extern RegisterSet_t get_free_regs(const RegisterSet_t candidates, const RegisterSet_t allowed);
+extern void create_got_reloc(IRDB_SDK::FileIR_t* fir, std::pair<IRDB_SDK::DataScoop_t*,int> wrt, IRDB_SDK::Instruction_t* i);
+extern MEDS_Annotation::RegisterSet_t get_dead_regs(IRDB_SDK::Instruction_t* insn, MEDS_Annotation::MEDS_AnnotationParser &meds_ap_param);
+extern MEDS_Annotation::RegisterSet_t get_free_regs(const MEDS_Annotation::RegisterSet_t candidates, const MEDS_Annotation::RegisterSet_t allowed);
 
 namespace Zafl
 {
+using namespace IRDB_SDK;
+using namespace std;
 typedef unsigned zafl_blockid_t;
 typedef unsigned zafl_labelid_t;
 typedef vector<Instruction_t*> BBRecord_t;
+
 
 //
 // Transform to add afl-compatible instrumentation, including a fork server
@@ -28,7 +31,7 @@ public:
 	// explicitly disable default and copy constructors
 	Zax_t() = delete;
 	Zax_t(const Zafl::Zax_t&) = delete;
-	Zax_t(libIRDB::pqxxDB_t &p_dbinterface, libIRDB::FileIR_t *p_variantIR, string p_entry, set<string> p_exits, bool p_use_stars=false, bool p_autozafl=false, bool p_verbose=false);
+	Zax_t(pqxxDB_t &p_dbinterface, FileIR_t *p_variantIR, string p_entry, set<string> p_exits, bool p_use_stars=false, bool p_autozafl=false, bool p_verbose=false);
 	virtual ~Zax_t() {};
 	virtual int execute();
 	void setWhitelist(const string& p_filename); 
@@ -40,7 +43,7 @@ public:
 protected:
 	virtual zafl_blockid_t get_blockid(const unsigned p_maxid=0xFFFF);
 	virtual zafl_labelid_t get_labelid(const unsigned p_maxid=0xFFFF);
-	virtual set<libIRDB::BasicBlock_t*> getBlocksToInstrument(ControlFlowGraph_t &cfg);
+	virtual set<libIRDB::BasicBlock_t*> getBlocksToInstrument(libIRDB::ControlFlowGraph_t &cfg);
 	virtual void afl_instrument_bb(Instruction_t *inst, const bool p_hasLeafAnnotation, const bool p_collafl_optimization=false);
 	void insertExitPoint(Instruction_t *inst);
 	void insertForkServer(Instruction_t* p_entry);
@@ -51,15 +54,15 @@ protected:
 	bool isWhitelisted(const Function_t*) const;
 	bool isBlacklisted(const Instruction_t*) const;
 	bool isWhitelisted(const Instruction_t*) const;
-	bool BB_isPushJmp(const BasicBlock_t *p_bb);
-	bool BB_isPaddingNop(const BasicBlock_t *p_bb);
+	bool BB_isPushJmp(const libIRDB::BasicBlock_t *p_bb);
+	bool BB_isPaddingNop(const libIRDB::BasicBlock_t *p_bb);
 	virtual void setup();
 	virtual void teardown();
 	virtual void dumpMap();
 	virtual void dumpAttributes();
 
 protected:
-	libIRDB::pqxxDB_t&           m_dbinterface;
+	pqxxDB_t&           m_dbinterface;
 	STARS::IRDB_Interface_t      m_stars_analysis_engine;
 
 	string                       m_fork_server_entry;  // string to specify fork server entry point
@@ -71,12 +74,12 @@ protected:
 	bool                         m_breakupCriticalEdges;
 	bool                         m_verbose;
 
-        std::pair<DataScoop_t*,int>  m_trace_map;  // afl shared memory trace map
-        std::pair<DataScoop_t*,int>  m_prev_id;    // id of previous block
+        pair<DataScoop_t*,int>  m_trace_map;  // afl shared memory trace map
+        pair<DataScoop_t*,int>  m_prev_id;    // id of previous block
 	Instruction_t*               m_plt_zafl_initAflForkServer; // plt entry for afl fork server initialization routine
 
-	std::set<std::string>        m_whitelist;   // whitelisted functions and/or instructions
-	std::set<std::string>        m_blacklist;   // blacklisted functions and/or instructions
+	set<string>        m_whitelist;   // whitelisted functions and/or instructions
+	set<string>        m_blacklist;   // blacklisted functions and/or instructions
 
 	zafl_labelid_t               m_labelid;     // internal bookkeeping to generate labels
 
@@ -96,7 +99,7 @@ protected:
 	unsigned m_num_style_collafl;
 
 private:
-	std::set<zafl_blockid_t>     m_used_blockid;      // internal bookkeeping to keep track of used block ids
+	set<zafl_blockid_t>     m_used_blockid;      // internal bookkeeping to keep track of used block ids
 };
 
 } 

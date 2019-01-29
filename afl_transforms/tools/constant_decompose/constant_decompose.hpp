@@ -1,8 +1,8 @@
 #ifndef _LIBTRANSFORM_CONSTANT_DECOMPOSE_H
 #define _LIBTRANSFORM_CONSTANT_DECOMPOSE_H
 
-#include <libIRDB-core.hpp>
-#include "transform.hpp"
+#include <irdb-core>
+#include <transform.hpp>
 
 
 namespace ConstantDecompose
@@ -14,11 +14,11 @@ public:
 	// explicitly disable default and copy constructors
 	ConstantDecompose_t() = delete;
 	ConstantDecompose_t(const ConstantDecompose::ConstantDecompose_t&) = delete;
-	ConstantDecompose_t(libIRDB::pqxxDB_t &p_dbinterface, libIRDB::FileIR_t *p_variantIR, bool p_verbose=false);
+	ConstantDecompose_t(IRDB_SDK::pqxxDB_t &p_dbinterface, IRDB_SDK::FileIR_t *p_variantIR, bool p_verbose=false);
 	int execute();
 
 private:
-	libIRDB::pqxxDB_t &m_dbinterface;
+	IRDB_SDK::pqxxDB_t &m_dbinterface;
 	bool m_verbose;
 };
 

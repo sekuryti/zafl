@@ -37,12 +37,12 @@
 
 using namespace std;
 using namespace libTransform;
-using namespace libIRDB;
+using namespace IRDB_SDK;
 using namespace Zafl;
 using namespace IRDBUtility;
 using namespace MEDS_Annotation;
 
-Zax_t::Zax_t(libIRDB::pqxxDB_t &p_dbinterface, libIRDB::FileIR_t *p_variantIR, string p_forkServerEntryPoint, set<string> p_exitPoints, bool p_use_stars, bool p_autozafl, bool p_verbose)
+Zax_t::Zax_t(IRDB_SDK::pqxxDB_t &p_dbinterface, IRDB_SDK::FileIR_t *p_variantIR, string p_forkServerEntryPoint, set<string> p_exitPoints, bool p_use_stars, bool p_autozafl, bool p_verbose)
 	:
 	Transform(NULL, p_variantIR, NULL),
 	m_dbinterface(p_dbinterface),
@@ -61,7 +61,7 @@ Zax_t::Zax_t(libIRDB::pqxxDB_t &p_dbinterface, libIRDB::FileIR_t *p_variantIR, s
 		m_stars_analysis_engine.do_STARS(getFileIR());
 	}
 
-	auto ed=ElfDependencies_t(getFileIR());
+	auto ed=libIRDB::ElfDependencies_t(getFileIR());
 	if (p_autozafl)
 	{
 		cout << "autozafl library is on" << endl;
@@ -138,9 +138,12 @@ void Zax_t::setBreakupCriticalEdges(const bool p_breakupEdges)
 
 void create_got_reloc(FileIR_t* fir, pair<DataScoop_t*,int> wrt, Instruction_t* i)
 {
+	/*
         auto r=new Relocation_t(BaseObj_t::NOT_IN_DATABASE, wrt.second, "pcrel", wrt.first);
-        fir->GetRelocations().insert(r);
-        i->GetRelocations().insert(r);
+        fir->getRelocations().insert(r);
+        i->getRelocations().insert(r);
+	*/
+	(void)fir->addNewRelocation(i,wrt.second, "pcrel", wrt.first);
 }
 
 RegisterSet_t get_dead_regs(Instruction_t* insn, MEDS_AnnotationParser &meds_ap_param)
@@ -148,7 +151,7 @@ RegisterSet_t get_dead_regs(Instruction_t* insn, MEDS_AnnotationParser &meds_ap_
         std::pair<MEDS_Annotations_t::iterator,MEDS_Annotations_t::iterator> ret;
 
         /* find it in the annotations */
-        ret = meds_ap_param.getAnnotations().equal_range(insn->GetBaseID());
+        ret = meds_ap_param.getAnnotations().equal_range(insn->getBaseID());
         MEDS_DeadRegAnnotation* p_annotation;
 
         /* for each annotation for this instruction */
@@ -181,7 +184,7 @@ RegisterSet_t get_free_regs(const RegisterSet_t candidates, const RegisterSet_t 
 static bool hasLeafAnnotation(Function_t* fn, MEDS_AnnotationParser &meds_ap_param)
 {
 	assert(fn);
-        const auto ret = meds_ap_param.getFuncAnnotations().equal_range(fn->GetName());
+        const auto ret = meds_ap_param.getFuncAnnotations().equal_range(fn->getName());
 	const auto sfa_it = find_if(ret.first, ret.second, [](const MEDS_Annotations_FuncPair_t &it)
 		{
 			auto p_annotation=dynamic_cast<MEDS_SafeFuncAnnotation*>(it.second);
@@ -194,7 +197,7 @@ static bool hasLeafAnnotation(Function_t* fn, MEDS_AnnotationParser &meds_ap_par
 	return (sfa_it != ret.second);
 }
 
-bool Zax_t::BB_isPaddingNop(const BasicBlock_t *p_bb)
+bool Zax_t::BB_isPaddingNop(const libIRDB::BasicBlock_t *p_bb)
 {
 	return p_bb->GetInstructions().size()==1 && 
 	       p_bb->GetPredecessors().size()==0 &&
@@ -202,7 +205,7 @@ bool Zax_t::BB_isPaddingNop(const BasicBlock_t *p_bb)
 	       p_bb->GetInstructions()[0]->getDisassembly().find("nop")!=string::npos;
 }
 
-bool Zax_t::BB_isPushJmp(const BasicBlock_t *p_bb)
+bool Zax_t::BB_isPushJmp(const libIRDB::BasicBlock_t *p_bb)
 {
 	return p_bb->GetInstructions().size()==2 && 
 	       p_bb->GetInstructions()[0]->getDisassembly().find("push")!=string::npos &&
@@ -270,13 +273,13 @@ zafl_labelid_t Zax_t::get_labelid(const unsigned p_max)
 
 void Zax_t::insertExitPoint(Instruction_t *p_inst)
 {
-	assert(p_inst->GetAddress()->GetVirtualOffset());
+	assert(p_inst->getAddress()->getVirtualOffset());
 
-	if (p_inst->GetFunction())
-		cout << "in function: " << p_inst->GetFunction()->GetName() << " ";
+	if (p_inst->getFunction())
+		cout << "in function: " << p_inst->getFunction()->getName() << " ";
 
 	stringstream ss;
-	ss << hex << p_inst->GetAddress()->GetVirtualOffset();
+	ss << hex << p_inst->getAddress()->getVirtualOffset();
 
 	cout << "insert exit point at: 0x" << ss.str() << endl;
 	m_blacklist.insert(ss.str());
@@ -457,7 +460,7 @@ void Zax_t::afl_instrument_bb(Instruction_t *p_inst, const bool p_hasLeafAnnotat
 
 	if (m_verbose)
 	{
-		cout << "labelid: " << labelid << " baseid: " << p_inst->GetBaseID() << " address: 0x" << hex << p_inst->GetAddress()->GetVirtualOffset() << dec << " instruction: " << p_inst->getDisassembly();
+		cout << "labelid: " << labelid << " baseid: " << p_inst->getBaseID() << " address: 0x" << hex << p_inst->getAddress()->getVirtualOffset() << dec << " instruction: " << p_inst->getDisassembly();
 	}
 
 	if (live_flags)
@@ -556,7 +559,7 @@ void Zax_t::afl_instrument_bb(Instruction_t *p_inst, const bool p_hasLeafAnnotat
 				sprintf(buf, "mov   %s, 0x%x", reg_temp32, blockid >> 1);
 	tmp = insertAssemblyAfter(tmp, buf);
 	block_record.push_back(tmp);
-	sprintf(buf,"baseid: %d labelid: %d", tmp->GetBaseID(), labelid);
+	sprintf(buf,"baseid: %d labelid: %d", tmp->getBaseID(), labelid);
 //  23:   66 89 02                mov    WORD PTR [rdx],ax       
 				sprintf(buf, "mov    WORD [%s], %s", reg_prev_id, reg_temp16);
 	tmp = insertAssemblyAfter(tmp, buf);
@@ -604,12 +607,12 @@ void Zax_t::insertForkServer(Instruction_t* p_entry)
 	assert(p_entry);
 
 	stringstream ss;
-	ss << "0x" << hex << p_entry->GetAddress()->GetVirtualOffset();
+	ss << "0x" << hex << p_entry->getAddress()->getVirtualOffset();
 	cout << "inserting fork server code at address: " << ss.str() << dec << endl;
-	assert(p_entry->GetAddress()->GetVirtualOffset());
+	assert(p_entry->getAddress()->getVirtualOffset());
 
-	if (p_entry->GetFunction()) {
-		cout << " function: " << p_entry->GetFunction()->GetName();
+	if (p_entry->getFunction()) {
+		cout << " function: " << p_entry->getFunction()->getName();
 		cout << " ep instr: " << p_entry->getDisassembly() << endl;
 	}
 	cout << endl;
@@ -666,12 +669,12 @@ void Zax_t::insertForkServer(string p_forkServerEntry)
 	if (std::isdigit(p_forkServerEntry[0]))
 	{
 		// find instruction to insert fork server based on address
-		const auto voffset = (virtual_offset_t) std::strtoul(p_forkServerEntry.c_str(), NULL, 16);
-		auto instructions=find_if(getFileIR()->GetInstructions().begin(), getFileIR()->GetInstructions().end(), [&](const Instruction_t* i) {
-				return i->GetAddress()->GetVirtualOffset()==voffset;
+		const auto voffset = (VirtualOffset_t) std::strtoul(p_forkServerEntry.c_str(), NULL, 16);
+		auto instructions=find_if(getFileIR()->getInstructions().begin(), getFileIR()->getInstructions().end(), [&](const Instruction_t* i) {
+				return i->getAddress()->getVirtualOffset()==voffset;
 			});
 
-		if (instructions==getFileIR()->GetInstructions().end())
+		if (instructions==getFileIR()->getInstructions().end())
 		{
 			cerr << "Error: could not find address to insert fork server: " << p_forkServerEntry << endl;
 			throw;
@@ -682,19 +685,19 @@ void Zax_t::insertForkServer(string p_forkServerEntry)
 	else
 	{
 		// find entry point of specified function to insert fork server
-		auto entryfunc=find_if(getFileIR()->GetFunctions().begin(), getFileIR()->GetFunctions().end(), [&](const Function_t* f) {
-				return f->GetName()==p_forkServerEntry;
+		auto entryfunc=find_if(getFileIR()->getFunctions().begin(), getFileIR()->getFunctions().end(), [&](const Function_t* f) {
+				return f->getName()==p_forkServerEntry;
 			});
 
 		
-		if(entryfunc==getFileIR()->GetFunctions().end())
+		if(entryfunc==getFileIR()->getFunctions().end())
 		{
 			cerr << "Error: could not find function to insert fork server: " << p_forkServerEntry << endl;
 			throw;
 		}
 
 		cout << "inserting fork server code at entry point of function: " << p_forkServerEntry << endl;
-		auto entrypoint = (*entryfunc)->GetEntryPoint();
+		auto entrypoint = (*entryfunc)->getEntryPoint();
 		
 		if (!entrypoint) 
 		{
@@ -715,8 +718,8 @@ void Zax_t::setupForkServer()
 	else
 	{
 		// try to insert fork server at main
-		const auto &all_funcs=getFileIR()->GetFunctions();
-		const auto main_func_it=find_if(all_funcs.begin(), all_funcs.end(), [&](const Function_t* f) { return f->GetName()=="main";});
+		const auto &all_funcs=getFileIR()->getFunctions();
+		const auto main_func_it=find_if(all_funcs.begin(), all_funcs.end(), [&](const Function_t* f) { return f->getName()=="main";});
 		if(main_func_it!=all_funcs.end())
 		{
 			insertForkServer("main"); 
@@ -734,12 +737,12 @@ void Zax_t::insertExitPoints()
 		if (std::isdigit(exitp[0]))
 		{
 			// find instruction to insert fork server based on address
-			const auto voffset = (virtual_offset_t) std::strtoul(exitp.c_str(), NULL, 16);
-			auto instructions=find_if(getFileIR()->GetInstructions().begin(), getFileIR()->GetInstructions().end(), [&](const Instruction_t* i) {
-					return i->GetAddress()->GetVirtualOffset()==voffset;
+			const auto voffset = (VirtualOffset_t) std::strtoul(exitp.c_str(), NULL, 16);
+			auto instructions=find_if(getFileIR()->getInstructions().begin(), getFileIR()->getInstructions().end(), [&](const Instruction_t* i) {
+					return i->getAddress()->getVirtualOffset()==voffset;
 				});
 
-			if (instructions==getFileIR()->GetInstructions().end())
+			if (instructions==getFileIR()->getInstructions().end())
 			{
 				cerr << "Error: could not find address to insert exit point: " << exitp << endl;
 				throw;
@@ -750,26 +753,26 @@ void Zax_t::insertExitPoints()
 		else
 		{
 			// find function by name
-			auto func_iter=find_if(getFileIR()->GetFunctions().begin(), getFileIR()->GetFunctions().end(), [&](const Function_t* f) {
-				return f->GetName()==exitp;
+			auto func_iter=find_if(getFileIR()->getFunctions().begin(), getFileIR()->getFunctions().end(), [&](const Function_t* f) {
+				return f->getName()==exitp;
 			});
 
 		
-			if(func_iter==getFileIR()->GetFunctions().end())
+			if(func_iter==getFileIR()->getFunctions().end())
 			{
 				cerr << "Error: could not find function to insert exit points: " << exitp << endl;
 				throw;
 			}
 
 			cout << "inserting exit code at return points of function: " << exitp << endl;
-			for (auto i : (*func_iter)->GetInstructions())
+			for (auto i : (*func_iter)->getInstructions())
 			{
-				if (i->GetBaseID() >= 0)
+				if (i->getBaseID() >= 0)
 				{
-					const auto d=DecodedInstruction_t(i);
+					const auto d=DecodedInstruction_t::factory(i);
 
 					// if it's a return instruction, add exit point
-					if (d.isReturn())
+					if (d->isReturn())
 					{
 						insertExitPoint(i);
 					}
@@ -781,8 +784,8 @@ void Zax_t::insertExitPoints()
 
 static bool isConditionalBranch(const Instruction_t *i)
 {
-	const auto d=DecodedInstruction_t(i);
-	return (d.isConditionalBranch());
+	const auto d=DecodedInstruction_t::factory(i);
+	return (d->isConditionalBranch());
 }
 
 // blacklist functions:
@@ -791,36 +794,36 @@ static bool isConditionalBranch(const Instruction_t *i)
 //     - that end with @plt
 bool Zax_t::isBlacklisted(const Function_t *p_func) const
 {
-	return (p_func->GetName()[0] == '.' || 
-	        p_func->GetName().find("@plt") != string::npos ||
-	        m_blacklist.find(p_func->GetName())!=m_blacklist.end());
+	return (p_func->getName()[0] == '.' || 
+	        p_func->getName().find("@plt") != string::npos ||
+	        m_blacklist.find(p_func->getName())!=m_blacklist.end());
 }
 
 bool Zax_t::isWhitelisted(const Function_t *p_func) const
 {
 	if (m_whitelist.size() == 0) return true;
-	return (m_whitelist.find(p_func->GetName())!=m_whitelist.end());
+	return (m_whitelist.find(p_func->getName())!=m_whitelist.end());
 }
 
 bool Zax_t::isBlacklisted(const Instruction_t *p_inst) const
 {
-	const auto vo = p_inst->GetAddress()->GetVirtualOffset();
+	const auto vo = p_inst->getAddress()->getVirtualOffset();
 	char tmp[1024];
 	snprintf(tmp, 1000, "0x%x", (unsigned int)vo);
-	return (m_blacklist.count(tmp) > 0 || isBlacklisted(p_inst->GetFunction()));
+	return (m_blacklist.count(tmp) > 0 || isBlacklisted(p_inst->getFunction()));
 }
 
 bool Zax_t::isWhitelisted(const Instruction_t *p_inst) const
 {
 	if (m_whitelist.size() == 0) return true;
 
-	const auto vo = p_inst->GetAddress()->GetVirtualOffset();
+	const auto vo = p_inst->getAddress()->getVirtualOffset();
 	char tmp[1024];
 	snprintf(tmp, 1000, "0x%x", (unsigned int)vo);
-	return (m_whitelist.count(tmp) > 0 || isWhitelisted(p_inst->GetFunction()));
+	return (m_whitelist.count(tmp) > 0 || isWhitelisted(p_inst->getFunction()));
 }
 
-static void walkSuccessors(set<BasicBlock_t*> &p_visited_successors, BasicBlock_t *p_bb, BasicBlock_t *p_target)
+static void walkSuccessors(set<libIRDB::BasicBlock_t*> &p_visited_successors, libIRDB::BasicBlock_t *p_bb, libIRDB::BasicBlock_t *p_target)
 {
 	if (p_bb == NULL || p_target == NULL) 
 		return;
@@ -829,7 +832,7 @@ static void walkSuccessors(set<BasicBlock_t*> &p_visited_successors, BasicBlock_
 	{
 		if (p_visited_successors.find(b) == p_visited_successors.end())
 		{
-//			cout << "bb anchored at " << b->GetInstructions()[0]->GetBaseID() << " is a successor of bb anchored at " << p_bb->GetInstructions()[0]->GetBaseID() << endl;
+//			cout << "bb anchored at " << b->getInstructions()[0]->getBaseID() << " is a successor of bb anchored at " << p_bb->getInstructions()[0]->getBaseID() << endl;
 			p_visited_successors.insert(b);
 			if (p_visited_successors.find(p_target) != p_visited_successors.end())
 				return;
@@ -839,7 +842,7 @@ static void walkSuccessors(set<BasicBlock_t*> &p_visited_successors, BasicBlock_
 }
 
 // @nb: move in BB class?
-static bool hasBackEdge(BasicBlock_t *p_bb)
+static bool hasBackEdge(libIRDB::BasicBlock_t *p_bb)
 {
 	assert(p_bb);
 	if (p_bb->GetPredecessors().find(p_bb)!=p_bb->GetPredecessors().end()) 
@@ -850,9 +853,9 @@ static bool hasBackEdge(BasicBlock_t *p_bb)
 		return false;
 
 	// walk successors recursively
-	set<BasicBlock_t*> all_successors;
+	set<libIRDB::BasicBlock_t*> all_successors;
 
-	cout << "Walk successors for bb anchored at: " << p_bb->GetInstructions()[0]->GetBaseID() << endl;
+	cout << "Walk successors for bb anchored at: " << p_bb->GetInstructions()[0]->getBaseID() << endl;
 	walkSuccessors(all_successors, p_bb, p_bb);
 	if (all_successors.find(p_bb)!=all_successors.end())
 		return true;
@@ -878,14 +881,14 @@ void Zax_t::teardown()
 
 // in: control flow graph for a given function
 // out: set of basic blocks to instrument
-set<BasicBlock_t*> Zax_t::getBlocksToInstrument(ControlFlowGraph_t &cfg)
+set<libIRDB::BasicBlock_t*> Zax_t::getBlocksToInstrument(libIRDB::ControlFlowGraph_t &cfg)
 {
 	static int bb_debug_id=-1;
 
 	if (m_verbose)
 		cout << cfg << endl;
 
-	auto keepers = set<BasicBlock_t*>();
+	auto keepers = set<libIRDB::BasicBlock_t*>();
 
 	for (auto &bb : cfg.GetBlocks())
 	{
@@ -924,7 +927,7 @@ set<BasicBlock_t*> Zax_t::getBlocksToInstrument(ControlFlowGraph_t &cfg)
 		}
 
 		// make sure we're not trying to instrument code we just inserted, e.g., fork server, added exit points
-		if (bb->GetInstructions()[0]->GetBaseID() < 0)
+		if (bb->GetInstructions()[0]->getBaseID() < 0)
 			continue;
 
 		// push/jmp pair, don't bother instrumenting
@@ -955,7 +958,7 @@ set<BasicBlock_t*> Zax_t::getBlocksToInstrument(ControlFlowGraph_t &cfg)
 			if (bb->GetPredecessors().size()==1 && !point_to_self)
 			{
 				if (bb->GetSuccessors().size() == 1 && 
-					(!bb->GetInstructions()[0]->GetIndirectBranchTargetAddress()))
+					(!bb->GetInstructions()[0]->getIndirectBranchTargetAddress()))
 				{
 					cout << "Skipping bb #" << dec << bb_debug_id << " because inner node with 1 predecessor and 1 successor" << endl;
 					m_num_bb_skipped_innernode++;
@@ -965,7 +968,7 @@ set<BasicBlock_t*> Zax_t::getBlocksToInstrument(ControlFlowGraph_t &cfg)
 				const auto pred = *(bb->GetPredecessors().begin());
 				if (pred->GetSuccessors().size() == 1)
 				{
-					if (!bb->GetInstructions()[0]->GetIndirectBranchTargetAddress())
+					if (!bb->GetInstructions()[0]->getIndirectBranchTargetAddress())
 					{
 						cout << "Skipping bb #" << dec << bb_debug_id << " because not ibta, <1,*> and preds <*,1>" << endl;
 						m_num_bb_skipped_onlychild++;
@@ -1034,17 +1037,17 @@ int Zax_t::execute()
 	struct BaseIDSorter
 	{
 	    bool operator()( const Function_t* lhs, const Function_t* rhs ) const {
-		return lhs->GetBaseID() < rhs->GetBaseID();
+		return lhs->getBaseID() < rhs->getBaseID();
 	    }
 	};
-	set<Function_t*, BaseIDSorter> sortedFuncs(getFileIR()->GetFunctions().begin(), getFileIR()->GetFunctions().end());
+	set<Function_t*, BaseIDSorter> sortedFuncs(getFileIR()->getFunctions().begin(), getFileIR()->getFunctions().end());
 	for_each( sortedFuncs.begin(), sortedFuncs.end(), [&](Function_t* f)
 	{
 		if (!f) return;
 		// skip instrumentation for blacklisted functions 
 		if (isBlacklisted(f)) return;
 		// skip if function has no entry point
-		if (!f->GetEntryPoint())
+		if (!f->getEntryPoint())
 			return;
 
 		bool leafAnnotation = true;
@@ -1053,7 +1056,7 @@ int Zax_t::execute()
 			leafAnnotation = hasLeafAnnotation(f, m_stars_analysis_engine.getAnnotations());
 		}
 
-		ControlFlowGraph_t cfg(f);
+		libIRDB::ControlFlowGraph_t cfg(f);
 
 		const auto num_blocks_in_func = cfg.GetBlocks().size();
 		m_num_bb += num_blocks_in_func;
@@ -1062,18 +1065,18 @@ int Zax_t::execute()
 		auto keepers = getBlocksToInstrument(cfg);
 		struct BBSorter
 		{
-		    bool operator()( const BasicBlock_t* lhs, const BasicBlock_t* rhs ) const {
-			return lhs->GetInstructions()[0]->GetBaseID() < rhs->GetInstructions()[0]->GetBaseID();
+		    bool operator()( const libIRDB::BasicBlock_t* lhs, const libIRDB::BasicBlock_t* rhs ) const {
+			return lhs->GetInstructions()[0]->getBaseID() < rhs->GetInstructions()[0]->getBaseID();
 		    }
 		};
-		set<BasicBlock_t*, BBSorter> sortedBasicBlocks(keepers.begin(), keepers.end());
+		set<libIRDB::BasicBlock_t*, BBSorter> sortedBasicBlocks(keepers.begin(), keepers.end());
 		for (auto &bb : sortedBasicBlocks)
 		{
 			auto collAflSingleton = false;
 			// for collAfl-style instrumentation, we want #predecessors==1
 			// if the basic block entry point is an IBTA, we don't know the #predecessors
 			if (m_bb_graph_optimize && (bb->GetPredecessors().size() == 1)
-						&& (!bb->GetInstructions()[0]->GetIndirectBranchTargetAddress()))
+						&& (!bb->GetInstructions()[0]->getIndirectBranchTargetAddress()))
 			{
 				collAflSingleton = true;
 				m_num_style_collafl++;
@@ -1090,11 +1093,11 @@ int Zax_t::execute()
 		if (m_verbose)
 		{
 			cout << "Post transformation CFG:" << endl;
-			ControlFlowGraph_t post_cfg(f);	
+			libIRDB::ControlFlowGraph_t post_cfg(f);	
 			cout << post_cfg << endl;
 		}
 
-		cout << "Function " << f->GetName() << ":  " << dec << keepers.size() << "/" << num_blocks_in_func << " basic blocks instrumented." << endl;
+		cout << "Function " << f->getName() << ":  " << dec << keepers.size() << "/" << num_blocks_in_func << " basic blocks instrumented." << endl;
 	});
 
 	teardown();
@@ -1124,8 +1127,8 @@ void Zax_t::dumpAttributes()
 void Zax_t::dumpMap()
 {
 	// dump out modified basic block info
-	getFileIR()->SetBaseIDS();           // make sure instructions have IDs
-	getFileIR()->AssembleRegistry();     // make sure to assemble all instructions
+	getFileIR()->setBaseIDS();           // make sure instructions have IDs
+	getFileIR()->assembleRegistry();     // make sure to assemble all instructions
 
 	std::ofstream mapfile("zax.map");
 
@@ -1136,7 +1139,7 @@ void Zax_t::dumpMap()
 		mapfile << dec << blockid << " ";
 		for (auto &entry : mb.second)
 		{
-			mapfile << hex << entry->GetBaseID() << ":" << dec << entry->GetDataBits().size() << " ";
+			mapfile << hex << entry->getBaseID() << ":" << dec << entry->getDataBits().size() << " ";
 		}
 		mapfile << endl;
 	}

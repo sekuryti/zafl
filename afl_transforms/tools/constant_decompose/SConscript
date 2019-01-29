@@ -8,11 +8,10 @@ Import('env')
 myenv=env.Clone()
 
 cpppath=''' 
-	 $SECURITY_TRANSFORMS_HOME/include 
-	 $SECURITY_TRANSFORMS_HOME/libIRDB/include 
+	 $IRDB_SDK/include 
+	 $SECURITY_TRANSFORMS_HOME/libtransform/include 
 	 $SECURITY_TRANSFORMS_HOME/libMEDSannotation/include 
-	 $SECURITY_TRANSFORMS_HOME/beaengine/include 
-	 $SECURITY_TRANSFORMS_HOME/libtransform/include
+	 $SECURITY_TRANSFORMS_HOME/libIRDB/include 
 	 $SMPSA_HOME/include
 	'''
 

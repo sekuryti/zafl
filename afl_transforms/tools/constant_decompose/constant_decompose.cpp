@@ -30,11 +30,11 @@
 
 using namespace std;
 using namespace libTransform;
-using namespace libIRDB;
+using namespace IRDB_SDK;
 using namespace ConstantDecompose;
 using namespace IRDBUtility;
 
-ConstantDecompose_t::ConstantDecompose_t(libIRDB::pqxxDB_t &p_dbinterface, libIRDB::FileIR_t *p_variantIR, bool p_verbose)
+ConstantDecompose_t::ConstantDecompose_t(IRDB_SDK::pqxxDB_t &p_dbinterface, IRDB_SDK::FileIR_t *p_variantIR, bool p_verbose)
 	:
 	Transform(NULL, p_variantIR, NULL),
 	m_dbinterface(p_dbinterface),
@@ -86,40 +86,46 @@ int ConstantDecompose_t::execute()
 #endif
 
 	auto to_decompose = vector<Instruction_t*>(); 
-	for_each(getFileIR()->GetFunctions().begin(), 
-	         getFileIR()->GetFunctions().end(), [&](Function_t* func) {
+	for(auto func : getFileIR()->getFunctions())
+	{
 
-		for_each(func->GetInstructions().begin(), 
- 	                 func->GetInstructions().end(), [&](Instruction_t* i) {
-			const auto d = DecodedInstruction_t(i);
-			if (d.getMnemonic()!="cmp") return;
-			if (d.getOperands().size()!=2) return;
-			if (!d.getOperand(1).isConstant()) return;
-			if (d.getOperand(0).getArgumentSizeInBytes()!=4) return;
-			if (!i->GetFallthrough()) return;
-			const auto f = DecodedInstruction_t(i->GetFallthrough());
-			if (f.getMnemonic() != "je" && f.getMnemonic() !="jeq" && f.getMnemonic() !="jne") return;
+		 for(auto i : func->getInstructions())
+		 {
+			const auto dp = DecodedInstruction_t::factory(i);
+			const auto &d = *dp;
+			if (d.getMnemonic()!="cmp") continue;
+			if (d.getOperands().size()!=2) continue;
+			if (!d.getOperand(1)->isConstant()) continue;
+			if (d.getOperand(0)->getArgumentSizeInBytes()!=4) continue;
+			if (!i->getFallthrough()) continue;
+			const auto fp = DecodedInstruction_t::factory(i->getFallthrough());
+			const auto &f = *fp;
+			if (f.getMnemonic() != "je" && f.getMnemonic() !="jeq" && f.getMnemonic() !="jne") continue;
 			
 			const auto imm = d.getImmediate();
 			if (imm == 0 || imm == 1 || imm == -1 || imm == 0xff || imm == 0xffff)
-				return;
+				continue;
 
 			// we now have a cmp instruction to decompose
-			if (d.getOperand(0).isRegister() || d.getOperand(0).isMemory())
+			if (d.getOperand(0)->isRegister() || d.getOperand(0)->isMemory())
 				to_decompose.push_back(i);
-		});
+		};
 
-	});
+	};
 
 	// transform each comparison that needs to be decomposed
-	for_each(to_decompose.begin(), to_decompose.end(), [&](Instruction_t* c) {
-		const auto d_c = DecodedInstruction_t(c);
-		auto jcc = (Instruction_t*) c->GetFallthrough();
-		const auto d_cbr = DecodedInstruction_t(jcc); 
+	for(auto c : to_decompose)
+	{
+		const auto d_cp = DecodedInstruction_t::factory(c);
+		const auto &d_c = *d_cp;
+
+		auto jcc = (Instruction_t*) c->getFallthrough();
+		const auto d_cbrp = DecodedInstruction_t::factory(jcc); 
+		const auto &d_cbr = *d_cbrp;
 		const auto is_jne = (d_cbr.getMnemonic() == "jne");
 		const auto is_je = !is_jne;
-		auto orig_jcc_fallthrough = jcc->GetFallthrough();
-		auto orig_jcc_target = jcc->GetTarget();
+		auto orig_jcc_fallthrough = jcc->getFallthrough();
+		auto orig_jcc_target = jcc->getTarget();
 
 		string s;
 
@@ -140,25 +146,26 @@ int ConstantDecompose_t::execute()
 
 		cout <<"    bytes: " << hex << byte0 << byte1 << byte2 << byte3 << endl;
 
-		const auto memop = d_c.getOperand(0);
+		const auto memopp = d_c.getOperand(0);
+		const auto &memop = *memopp;
 
 		auto init_sequence = string();
 
 		// need a free register
 		string free_reg = "r15d"; // use STARS dead regs annotation?
 
-		if (d_c.getOperand(0).isRegister())
+		if (d_c.getOperand(0)->isRegister())
 		{
 			// cmp eax, 0x12345678
 			stringstream ss;
-			if (d_c.getOperand(0).getString().find("r15") != string::npos)
+			if (d_c.getOperand(0)->getString().find("r15") != string::npos)
 			{
 				cerr << "Skip instruction: " << c->getDisassembly() << " as r15 is used in cmp" << endl;
-				return;
+				continue;
 			}
 			else
 			{
-				ss << "mov " << free_reg << ", " << d_c.getOperand(0).getString();
+				ss << "mov " << free_reg << ", " << d_c.getOperand(0)->getString();
 			}
 			init_sequence = ss.str();
 		}
@@ -183,7 +190,7 @@ int ConstantDecompose_t::execute()
 		auto t = (Instruction_t*) NULL;
 
 		s = init_sequence;
-		getFileIR()->RegisterAssembly(c, s);
+		getFileIR()->registerAssembly(c, s);
 		cout << s << endl;
 
 		s = "sar " + free_reg + ", 0x18";
@@ -199,11 +206,11 @@ int ConstantDecompose_t::execute()
 		s = "jne 0";
 		t = insertAssemblyAfter(t, s);
 		if (is_je) {
-			t->SetTarget(orig_jcc_fallthrough);
+			t->setTarget(orig_jcc_fallthrough);
 			cout << "target: original fallthrough ";
 		}
 		else {
-			t->SetTarget(orig_jcc_target);
+			t->setTarget(orig_jcc_target);
 			cout << "target: original target ";
 		}
 
@@ -237,11 +244,11 @@ int ConstantDecompose_t::execute()
 		s = "jne 0";
 		t = insertAssemblyAfter(t, s);
 		if (is_je) {
-			t->SetTarget(orig_jcc_fallthrough);
+			t->setTarget(orig_jcc_fallthrough);
 			cout << "target: original fallthrough ";
 		}
 		else {
-			t->SetTarget(orig_jcc_target);
+			t->setTarget(orig_jcc_target);
 			cout << "target: original target ";
 		}
 		cout << s << endl;
@@ -274,11 +281,11 @@ int ConstantDecompose_t::execute()
 		s = "jne 0";
 		t = insertAssemblyAfter(t, s);
 		if (is_je) {
-			t->SetTarget(orig_jcc_fallthrough);
+			t->setTarget(orig_jcc_fallthrough);
 			cout << "target: original fallthrough ";
 		}
 		else {
-			t->SetTarget(orig_jcc_target);
+			t->setTarget(orig_jcc_target);
 			cout << "target: original target ";
 		}
 		cout << s << endl;
@@ -308,11 +315,11 @@ int ConstantDecompose_t::execute()
 		else
 			s = "jne 0";
 		t = insertAssemblyAfter(t, s);
-		t->SetTarget(orig_jcc_target);
-		t->SetFallthrough(orig_jcc_fallthrough);
+		t->setTarget(orig_jcc_target);
+		t->setFallthrough(orig_jcc_fallthrough);
 		cout << "target: original target   fallthrough: original fallthrough ";
 		cout << s << endl;
-	});
+	};
 
 	return 1;	 // true means success
 }

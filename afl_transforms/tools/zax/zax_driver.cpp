@@ -31,7 +31,7 @@
 #include "zuntracer.hpp"
 
 using namespace std;
-using namespace libIRDB;
+using namespace IRDB_SDK;
 using namespace Zafl;
 
 static void usage(char* name)
@@ -166,34 +166,32 @@ int main(int argc, char **argv)
 		exit(1);
 	}
 
-	VariantID_t *pidp=NULL;
 
 	/* setup the interface to the sql server */
-	pqxxDB_t pqxx_interface;
-	BaseObj_t::SetInterface(&pqxx_interface);
+	auto pqxx_interface=pqxxDB_t::factory();
+	BaseObj_t::setInterface(pqxx_interface.get());
 
-	pidp=new VariantID_t(variantID);
-	assert(pidp->IsRegistered()==true);
+	auto pidp=VariantID_t::factory(variantID);
+	assert(pidp->isRegistered()==true);
 
 	bool one_success = false;
-	for(set<File_t*>::iterator it=pidp->GetFiles().begin();
-	        it!=pidp->GetFiles().end();
+	for(set<File_t*>::iterator it=pidp->getFiles().begin();
+	        it!=pidp->getFiles().end();
 	        ++it)
 	{
 		File_t* this_file = *it;
-		FileIR_t *firp = new FileIR_t(*pidp, this_file);
+		auto firp = FileIR_t::factory(pidp.get(), this_file);
 
-		cout<<"Transforming "<<this_file->GetURL()<<endl;
+		cout<<"Transforming "<<this_file->getURL()<<endl;
 
 		assert(firp && pidp);
 
 		try
 		{
-			Zax_t* zax;
-			if (untracer_mode) 
-				zax = new ZUntracer_t(pqxx_interface, firp, entry_fork_server, exitpoints, use_stars, autozafl, verbose);
-			else
-				zax = new Zax_t(pqxx_interface, firp, entry_fork_server, exitpoints, use_stars, autozafl, verbose);
+			auto zax_raw=
+				  untracer_mode ?  new ZUntracer_t(*pqxx_interface, firp.get(), entry_fork_server, exitpoints, use_stars, autozafl, verbose) : 
+						   new Zax_t(*pqxx_interface, firp.get(), entry_fork_server, exitpoints, use_stars, autozafl, verbose);
+			auto zax=unique_ptr<Zax_t>(zax_raw);
 
 			if (whitelistFile.size()>0)
 				zax->setWhitelist(whitelistFile);
@@ -208,22 +206,18 @@ int main(int argc, char **argv)
 
 			if (success)
 			{
-				cout<<"Writing changes for "<<this_file->GetURL()<<endl;
+				cout<<"Writing changes for "<<this_file->getURL()<<endl;
 				one_success = true;
-				firp->WriteToDB();
-
-				// ???: after we write the DB, do Instructions_t* have their IDs updated?
-				delete firp;
+				firp->writeToDB();
 			}
 			else
 			{
-				cout<<"Skipping (no changes) "<<this_file->GetURL()<<endl;
+				cout<<"Skipping (no changes) "<<this_file->getURL()<<endl;
 			}
-			delete zax;
 		}
 		catch (const DatabaseError_t pnide)
 		{
-			cerr << programName << ": Unexpected database error: " << pnide << "file url: " << this_file->GetURL() << endl;
+			cerr << programName << ": Unexpected database error: " << pnide << "file url: " << this_file->getURL() << endl;
 			exit(1);
 		}
 		catch (const std::exception &e)
@@ -233,7 +227,7 @@ int main(int argc, char **argv)
 		}
 		catch (...)
 		{
-			cerr << programName << ": Unexpected error file url: " << this_file->GetURL() << endl;
+			cerr << programName << ": Unexpected error file url: " << this_file->getURL() << endl;
 			exit(1);
 		}
 	} // end file iterator
@@ -242,7 +236,7 @@ int main(int argc, char **argv)
 	if (one_success)
 	{
 		cout<<"Commiting changes...\n";
-		pqxx_interface.Commit();
+		pqxx_interface->commit();
 	}
 
 	return 0;

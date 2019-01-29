@@ -26,7 +26,7 @@
 #include "constant_decompose.hpp"
 
 using namespace std;
-using namespace libIRDB;
+using namespace IRDB_SDK;
 using namespace ConstantDecompose;
 
 void usage(char* name)
@@ -80,52 +80,50 @@ int main(int argc, char **argv)
 		}
 	}
 
-	VariantID_t *pidp=NULL;
 
 	/* setup the interface to the sql server */
-	pqxxDB_t pqxx_interface;
-	BaseObj_t::SetInterface(&pqxx_interface);
+	auto pqxx_interface=pqxxDB_t::factory();
+	BaseObj_t::setInterface(pqxx_interface.get());
 
-	pidp=new VariantID_t(variantID);
-	assert(pidp->IsRegistered()==true);
+	auto pidp=VariantID_t::factory(variantID);
+	assert(pidp->isRegistered()==true);
 
 	bool one_success = false;
-	for(set<File_t*>::iterator it=pidp->GetFiles().begin();
-	        it!=pidp->GetFiles().end();
+	for(set<File_t*>::iterator it=pidp->getFiles().begin();
+	        it!=pidp->getFiles().end();
 	        ++it)
 	{
 		File_t* this_file = *it;
-		FileIR_t *firp = new FileIR_t(*pidp, this_file);
+		auto firp = FileIR_t::factory(pidp.get(), this_file);
 
-		cout<<"Transforming "<<this_file->GetURL()<<endl;
+		cout<<"Transforming "<<this_file->getURL()<<endl;
 
 		assert(firp && pidp);
 
 		try
 		{
-			ConstantDecompose_t is(pqxx_interface, firp, verbose);
+			ConstantDecompose_t is(*pqxx_interface, firp.get(), verbose);
 			int success=is.execute();
 
 			if (success)
 			{
-				cout<<"Writing changes for "<<this_file->GetURL()<<endl;
+				cout<<"Writing changes for "<<this_file->getURL()<<endl;
 				one_success = true;
-				firp->WriteToDB();
-				delete firp;
+				firp->writeToDB();
 			}
 			else
 			{
-				cout<<"Skipping (no changes) "<<this_file->GetURL()<<endl;
+				cout<<"Skipping (no changes) "<<this_file->getURL()<<endl;
 			}
 		}
 		catch (DatabaseError_t pnide)
 		{
-			cerr << programName << ": Unexpected database error: " << pnide << "file url: " << this_file->GetURL() << endl;
+			cerr << programName << ": Unexpected database error: " << pnide << "file url: " << this_file->getURL() << endl;
 			exit(1);
 		}
 		catch (...)
 		{
-			cerr << programName << ": Unexpected error file url: " << this_file->GetURL() << endl;
+			cerr << programName << ": Unexpected error file url: " << this_file->getURL() << endl;
 			exit(1);
 		}
 	} // end file iterator
@@ -134,7 +132,7 @@ int main(int argc, char **argv)
 	if (one_success)
 	{
 		cout<<"Commiting changes...\n";
-		pqxx_interface.Commit();
+		pqxx_interface->commit();
 	}
 
 	return 0;

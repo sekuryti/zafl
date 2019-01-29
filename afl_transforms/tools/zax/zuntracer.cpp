@@ -2,8 +2,9 @@
 #include "critical_edge_breaker.hpp"
 
 using namespace Zafl;
+using namespace MEDS_Annotation;
 
-ZUntracer_t::ZUntracer_t(libIRDB::pqxxDB_t &p_dbinterface, libIRDB::FileIR_t *p_variantIR, string p_forkServerEntryPoint, set<string> p_exitPoints, bool p_use_stars, bool p_autozafl, bool p_verbose) : Zax_t(p_dbinterface, p_variantIR, p_forkServerEntryPoint, p_exitPoints, p_use_stars, p_autozafl, p_verbose)
+ZUntracer_t::ZUntracer_t(IRDB_SDK::pqxxDB_t &p_dbinterface, IRDB_SDK::FileIR_t *p_variantIR, string p_forkServerEntryPoint, set<string> p_exitPoints, bool p_use_stars, bool p_autozafl, bool p_verbose) : Zax_t(p_dbinterface, p_variantIR, p_forkServerEntryPoint, p_exitPoints, p_use_stars, p_autozafl, p_verbose)
 {
 	m_blockid = 0;
 }
@@ -151,22 +152,22 @@ void ZUntracer_t::afl_instrument_bb(Instruction_t *p_inst, const bool p_redZoneH
 
 	// record modified blocks, indexed by the block id
 	assert(orig);
-	assert(tmp->GetFallthrough());
-	assert(orig == tmp->GetFallthrough()); // sanity check invariant of transform
+	assert(tmp->getFallthrough());
+	assert(orig == tmp->getFallthrough()); // sanity check invariant of transform
 
 	m_modifiedBlocks[blockid] = block_record;
 
 	free(reg_trace_map);
 }
 
-set<BasicBlock_t*> ZUntracer_t::getBlocksToInstrument(ControlFlowGraph_t &cfg)
+set<libIRDB::BasicBlock_t*> ZUntracer_t::getBlocksToInstrument(libIRDB::ControlFlowGraph_t &cfg)
 {
 	static int bb_z_debug_id=-1;
 
 	if (m_verbose)
 		cout << cfg << endl;
 
-	auto keepers = set<BasicBlock_t*>();
+	auto keepers = set<libIRDB::BasicBlock_t*>();
 
 	for (auto &bb : cfg.GetBlocks())
 	{
@@ -203,7 +204,7 @@ set<BasicBlock_t*> ZUntracer_t::getBlocksToInstrument(ControlFlowGraph_t &cfg)
 		}
 
 		// make sure we're not trying to instrument code we just inserted, e.g., fork server, added exit points
-		if (bb->GetInstructions()[0]->GetBaseID() < 0)
+		if (bb->GetInstructions()[0]->getBaseID() < 0)
 			continue;
 
 		// push/jmp pair, don't bother instrumenting
@@ -250,8 +251,8 @@ int ZUntracer_t::execute()
 		CriticalEdgeBreaker_t ceb(getFileIR(), m_verbose);
 		cout << "#ATTRIBUTE num_bb_extra_blocks=" << ceb.getNumberExtraNodes() << endl;
 
-		getFileIR()->SetBaseIDS();
-		getFileIR()->AssembleRegistry();
+		getFileIR()->setBaseIDS();
+		getFileIR()->assembleRegistry();
 	}
 
 	return Zax_t::execute();
