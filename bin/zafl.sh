@@ -30,7 +30,7 @@ usage()
 	echo "     -c, --enable-breakup-critical-edges    Breakup critical edges"
 	echo "     -C, --disable-breakup-critical-edges   Do not breakup critical edges"
 	echo "     -f, --fork-server-only                 Fork server only"
-	echo "     -m, --enable-fixed-map                 Use fixed address for tracing map"
+	echo "     -m, --enable-fixed-map [<address>]     Use fixed address for tracing map (<address> must be hex and page-aligned, e.g., 0x10000)"
 	echo "     -M, --disable-fixed-map                Disable fixed address tracing map (default)"
 	echo 
 }
