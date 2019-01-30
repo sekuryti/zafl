@@ -1,4 +1,4 @@
-AFL_TIMEOUT=30
+AFL_TIMEOUT=15
 session=/tmp/tmp.ls.$$
 TMP_FILE_1="${session}/ls.tmp.$$"
 
@@ -34,7 +34,7 @@ build_zuntracer()
 {
 	ls_zafl=$1
 	shift
-	zafl.sh `which ls` $ls_zafl --untracer --tempdir analysis.${ls_zafl}
+	zafl.sh `which ls` $ls_zafl --untracer --tempdir analysis.${ls_zafl} $*
 	if [ ! $? -eq 0 ]; then
 		log_error "$ls_zafl: unable to generate zafl version"	
 	else
@@ -102,17 +102,24 @@ build_zuntracer ls.untracer.critical_edge -c
 test_zuntracer ./ls.untracer.critical_edge -lt
 
 # zuntracer, do break critical edges, optimize graph
-build_zuntracer ls.untracer.critical_edge.graph -c -g
+build_zuntracer ls.untracer.critical_edge.graph -c -g -M
 test_zuntracer ./ls.untracer.critical_edge.graph -lt
 
 log_message "Fuzz zuntracer (basic block coverage) for $AFL_TIMEOUT seconds"
 fuzz_with_zafl ./ls.untracer.no_critical_edge -lt
 
 log_message "Fuzz zuntracer (break critical edges) for $AFL_TIMEOUT seconds"
-fuzz_with_zafl ./ls.untracer.critical_edge -lt
+fuzz_with_zafl ./ls.untracer.critical_edge -lt 
 
 log_message "Fuzz zuntracer (break critical edges + graph optimization) for $AFL_TIMEOUT seconds"
 fuzz_with_zafl ./ls.untracer.critical_edge.graph -lt
+
+build_zuntracer ls.untracer.fixed -m 
+test_zuntracer ./ls.untracer.fixed -lt
+build_zuntracer ls.untracer.fixed.0x10000 -m 0x10000
+test_zuntracer ./ls.untracer.fixed.0x10000 -lt
+
+fuzz_with_zafl ./ls.untracer.fixed.0x10000 -lt
 
 log_success "all tests passed: zafl/zuntracer instrumentation operational on ls"
 

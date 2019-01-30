@@ -30,6 +30,8 @@ usage()
 	echo "     -c, --enable-breakup-critical-edges    Breakup critical edges"
 	echo "     -C, --disable-breakup-critical-edges   Do not breakup critical edges"
 	echo "     -f, --fork-server-only                 Fork server only"
+	echo "     -m, --enable-fixed-map                 Use fixed address for tracing map"
+	echo "     -M, --disable-fixed-map                Disable fixed address tracing map (default)"
 	echo 
 }
 
@@ -41,6 +43,10 @@ other_args=""
 me=$(whoami)
 tmp_dir=/tmp/${me}/$$
 mkdir -p $tmp_dir
+
+# by default, use fixed address for map
+trace_map_address="0x10000"
+ZAFL_TM_ENV=""
 
 cleanup()
 {
@@ -141,6 +147,20 @@ parse_args()
 				ZAFL_LIMIT_END=0
 				export ZAFL_LIMIT_END
 				log_warning "Fork Server Only mode: no block-level instrumentation will be performed"
+				shift
+				;;
+			-m | --enable-fixed-map)
+				shift
+				case $1 in
+					0x*)
+						trace_map_address="$1"
+						shift
+					;;
+				esac
+				ZAFL_TM_ENV="ZAFL_TRACE_MAP_FIXED_ADDRESS=$trace_map_address"
+				;;
+			-M | --disable-fixed-map)
+				ZAFL_TM_ENV=""
 				shift
 				;;
 			-*|--*=) # unsupported flags
@@ -249,7 +269,16 @@ fi
 log_msg "Transforming input binary $input_binary into $output_zafl_binary"
 
 #cmd="$PSZ $input_binary $output_zafl_binary $ida_or_rida_opt -c move_globals=on -c zax=on -o move_globals:--elftables-only -o zipr:--traceplacement:on $stars_opt $zax_opt $verbose_opt $options $other_args"
-cmd="$PSZ $input_binary $output_zafl_binary $ida_or_rida_opt -c move_globals=on -c zax=on -o move_globals:--elftables-only $stars_opt $zax_opt $verbose_opt $options $other_args"
+
+cmd="$ZAFL_TM_ENV $PSZ $input_binary $output_zafl_binary $ida_or_rida_opt -c move_globals=on -c zax=on -o move_globals:--elftables-only $stars_opt $zax_opt $verbose_opt $options $other_args"
+
+if [ ! -z "$ZAFL_TM_ENV" ]; then
+	log_msg "Trace map will be expected at fixed address"
+	if [ -z $ZAFL_TRACE_MAP_FIXED_ADDRESS ]; then
+		log_warning "When running afl-fuzz, make sure that the environment variable ZAFL_TRACE_MAP_FIXED_ADDRESS is exported and set properly to (otherwise the instrumented binary will crash):"
+		log_warning "export $ZAFL_TM_ENV"
+	fi
+fi
 
 log_msg "Issuing command: $cmd"
 eval $cmd

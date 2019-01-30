@@ -21,6 +21,33 @@ void ZUntracer_t::afl_instrument_bb(Instruction_t *p_inst, const bool p_redZoneH
 {
 	assert(p_inst);
 
+	const auto trace_map_fixed_addr       = getenv("ZAFL_TRACE_MAP_FIXED_ADDRESS");
+	const auto do_fixed_addr_optimization = (trace_map_fixed_addr!=nullptr);
+
+	if (do_fixed_addr_optimization)
+		_afl_instrument_bb_fixed(p_inst, trace_map_fixed_addr);
+	else
+		_afl_instrument_bb(p_inst, p_redZoneHint);
+}
+
+void ZUntracer_t::_afl_instrument_bb_fixed(Instruction_t *p_inst, char* p_tracemap_addr)
+{
+	// 1st instruction in block record is the new entry point of the block (p_inst)
+	// 2nd instruction in block record is where the instruction at the old entry point is now at (orig)
+	const auto blockid = get_blockid();
+	BBRecord_t block_record;
+	block_record.push_back(p_inst);
+
+	// e.g.: mov BYTE [ 0x10000 + blockid ], 0x1
+	const auto s = string("mov BYTE [") + p_tracemap_addr + "+" + to_string(blockid) + "], 0x1";
+	const auto orig = insertAssemblyBefore(p_inst, s);
+	block_record.push_back(orig);
+
+	m_modifiedBlocks[blockid] = block_record;
+}
+
+void ZUntracer_t::_afl_instrument_bb(Instruction_t *p_inst, const bool p_redZoneHint)
+{
 	/*
 	Original afl instrumentation:
 	        block_id = <random>;
