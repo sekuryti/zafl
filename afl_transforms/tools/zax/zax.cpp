@@ -42,6 +42,8 @@ using namespace Zafl;
 using namespace IRDBUtility;
 using namespace MEDS_Annotation;
 
+#define ALLOF(a) begin(a),end(a)
+
 Zax_t::Zax_t(IRDB_SDK::pqxxDB_t &p_dbinterface, IRDB_SDK::FileIR_t *p_variantIR, string p_forkServerEntryPoint, set<string> p_exitPoints, bool p_use_stars, bool p_autozafl, bool p_verbose)
 	:
 	Transform(NULL, p_variantIR, NULL),
@@ -316,17 +318,24 @@ void Zax_t::afl_instrument_bb(Instruction_t *p_inst, const bool p_hasLeafAnnotat
 	auto save_temp = true;
 	auto save_trace_map = true;
 	auto save_prev_id = true;
-	auto tmp = p_inst;
+	auto block_record=BBRecord_t();
 
-	BBRecord_t block_record;
+	const auto trace_map_fixed_addr       = getenv("ZAFL_TRACE_MAP_FIXED_ADDRESS");
+	const auto do_fixed_addr_optimization = (trace_map_fixed_addr!=nullptr);
+
+	// don't try to reserve the trace_map reg if we aren't using it.
+	if(do_fixed_addr_optimization)  
+		save_trace_map=false;
 
 	block_record.push_back(p_inst);
 
+	// If we are using stars, try to assign rax, rcx, and rdx to their 
+	// most desireable position in the instrumentation.
 	if (m_use_stars) 
 	{
 		auto regset = get_dead_regs(p_inst, m_stars_analysis_engine.getAnnotations());
 		live_flags = regset.find(MEDS_Annotation::rn_EFLAGS)==regset.end();
-		const RegisterSet_t allowed_regs = {rn_RAX, rn_RBX, rn_RCX, rn_RDX, rn_R8, rn_R9, rn_R10, rn_R11, rn_R12, rn_R13, rn_R14, rn_R15};
+		const auto allowed_regs = RegisterSet_t({rn_RAX, rn_RBX, rn_RCX, rn_RDX, rn_R8, rn_R9, rn_R10, rn_R11, rn_R12, rn_R13, rn_R14, rn_R15});
 
 		auto free_regs = get_free_regs(regset, allowed_regs);
 
@@ -338,7 +347,7 @@ void Zax_t::afl_instrument_bb(Instruction_t *p_inst, const bool p_hasLeafAnnotat
 				save_temp = false;
 				free_regs.erase(r);
 			}
-			else if (r == rn_RCX)
+			else if (r == rn_RCX && save_trace_map)
 			{
 				reg_trace_map = strdup("rcx");
 				save_trace_map = false;
@@ -352,6 +361,7 @@ void Zax_t::afl_instrument_bb(Instruction_t *p_inst, const bool p_hasLeafAnnotat
 			}
 		}
 
+		// if we failed to do the assignment, check for any other register to fill the assignment.
 		if (save_temp && free_regs.size() >= 1) 
 		{
 			auto r = *free_regs.begin(); 
@@ -381,16 +391,14 @@ void Zax_t::afl_instrument_bb(Instruction_t *p_inst, const bool p_hasLeafAnnotat
 		}
 	}
 
-	if (!reg_temp)
-		reg_temp = strdup("rax");
-	if (!reg_temp32)
-		reg_temp32 = strdup("eax");
-	if (!reg_temp16)
-		reg_temp16 = strdup("ax");
-	if (!reg_trace_map)
-		reg_trace_map = strdup("rcx");
-	if (!reg_prev_id)
-		reg_prev_id = strdup("rdx");
+	// In the event we couldn't find a free register, or we aren't using stars
+	// to identify free registers, use the default registers.  We will save and
+	// restore these later.
+	if (!reg_temp)      reg_temp      = strdup("rax");
+	if (!reg_temp32)    reg_temp32    = strdup("eax");
+	if (!reg_temp16)    reg_temp16    = strdup("ax");
+	if (!reg_trace_map) reg_trace_map = strdup("rcx");
+	if (!reg_prev_id)   reg_prev_id   = strdup("rdx");
 
 	if (m_verbose)
 	{
@@ -401,200 +409,149 @@ void Zax_t::afl_instrument_bb(Instruction_t *p_inst, const bool p_hasLeafAnnotat
 	}
 
 	// warning: first instrumentation must use insertAssemblyBefore
+	// others use insertAssemblyAfter.
+	// we declare a macro-like lambda function to do the lifting for us.
 	auto inserted_before = false;
-	if (p_hasLeafAnnotation) 
-	{
-		// leaf function, must respect the red zone
-		const auto orig = insertAssemblyBefore(tmp, "lea rsp, [rsp-128]");
-		inserted_before = true;
-		block_record.push_back(orig);
-	}
+	auto tmp = p_inst;
+	const auto do_insert=[&](const string& insn_str) -> void
+		{
+			if (inserted_before)
+			{
+				tmp = insertAssemblyAfter(tmp, insn_str);
+				block_record.push_back(tmp);
+			}
+			else
+			{
+				const auto orig = insertAssemblyBefore(tmp, insn_str);
+				inserted_before = true;
+				block_record.push_back(orig);
+			}
+		};
 
-	if (save_temp)
-	{
-		if (inserted_before)
-		{
-			tmp = insertAssemblyAfter(tmp, "push rax");
-			block_record.push_back(tmp);
-		}
-		else
-		{
-			const auto orig = insertAssemblyBefore(tmp, "push rax");
-			inserted_before = true;
-			block_record.push_back(orig);
-		}
-	}
-
-	if (save_trace_map)
-	{
-		if (inserted_before)
-		{
-			tmp = insertAssemblyAfter(tmp, "push rcx");
-			block_record.push_back(tmp);
-		}
-		else
-		{
-			const auto orig = insertAssemblyBefore(tmp, "push rcx");
-			inserted_before = true;
-			block_record.push_back(orig);
-		}
-	}
-
-	if (save_prev_id)
-	{
-		if (inserted_before)
-		{
-			tmp = insertAssemblyAfter(tmp, "push rdx");
-			block_record.push_back(tmp);
-		}
-		else
-		{
-			const auto orig = insertAssemblyBefore(tmp, "push rdx");
-			inserted_before = true;
-			block_record.push_back(orig);
-		}
-	}
-
+	// get some IDs which we can use as to generate custom labels
 	const auto blockid = get_blockid();
 	const auto labelid = get_labelid(); 
 
 	if (m_verbose)
 	{
-		cout << "labelid: " << labelid << " baseid: " << p_inst->getBaseID() << " address: 0x" << hex << p_inst->getAddress()->getVirtualOffset() << dec << " instruction: " << p_inst->getDisassembly();
+		cout << "labelid: " << labelid << " baseid: " << p_inst->getBaseID() << " address: 0x" 
+		     << hex << p_inst->getAddress()->getVirtualOffset() << dec << " instruction: " 
+		     << p_inst->getDisassembly();
 	}
 
-	if (live_flags)
-	{
-		if (m_verbose) 
-			cout << "   flags are live" << endl;
-		if (inserted_before)
-		{
-			tmp = insertAssemblyAfter(tmp, "pushf"); 
-			block_record.push_back(tmp);
-		}
-		else
-		{
-			const auto orig = insertAssemblyBefore(tmp, "pushf"); 
-			inserted_before = true;
-			block_record.push_back(orig);
-		}
-	}
-	else {
-		if (m_verbose)
-			cout << "   flags are dead" << endl;
-	}
+	// Emit the instrumentation register-saving phase.
+	// Omit saving any registers we don't need to save because we
+	// were able to locate a free register.
+	if (p_hasLeafAnnotation)  do_insert("lea rsp, [rsp-128]");
+	if (save_temp)            do_insert("push rax");
+	if (save_trace_map)       do_insert("push rcx");
+	if (save_prev_id)         do_insert("push rdx");
+	if (live_flags)           do_insert("pushf");
+
+	const auto live_flags_str = live_flags ? "live" : "dead"; 
+	if (m_verbose) cout << "   flags are "  << live_flags_str << endl;
 
 
 /*
-   0:   48 8b 15 00 00 00 00    mov    rdx,QWORD PTR [rip+0x0]        # 7 <f+0x7>
-   7:   48 8b 0d 00 00 00 00    mov    rcx,QWORD PTR [rip+0x0]        # e <f+0xe>
+   0:   mov    rdx,QWORD PTR [rip+0x0]        # load previous block id.
+   7:   mov    rcx,QWORD PTR [rip+0x0]        # load trace map address.
 
 <no collafl optimization>
-   e:   0f b7 02                movzx  eax,WORD PTR [rdx]                      
-  11:   66 35 34 12             xor    ax,0x1234                              
-  15:   0f b7 c0                movzx  eax,ax                                
+   e:   	movzx  eax,WORD PTR [rdx]     # hash prev-block-id with this-block id (0x1234)
+  11:   	xor    ax,0x1234                              
+  15:   	movzx  eax,ax                                
 
 <collafl-style optimization>
-                                mov    eax, <blockid>
+<noaddr>	mov    eax, <blockid>	     # faster hash -- ignore previous id.
 
-  18:   48 03 01                add    rax,QWORD PTR [rcx]                  
-  1b:   80 00 01                add    BYTE PTR [rax],0x1                  
-  1e:   b8 1a 09 00 00          mov    eax,0x91a                         
-  23:   66 89 02                mov    WORD PTR [rdx],ax       
+  18:   add    rax,QWORD PTR [rcx]           # generate address of trace map to bump 
+  ib:   add    BYTE PTR [rax],0x1            # bump the entr
+  1e:   mov    eax,0x91a                     # write this block ID back to the prev-id variable.  
+  23:   mov    WORD PTR [rdx],ax       
 */	
 
-//   0:   48 8b 15 00 00 00 00    mov    rdx,QWORD PTR [rip+0x0]        # 7 <f+0x7>
-				sprintf(buf, "P%d: mov  %s, QWORD [rel P%d]", labelid, reg_prev_id, labelid); // rdx
-	if (inserted_before)
-	{
-		tmp = insertAssemblyAfter(tmp, buf);
-		block_record.push_back(tmp);
-	}
-	else
-	{
-		const auto orig = insertAssemblyBefore(tmp, buf);
-		inserted_before = true;
-		block_record.push_back(orig);
-	}
+	// load the previous block ID.
+	//   0:   mov    rdx,QWORD PTR [rip+0x0]        # 7 <f+0x7>
+// FIXME:  Why are we doing this if we aren't bothering to hash the previous block ID?
+	sprintf(buf, "P%d: mov  %s, QWORD [rel P%d]", labelid, reg_prev_id, labelid); // rdx
+	do_insert(buf);
 	create_got_reloc(getFileIR(), m_prev_id, tmp);
 
-//   7:   48 8b 0d 00 00 00 00    mov    rcx,QWORD PTR [rip+0x0]        # e <f+0xe>
-				sprintf(buf, "T%d: mov  %s, QWORD [rel T%d]", labelid, reg_trace_map, labelid); // rcx
-	tmp = insertAssemblyAfter(tmp, buf);
-	create_got_reloc(getFileIR(), m_trace_map, tmp);
-	block_record.push_back(tmp);
+	// if we are using a variable address trace map, generate the address.
+	if(!do_fixed_addr_optimization)
+	{
+		//   7:   mov    rcx,QWORD PTR [rip+0x0]        # e <f+0xe>
+		sprintf(buf, "T%d: mov  %s, QWORD [rel T%d]", labelid, reg_trace_map, labelid); 
+		do_insert(buf);
+		create_got_reloc(getFileIR(), m_trace_map, tmp);
+	}
 
+	// do the calculation to has the previouus block ID with this block ID
+	// in the faster or slower fashion depending on the requested technique.
 	if (!p_collafl_optimization)
 	{
-//   e:   0f b7 02                movzx  eax,WORD PTR [rdx]                      
-				sprintf(buf,"movzx  %s,WORD [%s]", reg_temp32, reg_prev_id);
-		tmp = insertAssemblyAfter(tmp, buf);
-		block_record.push_back(tmp);
-//  11:   66 35 34 12             xor    ax,0x1234                              
-				sprintf(buf, "xor   %s,0x%x", reg_temp16, blockid);
-		tmp = insertAssemblyAfter(tmp, buf);
-		block_record.push_back(tmp);
-//  15:   0f b7 c0                movzx  eax,ax                                
-				sprintf(buf,"movzx  %s,%s", reg_temp32, reg_temp16);
-		tmp = insertAssemblyAfter(tmp, buf);
-		block_record.push_back(tmp);
+		//   e:   movzx  eax,WORD PTR [rdx]                      
+		sprintf(buf,"movzx  %s,WORD [%s]", reg_temp32, reg_prev_id);
+		do_insert(buf);
+
+		//  11:   xor    ax,0x1234                              
+		sprintf(buf, "xor   %s,0x%x", reg_temp16, blockid);
+		do_insert(buf);
+	
+		//  15:   movzx  eax,ax                                
+		sprintf(buf,"movzx  %s,%s", reg_temp32, reg_temp16);
+		do_insert(buf);
 	}
 	else
 	{
-//                                mov    rax, <blockid>
-				sprintf(buf,"mov   %s,0x%x", reg_temp, blockid);
-		tmp = insertAssemblyAfter(tmp, buf);
-		block_record.push_back(tmp);
+		// <noaddr> mov    rax, <blockid>
+		sprintf(buf,"mov   %s,0x%x", reg_temp, blockid);
+		do_insert(buf);
+	
 	}
 
-//  18:   48 03 01                add    rax,QWORD PTR [rcx]                  
-				sprintf(buf,"add    %s,QWORD [%s]", reg_temp, reg_trace_map);
-	tmp = insertAssemblyAfter(tmp, buf);                  
-	block_record.push_back(tmp);
-//  1b:   80 00 01                add    BYTE PTR [rax],0x1                  
-				sprintf(buf,"add    BYTE [%s],0x1", reg_temp);
-	tmp = insertAssemblyAfter(tmp, buf);                  
-	block_record.push_back(tmp);
-//  1e:   b8 1a 09 00 00          mov    eax,0x91a                          
-				sprintf(buf, "mov   %s, 0x%x", reg_temp32, blockid >> 1);
-	tmp = insertAssemblyAfter(tmp, buf);
-	block_record.push_back(tmp);
-	sprintf(buf,"baseid: %d labelid: %d", tmp->getBaseID(), labelid);
-//  23:   66 89 02                mov    WORD PTR [rdx],ax       
-				sprintf(buf, "mov    WORD [%s], %s", reg_prev_id, reg_temp16);
-	tmp = insertAssemblyAfter(tmp, buf);
-	block_record.push_back(tmp);
-
-	if (live_flags) 
+	// write into the trace map.
+	if(do_fixed_addr_optimization)
 	{
-		tmp = insertAssemblyAfter(tmp, "popf");
-		block_record.push_back(tmp);
+		// do it the fast way with the fixed-adresss trace map
+		//  1b:   80 00 01                add    BYTE PTR [rax],0x1                  
+		sprintf(buf,"add    BYTE [%s + 0x%lx],0x1", reg_temp, strtoul(trace_map_fixed_addr,nullptr,0) );
+		do_insert(buf);
+	}
+	else
+	{
+		// do it the slow way with the variable-adresss trace map
+		//  18: add    rax,QWORD PTR [rcx]                  
+		sprintf(buf,"add    %s,QWORD [%s]", reg_temp, reg_trace_map);
+		do_insert(buf);
+
+		//  1b: add    BYTE PTR [rax],0x1                  
+		sprintf(buf,"add    BYTE [%s],0x1", reg_temp);
+		do_insert(buf);
 	}
 
-	if (save_prev_id) 
-	{
-		tmp = insertAssemblyAfter(tmp, "pop rdx");
-		block_record.push_back(tmp);
-	}
-	if (save_trace_map) 
-	{
-		tmp = insertAssemblyAfter(tmp, "pop rcx");
-		block_record.push_back(tmp);
-	}
-	if (save_temp) 
-	{
-		tmp = insertAssemblyAfter(tmp, "pop rax");
-		block_record.push_back(tmp);
-	}
+	// write out block id into zafl_prev_id for the next instrumentation.
+// FIXME:  Why are we doing this if we aren't bothering to hash the previous block ID?
+	//  1e:   mov    eax,0x91a                          
+	sprintf(buf, "mov   %s, 0x%x", reg_temp32, blockid >> 1);
+	do_insert(buf);
 
-	if (p_hasLeafAnnotation) 
-	{
-		tmp = insertAssemblyAfter(tmp, "lea rsp, [rsp+128]");
-		block_record.push_back(tmp);
-	}
+	//  23:   mov    WORD PTR [rdx],ax       
+	sprintf(buf, "mov    WORD [%s], %s", reg_prev_id, reg_temp16);
+	do_insert(buf);
+
+	// finally, restore any flags/registers so that the program can execute.
+	if (live_flags)          do_insert("popf");
+	if (save_prev_id)        do_insert("pop rdx");
+	if (save_trace_map)      do_insert("pop rcx");
+	if (save_temp)           do_insert("pop rax");
+	if (p_hasLeafAnnotation) do_insert("lea rsp, [rsp+128]");
 	
 	m_modifiedBlocks[blockid] = block_record;
 
+
+// FIXME: use strings instead of strdup and buffers everywhere.  
+// there is no chance the mallocs/frees in this function match properly.
 	free(reg_temp); 
 	free(reg_temp32);
 	free(reg_temp16);
@@ -1036,19 +993,19 @@ int Zax_t::execute()
 	
 	struct BaseIDSorter
 	{
-	    bool operator()( const Function_t* lhs, const Function_t* rhs ) const {
-		return lhs->getBaseID() < rhs->getBaseID();
-	    }
+		bool operator()( const Function_t* lhs, const Function_t* rhs ) const 
+		{
+			return lhs->getBaseID() < rhs->getBaseID();
+		}
 	};
-	set<Function_t*, BaseIDSorter> sortedFuncs(getFileIR()->getFunctions().begin(), getFileIR()->getFunctions().end());
-	for_each( sortedFuncs.begin(), sortedFuncs.end(), [&](Function_t* f)
+	auto sortedFuncs=set<Function_t*, BaseIDSorter>( ALLOF(getFileIR()->getFunctions()));
+	for(auto f :  sortedFuncs)
 	{
-		if (!f) return;
+		if (f == nullptr )       continue;
 		// skip instrumentation for blacklisted functions 
-		if (isBlacklisted(f)) return;
+		if (isBlacklisted(f))    continue;
 		// skip if function has no entry point
-		if (!f->getEntryPoint())
-			return;
+		if (!f->getEntryPoint()) continue;
 
 		bool leafAnnotation = true;
 		if (m_use_stars) 
@@ -1056,7 +1013,7 @@ int Zax_t::execute()
 			leafAnnotation = hasLeafAnnotation(f, m_stars_analysis_engine.getAnnotations());
 		}
 
-		libIRDB::ControlFlowGraph_t cfg(f);
+		auto cfg=libIRDB::ControlFlowGraph_t(f);
 
 		const auto num_blocks_in_func = cfg.GetBlocks().size();
 		m_num_bb += num_blocks_in_func;
@@ -1065,18 +1022,25 @@ int Zax_t::execute()
 		auto keepers = getBlocksToInstrument(cfg);
 		struct BBSorter
 		{
-		    bool operator()( const libIRDB::BasicBlock_t* lhs, const libIRDB::BasicBlock_t* rhs ) const {
-			return lhs->GetInstructions()[0]->getBaseID() < rhs->GetInstructions()[0]->getBaseID();
-		    }
+			bool operator()( const libIRDB::BasicBlock_t* lhs, const libIRDB::BasicBlock_t* rhs ) const 
+			{
+				const auto lhs_insns=lhs->GetInstructions();
+				const auto rhs_insns=rhs->GetInstructions();
+				assert(lhs_insns[0]->getBaseID() != BaseObj_t::NOT_IN_DATABASE);	
+				assert(rhs_insns[0]->getBaseID() != BaseObj_t::NOT_IN_DATABASE);	
+				return lhs_insns[0]->getBaseID() < rhs_insns[0]->getBaseID();
+			}
 		};
-		set<libIRDB::BasicBlock_t*, BBSorter> sortedBasicBlocks(keepers.begin(), keepers.end());
+		auto sortedBasicBlocks = set<libIRDB::BasicBlock_t*, BBSorter> (ALLOF(keepers));
 		for (auto &bb : sortedBasicBlocks)
 		{
 			auto collAflSingleton = false;
 			// for collAfl-style instrumentation, we want #predecessors==1
 			// if the basic block entry point is an IBTA, we don't know the #predecessors
-			if (m_bb_graph_optimize && (bb->GetPredecessors().size() == 1)
-						&& (!bb->GetInstructions()[0]->getIndirectBranchTargetAddress()))
+			if (m_bb_graph_optimize               && 
+			    bb->GetPredecessors().size() == 1 && 
+			    !bb->GetInstructions()[0]->getIndirectBranchTargetAddress()
+			   )
 			{
 				collAflSingleton = true;
 				m_num_style_collafl++;
@@ -1093,12 +1057,12 @@ int Zax_t::execute()
 		if (m_verbose)
 		{
 			cout << "Post transformation CFG:" << endl;
-			libIRDB::ControlFlowGraph_t post_cfg(f);	
+			auto post_cfg=libIRDB::ControlFlowGraph_t(f);	
 			cout << post_cfg << endl;
 		}
 
 		cout << "Function " << f->getName() << ":  " << dec << keepers.size() << "/" << num_blocks_in_func << " basic blocks instrumented." << endl;
-	});
+	};
 
 	teardown();
 
