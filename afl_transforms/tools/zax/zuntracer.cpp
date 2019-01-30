@@ -107,6 +107,22 @@ void ZUntracer_t::_afl_instrument_bb(Instruction_t *p_inst, const bool p_redZone
 	auto inserted_before = false;
 	auto honorRedZone = p_redZoneHint;
 
+	const auto do_insert=[&](const string& insn_str) -> void
+		{
+			if (inserted_before)
+			{
+				tmp = insertAssemblyAfter(tmp, insn_str);
+				block_record.push_back(tmp);
+			}
+			else
+			{
+				const auto orig = insertAssemblyBefore(tmp, insn_str);
+				inserted_before = true;
+				block_record.push_back(orig);
+			}
+		};
+
+
 	// if we have a free register, we don't muck with the stack ==> no need to honor red zone
 	if (found_tracemap_free_register)
 	{
@@ -115,26 +131,13 @@ void ZUntracer_t::_afl_instrument_bb(Instruction_t *p_inst, const bool p_redZone
 
 	if (honorRedZone) 
 	{
-		orig = insertAssemblyBefore(tmp, "lea rsp, [rsp-128]");
-		inserted_before = true;
-		block_record.push_back(orig);
+		do_insert("lea rsp, [rsp-128]");
 	}
 
 	// we did not find a free register, save rcx and then use it for the tracemap
 	if (!found_tracemap_free_register)
 	{
-		if (inserted_before) 
-		{
-			tmp = insertAssemblyAfter(tmp, "push rcx");
-			block_record.push_back(tmp);
-		}
-		else
-		{
-			orig = insertAssemblyBefore(tmp, "push rcx");
-			inserted_before = true;
-			block_record.push_back(orig);
-		}
-
+		do_insert("push rcx");
 		reg_trace_map = strdup("rcx");
 	}
 
@@ -142,16 +145,7 @@ void ZUntracer_t::_afl_instrument_bb(Instruction_t *p_inst, const bool p_redZone
 
 	// load address trace map into rcx
 	sprintf(buf, "T%d: mov  %s, QWORD [rel T%d]", labelid, reg_trace_map, labelid); 
-	if (inserted_before)
-	{
-		tmp = insertAssemblyAfter(tmp, buf);
-		block_record.push_back(tmp);
-	}
-	else
-	{
-		orig = insertAssemblyBefore(tmp, buf);
-		block_record.push_back(orig);
-	}
+	do_insert(buf);
 	create_got_reloc(getFileIR(), m_trace_map, tmp);
 
 	// update trace map

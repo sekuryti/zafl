@@ -30,6 +30,8 @@ fuzz_with_zafl()
 {
 	bc_zafl=$1
 
+	env | grep ZAFL
+
 	# setup AFL directories
 	mkdir zafl_in
 	echo "1" > zafl_in/1
@@ -57,9 +59,9 @@ fuzz_with_zafl()
 mkdir -p $session
 pushd $session
 
-# Fix map at 0x12000
-trace_map_address="0x12000"
-export ZAFL_TRACE_MAP_FIXED_ADDRESS="$trace_map_address"
+# Fix map at 0x10000
+# Should match value in env. var ZAFL_TRACE_MAP_FIXED_ADDRESS
+trace_map_address="0x10000"
 
 # build ZAFL version of bc executable with fixed map
 
@@ -69,7 +71,7 @@ if [ $? -eq 0 ]; then
 else
 	log_error "build bc.fixed.zafl"
 fi
-grep ATTR analysis.bc.fixed.zafl/logs/zafl.log
+grep ATTR analysis.bc.fixed.zafl/logs/zax.log
 log_message "Fuzz for $AFL_TIMEOUT secs"
 fuzz_with_zafl $(realpath ./bc.fixed.zafl)
 
