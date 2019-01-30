@@ -21,6 +21,7 @@ echo "Testing zafl with ZAFL_TRACE_MAP_FIXED_ADDRESS=0x10000"
 export ZAFL_TRACE_MAP_FIXED_ADDRESS=0x10000
 $ZAFL_HOME/zfuzz/test/strings/test_strings.sh
 $ZAFL_HOME/zfuzz/test/bc/test_bc.sh
+$ZAFL_HOME/zfuzz/test/bc.fixed_map/test_bc.sh
 $ZAFL_HOME/zfuzz/test/sha256sum/test_sha256sum.sh
 $ZAFL_HOME/zfuzz/test/od/test_od.sh
 
