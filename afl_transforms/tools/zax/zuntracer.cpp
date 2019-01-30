@@ -135,7 +135,7 @@ void ZUntracer_t::_afl_instrument_bb(Instruction_t *p_inst, const bool p_redZone
 	do_insert("mov " + tracemap_reg + ", [" + tracemap_reg + "]");
 
 	// set counter to 1:                    mov BYTE [rcx+1234], 1
-	do_insert("mov BYTE [" + tracemap_reg + "+" + to_string(blockid) + "]");
+	do_insert("mov BYTE [" + tracemap_reg + "+" + to_string(blockid) + "], 1");
 
 	// restore register
 	if (!found_tracemap_free_register)
