@@ -43,7 +43,7 @@ build_zafl()
 		log_message "$gzip_zafl: built successfully"
 	fi
 
-	grep ATTR analysis.${gzip_zafl}/logs/zafl.log
+	grep ATTR analysis.${gzip_zafl}/logs/zax.log
 }
 
 test_zafl()

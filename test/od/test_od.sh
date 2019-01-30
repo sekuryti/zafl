@@ -62,7 +62,7 @@ if [ $? -eq 0 ]; then
 else
 	log_error "build od.zafl"
 fi
-grep ATTR analysis.od.zafl/logs/zafl.log
+grep ATTR analysis.od.zafl/logs/zax.log
 
 log_message "Fuzz for $AFL_TIMEOUT secs"
 fuzz_with_zafl $(realpath ./od.zafl)
@@ -74,7 +74,7 @@ if [ $? -eq 0 ]; then
 else
 	log_error "build od.rida.zafl"
 fi
-grep ATTR analysis.od.rida.zafl/logs/zafl.log
+grep ATTR analysis.od.rida.zafl/logs/zax.log
 
 log_message "Fuzz rida.zafl for $AFL_TIMEOUT secs"
 fuzz_with_zafl $(realpath ./od.rida.zafl)

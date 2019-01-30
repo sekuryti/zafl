@@ -282,15 +282,14 @@ void Zax_t::insertExitPoint(Instruction_t *p_inst)
 
 	stringstream ss;
 	ss << hex << p_inst->getAddress()->getVirtualOffset();
+	m_blacklist.insert(ss.str());
 
 	cout << "insert exit point at: 0x" << ss.str() << endl;
-	m_blacklist.insert(ss.str());
 	
 	auto tmp = p_inst;
 	     insertAssemblyBefore(tmp, "xor edi, edi"); //  rdi=0
 	tmp = insertAssemblyAfter(tmp, "mov eax, 231"); //  231 = __NR_exit_group   from <asm/unistd_64.h>
 	tmp = insertAssemblyAfter(tmp, "syscall");      //  sys_exit_group(edi)
-//	insertAssemblyBefore(p_inst, "hlt"); 
 }
 
 /*
@@ -304,7 +303,7 @@ void Zax_t::insertExitPoint(Instruction_t *p_inst)
 	        zafl_trace_bits[block_id]++;
 		zafl_prev_id = block_id >> 1;     
 */
-void Zax_t::afl_instrument_bb(Instruction_t *p_inst, const bool p_hasLeafAnnotation, const bool p_collafl_optimization)
+void Zax_t::afl_instrument_bb(Instruction_t *p_inst, const bool p_honorRedZone, const bool p_collafl_optimization)
 {
 	assert(p_inst);
 
@@ -442,7 +441,7 @@ void Zax_t::afl_instrument_bb(Instruction_t *p_inst, const bool p_hasLeafAnnotat
 	// Emit the instrumentation register-saving phase.
 	// Omit saving any registers we don't need to save because we
 	// were able to locate a free register.
-	if (p_hasLeafAnnotation)  do_insert("lea rsp, [rsp-128]");
+	if (p_honorRedZone)  do_insert("lea rsp, [rsp-128]");
 	if (save_temp)            do_insert("push rax");
 	if (save_trace_map)       do_insert("push rcx");
 	if (save_prev_id)         do_insert("push rdx");
@@ -545,7 +544,7 @@ void Zax_t::afl_instrument_bb(Instruction_t *p_inst, const bool p_hasLeafAnnotat
 	if (save_prev_id)        do_insert("pop rdx");
 	if (save_trace_map)      do_insert("pop rcx");
 	if (save_temp)           do_insert("pop rax");
-	if (p_hasLeafAnnotation) do_insert("lea rsp, [rsp+128]");
+	if (p_honorRedZone) do_insert("lea rsp, [rsp+128]");
 	
 	m_modifiedBlocks[blockid] = block_record;
 
@@ -764,20 +763,18 @@ bool Zax_t::isWhitelisted(const Function_t *p_func) const
 
 bool Zax_t::isBlacklisted(const Instruction_t *p_inst) const
 {
-	const auto vo = p_inst->getAddress()->getVirtualOffset();
-	char tmp[1024];
-	snprintf(tmp, 1000, "0x%x", (unsigned int)vo);
-	return (m_blacklist.count(tmp) > 0 || isBlacklisted(p_inst->getFunction()));
+	stringstream ss;
+	ss << "0x" << hex << p_inst->getAddress()->getVirtualOffset();
+	return (m_blacklist.count(ss.str()) > 0 || isBlacklisted(p_inst->getFunction()));
 }
 
 bool Zax_t::isWhitelisted(const Instruction_t *p_inst) const
 {
 	if (m_whitelist.size() == 0) return true;
 
-	const auto vo = p_inst->getAddress()->getVirtualOffset();
-	char tmp[1024];
-	snprintf(tmp, 1000, "0x%x", (unsigned int)vo);
-	return (m_whitelist.count(tmp) > 0 || isWhitelisted(p_inst->getFunction()));
+	stringstream ss;
+	ss << "0x" << hex << p_inst->getAddress()->getVirtualOffset();
+	return (m_whitelist.count(ss.str()) > 0 || isWhitelisted(p_inst->getFunction()));
 }
 
 static void walkSuccessors(set<libIRDB::BasicBlock_t*> &p_visited_successors, libIRDB::BasicBlock_t *p_bb, libIRDB::BasicBlock_t *p_target)

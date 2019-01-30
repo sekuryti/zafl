@@ -58,9 +58,8 @@ void ZUntracer_t::_afl_instrument_bb(Instruction_t *p_inst, const bool p_redZone
 		zafl_trace_bits[block_id] = 1;
 	*/
 
-	char buf[8192];
 	auto tmp = p_inst;
-	char *reg_trace_map = NULL;
+	auto tracemap_reg = string();
 	Instruction_t *orig = nullptr;
 	auto found_tracemap_free_register = false;
 
@@ -78,29 +77,14 @@ void ZUntracer_t::_afl_instrument_bb(Instruction_t *p_inst, const bool p_redZone
 
 	if (m_use_stars) 
 	{
-		auto regset = get_dead_regs(p_inst, m_stars_analysis_engine.getAnnotations());
-		for (auto r : regset)
+		const auto allowed_regs = RegisterSet_t({rn_RAX, rn_RBX, rn_RCX, rn_RDX, rn_R8, rn_R9, rn_R10, rn_R11, rn_R12, rn_R13, rn_R14, rn_R15});
+		const auto dead_regs = get_dead_regs(p_inst, m_stars_analysis_engine.getAnnotations());
+		const auto free_regs = get_free_regs(dead_regs, allowed_regs);
+		if (free_regs.size() > 0)
 		{
-			if (r == rn_RCX)
-			{
-				// favor rcx for tracemap by convention
-				reg_trace_map = strdup("rcx");
-				found_tracemap_free_register = true;
-			}
-		}
-
-		// rcx not available, try to find another free register
-		if (!found_tracemap_free_register) 
-		{
-			const RegisterSet_t allowed_regs = {rn_RAX, rn_RBX, rn_RCX, rn_RDX, rn_R8, rn_R9, rn_R10, rn_R11, rn_R12, rn_R13, rn_R14, rn_R15};
-
-			auto free_regs = get_free_regs(regset, allowed_regs);
-			if (free_regs.size() > 0)
-			{
-				auto r = *free_regs.begin();
-				reg_trace_map = strdup(Register::toString(r).c_str());
-				found_tracemap_free_register = true;
-			}
+			auto r = *free_regs.begin();
+			tracemap_reg = Register::toString(r);
+			found_tracemap_free_register = true;
 		}
 	}
 
@@ -137,38 +121,33 @@ void ZUntracer_t::_afl_instrument_bb(Instruction_t *p_inst, const bool p_redZone
 	// we did not find a free register, save rcx and then use it for the tracemap
 	if (!found_tracemap_free_register)
 	{
-		do_insert("push rcx");
-		reg_trace_map = strdup("rcx");
+		tracemap_reg = "rcx";
+		do_insert("push " + tracemap_reg);
 	}
 
-	assert(reg_trace_map);
+	assert(tracemap_reg.size()>0);
 
-	// load address trace map into rcx
-	sprintf(buf, "T%d: mov  %s, QWORD [rel T%d]", labelid, reg_trace_map, labelid); 
-	do_insert(buf);
+	// load address trace map into rcx:     T123: mov rcx, QWORD [rel T123]
+	string load_trace_map = "T" + to_string(labelid) + ": mov " + tracemap_reg + " , QWORD [ rel T" + to_string(labelid) + "]";
+	do_insert(load_trace_map);
 	create_got_reloc(getFileIR(), m_trace_map, tmp);
 
-	// update trace map
-	sprintf(buf,"mov %s, [%s]", reg_trace_map, reg_trace_map);
-	tmp = insertAssemblyAfter(tmp, buf);
-	block_record.push_back(tmp);
+	// update trace map: e.g.:              mov rcx, [rcx]
+	do_insert("mov " + tracemap_reg + ", [" + tracemap_reg + "]");
 
-	sprintf(buf,"mov BYTE [%s+0x%x], 1", reg_trace_map, blockid);
-	tmp = insertAssemblyAfter(tmp, buf);
-	block_record.push_back(tmp);
+	// set counter to 1:                    mov BYTE [rcx+1234], 1
+	do_insert("mov BYTE [" + tracemap_reg + "+" + to_string(blockid) + "]");
 
 	// restore register
 	if (!found_tracemap_free_register)
 	{
-		tmp = insertAssemblyAfter(tmp, "pop rcx");
-		block_record.push_back(tmp);
+		do_insert("pop " + tracemap_reg);
 	}
 	
 	// red zone
 	if (honorRedZone) 
 	{
-		tmp = insertAssemblyAfter(tmp, "lea rsp, [rsp+128]");
-		block_record.push_back(tmp);
+		do_insert("lea rsp, [rsp+128]");
 	}
 
 	// record modified blocks, indexed by the block id
@@ -177,8 +156,6 @@ void ZUntracer_t::_afl_instrument_bb(Instruction_t *p_inst, const bool p_redZone
 	assert(orig == tmp->getFallthrough()); // sanity check invariant of transform
 
 	m_modifiedBlocks[blockid] = block_record;
-
-	free(reg_trace_map);
 }
 
 set<libIRDB::BasicBlock_t*> ZUntracer_t::getBlocksToInstrument(libIRDB::ControlFlowGraph_t &cfg)

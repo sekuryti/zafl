@@ -64,7 +64,7 @@ if [ $? -eq 0 ]; then
 else
 	log_error "build bc.stars.zafl"
 fi
-grep ATTR analysis.bc.stars.zafl/logs/zafl.log
+grep ATTR analysis.bc.stars.zafl/logs/zax.log
 log_message "Fuzz for $AFL_TIMEOUT secs"
 fuzz_with_zafl $(realpath ./bc.stars.zafl)
 

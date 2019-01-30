@@ -30,8 +30,8 @@ usage()
 	echo "     -c, --enable-breakup-critical-edges    Breakup critical edges"
 	echo "     -C, --disable-breakup-critical-edges   Do not breakup critical edges"
 	echo "     -f, --fork-server-only                 Fork server only"
-	echo "     -m, --enable-fixed-map                 Use fixed address for tracing map"
-	echo "     -M, --disable-fixed-map                Disable fixed address tracing map (default)"
+	echo "     -m, --enable-fixed-map                 Use fixed address for tracing map (default)"
+	echo "     -M, --disable-fixed-map                Disable fixed address tracing map"
 	echo 
 }
 
@@ -46,7 +46,7 @@ mkdir -p $tmp_dir
 
 # by default, use fixed address for map
 trace_map_address="0x10000"
-ZAFL_TM_ENV=""
+ZAFL_TM_ENV="ZAFL_TRACE_MAP_FIXED_ADDRESS=$trace_map_address"
 
 cleanup()
 {
@@ -160,6 +160,7 @@ parse_args()
 				ZAFL_TM_ENV="ZAFL_TRACE_MAP_FIXED_ADDRESS=$trace_map_address"
 				;;
 			-M | --disable-fixed-map)
+				unset ZAFL_TRACE_MAP_FIXED_ADDRESS
 				ZAFL_TM_ENV=""
 				shift
 				;;
