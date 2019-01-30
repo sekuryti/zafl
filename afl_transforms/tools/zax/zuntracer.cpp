@@ -60,7 +60,6 @@ void ZUntracer_t::_afl_instrument_bb(Instruction_t *p_inst, const bool p_redZone
 
 	auto tmp = p_inst;
 	auto tracemap_reg = string();
-	Instruction_t *orig = nullptr;
 	auto found_tracemap_free_register = false;
 
 	// 1st instruction in block record is the new entry point of the block (p_inst)
@@ -149,11 +148,6 @@ void ZUntracer_t::_afl_instrument_bb(Instruction_t *p_inst, const bool p_redZone
 	{
 		do_insert("lea rsp, [rsp+128]");
 	}
-
-	// record modified blocks, indexed by the block id
-	assert(orig);
-	assert(tmp->getFallthrough());
-	assert(orig == tmp->getFallthrough()); // sanity check invariant of transform
 
 	m_modifiedBlocks[blockid] = block_record;
 }
