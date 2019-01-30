@@ -738,11 +738,54 @@ void Zax_t::insertExitPoints()
 	}
 }
 
+#ifdef DEPRECATE
 static bool isConditionalBranch(const Instruction_t *i)
 {
 	const auto d=DecodedInstruction_t::factory(i);
 	return (d->isConditionalBranch());
 }
+
+
+static void walkSuccessors(set<libIRDB::BasicBlock_t*> &p_visited_successors, libIRDB::BasicBlock_t *p_bb, libIRDB::BasicBlock_t *p_target)
+{
+	if (p_bb == NULL || p_target == NULL) 
+		return;
+
+	for (auto b : p_bb->GetSuccessors())
+	{
+		if (p_visited_successors.find(b) == p_visited_successors.end())
+		{
+//			cout << "bb anchored at " << b->getInstructions()[0]->getBaseID() << " is a successor of bb anchored at " << p_bb->getInstructions()[0]->getBaseID() << endl;
+			p_visited_successors.insert(b);
+			if (p_visited_successors.find(p_target) != p_visited_successors.end())
+				return;
+			walkSuccessors(p_visited_successors, b, p_target);
+		}
+	}
+}
+// @nb: move in BB class?
+static bool hasBackEdge(libIRDB::BasicBlock_t *p_bb)
+{
+	assert(p_bb);
+	if (p_bb->GetPredecessors().find(p_bb)!=p_bb->GetPredecessors().end()) 
+		return true;
+	if (p_bb->GetSuccessors().find(p_bb)!=p_bb->GetSuccessors().end()) 
+		return true;
+	if (p_bb->GetSuccessors().size() == 0) 
+		return false;
+
+	// walk successors recursively
+	set<libIRDB::BasicBlock_t*> all_successors;
+
+	cout << "Walk successors for bb anchored at: " << p_bb->GetInstructions()[0]->getBaseID() << endl;
+	walkSuccessors(all_successors, p_bb, p_bb);
+	if (all_successors.find(p_bb)!=all_successors.end())
+		return true;
+
+	return false;
+}
+
+#endif
 
 // blacklist functions:
 //     - in blacklist
@@ -775,46 +818,6 @@ bool Zax_t::isWhitelisted(const Instruction_t *p_inst) const
 	stringstream ss;
 	ss << "0x" << hex << p_inst->getAddress()->getVirtualOffset();
 	return (m_whitelist.count(ss.str()) > 0 || isWhitelisted(p_inst->getFunction()));
-}
-
-static void walkSuccessors(set<libIRDB::BasicBlock_t*> &p_visited_successors, libIRDB::BasicBlock_t *p_bb, libIRDB::BasicBlock_t *p_target)
-{
-	if (p_bb == NULL || p_target == NULL) 
-		return;
-
-	for (auto b : p_bb->GetSuccessors())
-	{
-		if (p_visited_successors.find(b) == p_visited_successors.end())
-		{
-//			cout << "bb anchored at " << b->getInstructions()[0]->getBaseID() << " is a successor of bb anchored at " << p_bb->getInstructions()[0]->getBaseID() << endl;
-			p_visited_successors.insert(b);
-			if (p_visited_successors.find(p_target) != p_visited_successors.end())
-				return;
-			walkSuccessors(p_visited_successors, b, p_target);
-		}
-	}
-}
-
-// @nb: move in BB class?
-static bool hasBackEdge(libIRDB::BasicBlock_t *p_bb)
-{
-	assert(p_bb);
-	if (p_bb->GetPredecessors().find(p_bb)!=p_bb->GetPredecessors().end()) 
-		return true;
-	if (p_bb->GetSuccessors().find(p_bb)!=p_bb->GetSuccessors().end()) 
-		return true;
-	if (p_bb->GetSuccessors().size() == 0) 
-		return false;
-
-	// walk successors recursively
-	set<libIRDB::BasicBlock_t*> all_successors;
-
-	cout << "Walk successors for bb anchored at: " << p_bb->GetInstructions()[0]->getBaseID() << endl;
-	walkSuccessors(all_successors, p_bb, p_bb);
-	if (all_successors.find(p_bb)!=all_successors.end())
-		return true;
-
-	return false;
 }
 
 void Zax_t::setup()
@@ -905,6 +908,12 @@ set<libIRDB::BasicBlock_t*> Zax_t::getBlocksToInstrument(libIRDB::ControlFlowGra
 		//    bb has 1 predecessor 
 		if (m_bb_graph_optimize)
 		{
+			if (bb->GetSuccessors().size() == 2 && bb->EndsInConditionalBranch())
+			{
+				m_num_bb_skipped_cbranch++;
+				continue;
+			}
+#ifdef DEPRECATE
 			auto point_to_self = false;
 			if (bb->GetPredecessors().find(bb)!=bb->GetPredecessors().end()) {
 				point_to_self = true;
@@ -964,6 +973,7 @@ set<libIRDB::BasicBlock_t*> Zax_t::getBlocksToInstrument(libIRDB::ControlFlowGra
 				m_num_bb_skipped_cbranch++;
 				continue;
 			}
+#endif
 		}
 
 		keepers.insert(bb);
