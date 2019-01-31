@@ -2,7 +2,7 @@
 #define _LIBTRANSFORM_ZAX_H
 
 #include <irdb-core>
-#include <libIRDB-cfg.hpp>
+#include <irdb-cfg>
 #include <stars.h>
 
 #include "transform.hpp"
@@ -43,7 +43,7 @@ public:
 protected:
 	virtual zafl_blockid_t get_blockid(const unsigned p_maxid=0xFFFF);
 	virtual zafl_labelid_t get_labelid(const unsigned p_maxid=0xFFFF);
-	virtual set<libIRDB::BasicBlock_t*> getBlocksToInstrument(libIRDB::ControlFlowGraph_t &cfg);
+	virtual set<BasicBlock_t*> getBlocksToInstrument(ControlFlowGraph_t &cfg);
 	virtual void afl_instrument_bb(Instruction_t *inst, const bool p_hasLeafAnnotation, const bool p_collafl_optimization=false);
 	void insertExitPoint(Instruction_t *inst);
 	void insertForkServer(Instruction_t* p_entry);
@@ -54,8 +54,8 @@ protected:
 	bool isWhitelisted(const Function_t*) const;
 	bool isBlacklisted(const Instruction_t*) const;
 	bool isWhitelisted(const Instruction_t*) const;
-	bool BB_isPushJmp(const libIRDB::BasicBlock_t *p_bb);
-	bool BB_isPaddingNop(const libIRDB::BasicBlock_t *p_bb);
+	bool BB_isPushJmp(const BasicBlock_t *p_bb);
+	bool BB_isPaddingNop(const BasicBlock_t *p_bb);
 	virtual void setup();
 	virtual void teardown();
 	virtual void dumpMap();

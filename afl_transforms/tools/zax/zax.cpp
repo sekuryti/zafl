@@ -26,7 +26,7 @@
 #include <algorithm>
 #include <cctype>
 #include <sstream>
-#include <libIRDB-cfg.hpp>
+#include <irdb-cfg>
 #include <libElfDep.hpp>
 #include <Rewrite_Utility.hpp>
 #include <MEDS_DeadRegAnnotation.hpp>
@@ -199,19 +199,19 @@ static bool hasLeafAnnotation(Function_t* fn, MEDS_AnnotationParser &meds_ap_par
 	return (sfa_it != ret.second);
 }
 
-bool Zax_t::BB_isPaddingNop(const libIRDB::BasicBlock_t *p_bb)
+bool Zax_t::BB_isPaddingNop(const BasicBlock_t *p_bb)
 {
-	return p_bb->GetInstructions().size()==1 && 
-	       p_bb->GetPredecessors().size()==0 &&
-	       p_bb->GetSuccessors().size()==1 &&
-	       p_bb->GetInstructions()[0]->getDisassembly().find("nop")!=string::npos;
+	return p_bb->getInstructions().size()==1 && 
+	       p_bb->getPredecessors().size()==0 &&
+	       p_bb->getSuccessors().size()==1 &&
+	       p_bb->getInstructions()[0]->getDisassembly().find("nop")!=string::npos;
 }
 
-bool Zax_t::BB_isPushJmp(const libIRDB::BasicBlock_t *p_bb)
+bool Zax_t::BB_isPushJmp(const BasicBlock_t *p_bb)
 {
-	return p_bb->GetInstructions().size()==2 && 
-	       p_bb->GetInstructions()[0]->getDisassembly().find("push")!=string::npos &&
-	       p_bb->GetInstructions()[1]->getDisassembly().find("jmp")!=string::npos;
+	return p_bb->getInstructions().size()==2 && 
+	       p_bb->getInstructions()[0]->getDisassembly().find("push")!=string::npos &&
+	       p_bb->getInstructions()[1]->getDisassembly().find("jmp")!=string::npos;
 }
 
 /*
@@ -746,12 +746,12 @@ static bool isConditionalBranch(const Instruction_t *i)
 }
 
 
-static void walkSuccessors(set<libIRDB::BasicBlock_t*> &p_visited_successors, libIRDB::BasicBlock_t *p_bb, libIRDB::BasicBlock_t *p_target)
+static void walkSuccessors(set<BasicBlock_t*> &p_visited_successors, BasicBlock_t *p_bb, BasicBlock_t *p_target)
 {
 	if (p_bb == NULL || p_target == NULL) 
 		return;
 
-	for (auto b : p_bb->GetSuccessors())
+	for (auto b : p_bb->getSuccessors())
 	{
 		if (p_visited_successors.find(b) == p_visited_successors.end())
 		{
@@ -764,20 +764,20 @@ static void walkSuccessors(set<libIRDB::BasicBlock_t*> &p_visited_successors, li
 	}
 }
 // @nb: move in BB class?
-static bool hasBackEdge(libIRDB::BasicBlock_t *p_bb)
+static bool hasBackEdge(BasicBlock_t *p_bb)
 {
 	assert(p_bb);
-	if (p_bb->GetPredecessors().find(p_bb)!=p_bb->GetPredecessors().end()) 
+	if (p_bb->getPredecessors().find(p_bb)!=p_bb->getPredecessors().end()) 
 		return true;
-	if (p_bb->GetSuccessors().find(p_bb)!=p_bb->GetSuccessors().end()) 
+	if (p_bb->getSuccessors().find(p_bb)!=p_bb->getSuccessors().end()) 
 		return true;
-	if (p_bb->GetSuccessors().size() == 0) 
+	if (p_bb->getSuccessors().size() == 0) 
 		return false;
 
 	// walk successors recursively
-	set<libIRDB::BasicBlock_t*> all_successors;
+	set<BasicBlock_t*> all_successors;
 
-	cout << "Walk successors for bb anchored at: " << p_bb->GetInstructions()[0]->getBaseID() << endl;
+	cout << "Walk successors for bb anchored at: " << p_bb->getInstructions()[0]->getBaseID() << endl;
 	walkSuccessors(all_successors, p_bb, p_bb);
 	if (all_successors.find(p_bb)!=all_successors.end())
 		return true;
@@ -838,18 +838,18 @@ void Zax_t::teardown()
 
 // in: control flow graph for a given function
 // out: set of basic blocks to instrument
-set<libIRDB::BasicBlock_t*> Zax_t::getBlocksToInstrument(libIRDB::ControlFlowGraph_t &cfg)
+set<BasicBlock_t*> Zax_t::getBlocksToInstrument(ControlFlowGraph_t &cfg)
 {
 	static int bb_debug_id=-1;
 
 	if (m_verbose)
 		cout << cfg << endl;
 
-	auto keepers = set<libIRDB::BasicBlock_t*>();
+	auto keepers = set<BasicBlock_t*>();
 
-	for (auto &bb : cfg.GetBlocks())
+	for (auto &bb : cfg.getBlocks())
 	{
-		assert(bb->GetInstructions().size() > 0);
+		assert(bb->getInstructions().size() > 0);
 
 		bb_debug_id++;
 
@@ -860,13 +860,13 @@ set<libIRDB::BasicBlock_t*> Zax_t::getBlocksToInstrument(libIRDB::ControlFlowGra
 		// if whitelist specified, only allow instrumentation for functions/addresses in whitelist
 		if (m_whitelist.size() > 0) 
 		{
-			if (!isWhitelisted(bb->GetInstructions()[0]))
+			if (!isWhitelisted(bb->getInstructions()[0]))
 			{
 				continue;
 			}
 		}
 
-		if (isBlacklisted(bb->GetInstructions()[0]))
+		if (isBlacklisted(bb->getInstructions()[0]))
 			continue;
 
 		// debugging support
@@ -884,7 +884,7 @@ set<libIRDB::BasicBlock_t*> Zax_t::getBlocksToInstrument(libIRDB::ControlFlowGra
 		}
 
 		// make sure we're not trying to instrument code we just inserted, e.g., fork server, added exit points
-		if (bb->GetInstructions()[0]->getBaseID() < 0)
+		if (bb->getInstructions()[0]->getBaseID() < 0)
 			continue;
 
 		// push/jmp pair, don't bother instrumenting
@@ -908,30 +908,30 @@ set<libIRDB::BasicBlock_t*> Zax_t::getBlocksToInstrument(libIRDB::ControlFlowGra
 		//    bb has 1 predecessor 
 		if (m_bb_graph_optimize)
 		{
-			if (bb->GetSuccessors().size() == 2 && bb->EndsInConditionalBranch())
+			if (bb->getSuccessors().size() == 2 && bb->endsInConditionalBranch())
 			{
 				m_num_bb_skipped_cbranch++;
 				continue;
 			}
 #ifdef DEPRECATE
 			auto point_to_self = false;
-			if (bb->GetPredecessors().find(bb)!=bb->GetPredecessors().end()) {
+			if (bb->getPredecessors().find(bb)!=bb->getPredecessors().end()) {
 				point_to_self = true;
 			}
-			if (bb->GetPredecessors().size()==1 && !point_to_self)
+			if (bb->getPredecessors().size()==1 && !point_to_self)
 			{
-				if (bb->GetSuccessors().size() == 1 && 
-					(!bb->GetInstructions()[0]->getIndirectBranchTargetAddress()))
+				if (bb->getSuccessors().size() == 1 && 
+					(!bb->getInstructions()[0]->getIndirectBranchTargetAddress()))
 				{
 					cout << "Skipping bb #" << dec << bb_debug_id << " because inner node with 1 predecessor and 1 successor" << endl;
 					m_num_bb_skipped_innernode++;
 					continue;
 				}
 					
-				const auto pred = *(bb->GetPredecessors().begin());
-				if (pred->GetSuccessors().size() == 1)
+				const auto pred = *(bb->getPredecessors().begin());
+				if (pred->getSuccessors().size() == 1)
 				{
-					if (!bb->GetInstructions()[0]->getIndirectBranchTargetAddress())
+					if (!bb->getInstructions()[0]->getIndirectBranchTargetAddress())
 					{
 						cout << "Skipping bb #" << dec << bb_debug_id << " because not ibta, <1,*> and preds <*,1>" << endl;
 						m_num_bb_skipped_onlychild++;
@@ -949,7 +949,7 @@ set<libIRDB::BasicBlock_t*> Zax_t::getBlocksToInstrument(libIRDB::ControlFlowGra
 
 			// optimization conditional branch:
 			//     elide conditional branch when no back edges
-			if (bb->GetSuccessors().size() == 2 && isConditionalBranch(bb->GetInstructions()[bb->GetInstructions().size()-1]))
+			if (bb->getSuccessors().size() == 2 && isConditionalBranch(bb->getInstructions()[bb->getInstructions().size()-1]))
 			{
 
 				if (hasBackEdge(bb)) 
@@ -960,9 +960,9 @@ set<libIRDB::BasicBlock_t*> Zax_t::getBlocksToInstrument(libIRDB::ControlFlowGra
 					continue;
 				}
 				
-				for (auto &s: bb->GetSuccessors())
+				for (auto &s: bb->getSuccessors())
 				{
-					if (s->GetIsExitBlock() || s->GetSuccessors().size()==0)
+					if (s->GetIsExitBlock() || s->getSuccessors().size()==0)
 					{
 						m_num_bb_keep_exit_block++;
 						keepers.insert(s);
@@ -1020,33 +1020,35 @@ int Zax_t::execute()
 			leafAnnotation = hasLeafAnnotation(f, m_stars_analysis_engine.getAnnotations());
 		}
 
-		auto cfg=libIRDB::ControlFlowGraph_t(f);
+//		auto cfg=ControlFlowGraph_t(f);
+		auto cfgp = ControlFlowGraph_t::factory(f);
+		auto &cfg = *cfgp;
 
-		const auto num_blocks_in_func = cfg.GetBlocks().size();
+		const auto num_blocks_in_func = cfg.getBlocks().size();
 		m_num_bb += num_blocks_in_func;
 
 		
 		auto keepers = getBlocksToInstrument(cfg);
 		struct BBSorter
 		{
-			bool operator()( const libIRDB::BasicBlock_t* lhs, const libIRDB::BasicBlock_t* rhs ) const 
+			bool operator()( const BasicBlock_t* lhs, const BasicBlock_t* rhs ) const 
 			{
-				const auto lhs_insns=lhs->GetInstructions();
-				const auto rhs_insns=rhs->GetInstructions();
+				const auto lhs_insns=lhs->getInstructions();
+				const auto rhs_insns=rhs->getInstructions();
 				assert(lhs_insns[0]->getBaseID() != BaseObj_t::NOT_IN_DATABASE);	
 				assert(rhs_insns[0]->getBaseID() != BaseObj_t::NOT_IN_DATABASE);	
 				return lhs_insns[0]->getBaseID() < rhs_insns[0]->getBaseID();
 			}
 		};
-		auto sortedBasicBlocks = set<libIRDB::BasicBlock_t*, BBSorter> (ALLOF(keepers));
+		auto sortedBasicBlocks = set<BasicBlock_t*, BBSorter> (ALLOF(keepers));
 		for (auto &bb : sortedBasicBlocks)
 		{
 			auto collAflSingleton = false;
 			// for collAfl-style instrumentation, we want #predecessors==1
 			// if the basic block entry point is an IBTA, we don't know the #predecessors
 			if (m_bb_graph_optimize               && 
-			    bb->GetPredecessors().size() == 1 && 
-			    !bb->GetInstructions()[0]->getIndirectBranchTargetAddress()
+			    bb->getPredecessors().size() == 1 && 
+			    !bb->getInstructions()[0]->getIndirectBranchTargetAddress()
 			   )
 			{
 				collAflSingleton = true;
@@ -1054,7 +1056,7 @@ int Zax_t::execute()
 
 			}
 
-			afl_instrument_bb(bb->GetInstructions()[0], leafAnnotation, collAflSingleton);
+			afl_instrument_bb(bb->getInstructions()[0], leafAnnotation, collAflSingleton);
 		}
 
 
@@ -1064,8 +1066,9 @@ int Zax_t::execute()
 		if (m_verbose)
 		{
 			cout << "Post transformation CFG:" << endl;
-			auto post_cfg=libIRDB::ControlFlowGraph_t(f);	
-			cout << post_cfg << endl;
+//			auto post_cfg=ControlFlowGraph_t(f);	
+			auto post_cfg=ControlFlowGraph_t::factory(f);	
+			cout << *post_cfg << endl;
 		}
 
 		cout << "Function " << f->getName() << ":  " << dec << keepers.size() << "/" << num_blocks_in_func << " basic blocks instrumented." << endl;

@@ -21,7 +21,7 @@ class ZUntracer_t : public Zax_t
 	protected:
 		virtual zafl_blockid_t get_blockid(const unsigned p_maxid = 0xFFFF);
 		virtual void afl_instrument_bb(Instruction_t *p_inst, const bool p_hasLeafAnnotation, const bool p_collafl_optimization=false);
-		virtual set<libIRDB::BasicBlock_t*> getBlocksToInstrument(libIRDB::ControlFlowGraph_t &cfg);
+		virtual set<BasicBlock_t*> getBlocksToInstrument(ControlFlowGraph_t &cfg);
 
 	private:
 		void _afl_instrument_bb_fixed(Instruction_t *p_inst, char* p_tracemap_addr);

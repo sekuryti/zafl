@@ -21,7 +21,7 @@
  * E-mail: jwd@zephyr-software.com
  **************************************************************************/
 
-#include <libIRDB-cfg.hpp>
+#include <irdb-cfg>
 #include <Rewrite_Utility.hpp>
 
 #include "critical_edge_breaker.hpp"
@@ -61,9 +61,15 @@ void CriticalEdgeBreaker_t::breakCriticalEdges()
 //        
 unsigned CriticalEdgeBreaker_t::breakCriticalEdges(Function_t* p_func)
 {
-	libIRDB::ControlFlowGraph_t cfg(p_func);
-	const libIRDB::CriticalEdgeAnalyzer_t cea(cfg, false);
-	const auto critical_edges = cea.GetAllCriticalEdges();
+//	ControlFlowGraph_t cfg(p_func);
+	auto cfgp = ControlFlowGraph_t::factory(p_func);
+	auto &cfg = *cfgp;
+
+//	const CriticalEdgeAnalyzer_t cea(cfg, false);
+	auto ceap = CriticalEdges_t::factory(cfg, false);
+	auto &cea = *ceap;
+	
+	const auto critical_edges = cea.getAllCriticalEdges();
 	auto num_critical_edges_instrumented = 0;
 
 	cout << endl;
@@ -81,10 +87,10 @@ unsigned CriticalEdgeBreaker_t::breakCriticalEdges(Function_t* p_func)
 		auto source_block = get<0>(edge);
 		auto target_block = get<1>(edge);
 
-		auto last_instruction_in_source_block = source_block->GetInstructions()[source_block->GetInstructions().size()-1];
-		auto first_instruction_in_target_block = target_block->GetInstructions()[0];
+		auto last_instruction_in_source_block = source_block->getInstructions()[source_block->getInstructions().size()-1];
+		auto first_instruction_in_target_block = target_block->getInstructions()[0];
 
-		if (source_block->EndsInConditionalBranch())
+		if (source_block->endsInConditionalBranch())
 		{
 			const auto fileID = last_instruction_in_source_block->getAddress()->getFileID();
 			const auto func = last_instruction_in_source_block->getFunction();
@@ -114,7 +120,9 @@ unsigned CriticalEdgeBreaker_t::breakCriticalEdges(Function_t* p_func)
 	if (m_verbose)
 	{
 		cout << "Number critical edge instrumented: " << num_critical_edges_instrumented << endl;
-		libIRDB::ControlFlowGraph_t post_cfg(p_func);
+//		ControlFlowGraph_t post_cfg(p_func);
+		auto post_cfgp = ControlFlowGraph_t::factory(p_func);
+		auto &post_cfg = *post_cfgp;
 		m_IR->assembleRegistry();
 		cout << "Post CFG: " << endl;
 		cout << post_cfg << endl;
