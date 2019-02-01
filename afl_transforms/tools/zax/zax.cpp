@@ -28,7 +28,7 @@
 #include <sstream>
 #include <irdb-cfg>
 #include <irdb-transform>
-#include <libElfDep.hpp>
+#include <irdb-elfdep>
 #include <MEDS_DeadRegAnnotation.hpp>
 #include <MEDS_SafeFuncAnnotation.hpp>
 
@@ -60,16 +60,16 @@ Zax_t::Zax_t(IRDB_SDK::pqxxDB_t &p_dbinterface, IRDB_SDK::FileIR_t *p_variantIR,
 		m_stars_analysis_engine.do_STARS(getFileIR());
 	}
 
-	auto ed=libIRDB::ElfDependencies_t(getFileIR());
+	auto ed=ElfDependencies_t::factory(getFileIR());
 	if (p_autozafl)
 	{
 		cout << "autozafl library is on" << endl;
-		(void)ed.prependLibraryDepedencies("libautozafl.so");
+		(void)ed->prependLibraryDepedencies("libautozafl.so");
 	}
 	else
 	{
 		cout << "autozafl library is off" << endl;
-		(void)ed.prependLibraryDepedencies("libzafl.so");
+		(void)ed->prependLibraryDepedencies("libzafl.so");
 	}
 
 	if (m_verbose)
@@ -78,9 +78,9 @@ Zax_t::Zax_t(IRDB_SDK::pqxxDB_t &p_dbinterface, IRDB_SDK::FileIR_t *p_variantIR,
 		cout << "verbose mode is off" << endl;
 
 	// bind to external symbols declared in libzafl.so
-	m_plt_zafl_initAflForkServer=ed.appendPltEntry("zafl_initAflForkServer");
-        m_trace_map = ed.appendGotEntry("zafl_trace_map");
-        m_prev_id = ed.appendGotEntry("zafl_prev_id");
+	m_plt_zafl_initAflForkServer=ed->appendPltEntry("zafl_initAflForkServer");
+        m_trace_map = ed->appendGotEntry("zafl_trace_map");
+        m_prev_id = ed->appendGotEntry("zafl_prev_id");
 
 	// let's not instrument these functions ever
 	// see isBlacklisted() for other blacklisted functions
