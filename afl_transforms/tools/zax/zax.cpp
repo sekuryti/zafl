@@ -27,26 +27,23 @@
 #include <cctype>
 #include <sstream>
 #include <irdb-cfg>
+#include <irdb-transform>
 #include <libElfDep.hpp>
-#include <Rewrite_Utility.hpp>
 #include <MEDS_DeadRegAnnotation.hpp>
 #include <MEDS_SafeFuncAnnotation.hpp>
-#include <utils.hpp> 
 
 #include "zax.hpp"
 
 using namespace std;
-using namespace libTransform;
 using namespace IRDB_SDK;
 using namespace Zafl;
-using namespace IRDBUtility;
 using namespace MEDS_Annotation;
 
 #define ALLOF(a) begin(a),end(a)
 
 Zax_t::Zax_t(IRDB_SDK::pqxxDB_t &p_dbinterface, IRDB_SDK::FileIR_t *p_variantIR, string p_forkServerEntryPoint, set<string> p_exitPoints, bool p_use_stars, bool p_autozafl, bool p_verbose)
 	:
-	Transform(NULL, p_variantIR, NULL),
+	Transform(p_variantIR),
 	m_dbinterface(p_dbinterface),
 	m_stars_analysis_engine(p_dbinterface),
 	m_fork_server_entry(p_forkServerEntryPoint),

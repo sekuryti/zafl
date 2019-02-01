@@ -22,14 +22,13 @@
  **************************************************************************/
 
 #include <irdb-cfg>
-#include <Rewrite_Utility.hpp>
+#include <irdb-transform>
 
 #include "critical_edge_breaker.hpp"
 
 using namespace std;
 using namespace IRDB_SDK;
 using namespace Zafl;
-using namespace IRDBUtility;
 
 CriticalEdgeBreaker_t::CriticalEdgeBreaker_t(IRDB_SDK::FileIR_t *p_IR, const bool p_verbose) :
 	m_IR(p_IR),
@@ -92,13 +91,14 @@ unsigned CriticalEdgeBreaker_t::breakCriticalEdges(Function_t* p_func)
 
 		if (source_block->endsInConditionalBranch())
 		{
-			const auto fileID = last_instruction_in_source_block->getAddress()->getFileID();
+			// const auto fileID = last_instruction_in_source_block->getAddress()->getFileID();
 			const auto func = last_instruction_in_source_block->getFunction();
 
 			if (last_instruction_in_source_block->getTarget() == first_instruction_in_target_block)
 			{
-				auto jmp = IRDBUtility::allocateNewInstruction(m_IR, fileID, func);
-				IRDBUtility::setInstructionAssembly(m_IR, jmp, "jmp 0", nullptr, first_instruction_in_target_block);
+				//auto jmp = IRDBUtility::allocateNewInstruction(m_IR, fileID, func);
+				auto jmp=m_IR->addNewInstruction(nullptr,func);	
+				setInstructionAssembly(m_IR, jmp, "jmp 0", nullptr, first_instruction_in_target_block);
 				jmp->setComment("break_critical_edge_jmp");
 
 				last_instruction_in_source_block->setTarget(jmp);
@@ -106,8 +106,9 @@ unsigned CriticalEdgeBreaker_t::breakCriticalEdges(Function_t* p_func)
 			}
 			else if (last_instruction_in_source_block->getFallthrough() == first_instruction_in_target_block)
 			{
-				auto jmp = IRDBUtility::allocateNewInstruction(m_IR, fileID, func);
-				IRDBUtility::setInstructionAssembly(m_IR, jmp, "jmp 0", nullptr, first_instruction_in_target_block);
+				// auto jmp = IRDBUtility::allocateNewInstruction(m_IR, fileID, func);
+				auto jmp=m_IR->addNewInstruction(nullptr,func);	
+				setInstructionAssembly(m_IR, jmp, "jmp 0", nullptr, first_instruction_in_target_block);
 				jmp->setComment("break_critical_edge_fallthrough");
 
 				last_instruction_in_source_block->setFallthrough(jmp);

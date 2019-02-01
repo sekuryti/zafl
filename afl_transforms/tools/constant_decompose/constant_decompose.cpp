@@ -25,18 +25,15 @@
 
 #include "constant_decompose.hpp"
 
-#include <Rewrite_Utility.hpp>
-#include <utils.hpp>
+#include <irdb-util>
 
 using namespace std;
-using namespace libTransform;
 using namespace IRDB_SDK;
 using namespace ConstantDecompose;
-using namespace IRDBUtility;
 
 ConstantDecompose_t::ConstantDecompose_t(IRDB_SDK::pqxxDB_t &p_dbinterface, IRDB_SDK::FileIR_t *p_variantIR, bool p_verbose)
 	:
-	Transform(NULL, p_variantIR, NULL),
+	Transform(p_variantIR),
 	m_dbinterface(p_dbinterface),
 	m_verbose(p_verbose)
 {
