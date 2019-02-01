@@ -7,12 +7,10 @@ Import('env')
 (sysname, nodename, release, version, machine)=os.uname()
 
 env.Append(CXXFLAGS=" -Wall -Werror")
+env.Append(LINKFLAGS=" -Wall -Werror -Wl,-unresolved-symbols=ignore-in-shared-libs ")
 
-env['BASE_IRDB_LIBS']="IRDB-core", "pqxx", "pq", "EXEIO", "ElfDep"
+env['BASE_IRDB_LIBS']="irdb-core"
 
-if sysname != "SunOS":
-	# setup libraries needed for linking
-	env['BASE_IRDB_LIBS']="IRDB-core", "pqxx", "pq", "EXEIO", "pebliss", "ElfDep", "capstone"
 
 # pebliss requires iconv, which needs to be explicit on cygwin.
 if "CYGWIN" in sysname:
