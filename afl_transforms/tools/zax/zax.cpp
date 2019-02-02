@@ -579,41 +579,22 @@ void Zax_t::insertForkServer(Instruction_t* p_entry)
 
 	// insert the instrumentation
 	auto tmp=p_entry;
+	const auto regs = vector<string>({ "rdi", "rsi", "rbp", "rdx", "rcx", "rbx", "rax", "r8", "r9", "r10", "r11", "r12", "r13", "r14", "r15"});
+
+	// red zone
 	(void)insertAssemblyBefore(tmp, "lea rsp, [rsp-128]");
-    	tmp=  insertAssemblyAfter(tmp," push rdi") ;
-	tmp=  insertAssemblyAfter(tmp," push rsi ") ;
-	tmp=  insertAssemblyAfter(tmp," push rbp") ;
-	tmp=  insertAssemblyAfter(tmp," push rdx") ;
-	tmp=  insertAssemblyAfter(tmp," push rcx ") ;
-	tmp=  insertAssemblyAfter(tmp," push rbx ") ;
-	tmp=  insertAssemblyAfter(tmp," push rax ") ;
-	tmp=  insertAssemblyAfter(tmp," push r8 ") ;
-	tmp=  insertAssemblyAfter(tmp," push r9 ") ;
-	tmp=  insertAssemblyAfter(tmp," push r10 ") ;
-	tmp=  insertAssemblyAfter(tmp," push r11 ") ;
-	tmp=  insertAssemblyAfter(tmp," push r12 ") ;
-	tmp=  insertAssemblyAfter(tmp," push r13 ") ;
-	tmp=  insertAssemblyAfter(tmp," push r14 ") ;
-	tmp=  insertAssemblyAfter(tmp," push r15 ") ;
-	tmp=  insertAssemblyAfter(tmp," pushf ") ;
-	tmp=  insertAssemblyAfter(tmp," call 0 ", m_plt_zafl_initAflForkServer) ;
-	tmp=  insertAssemblyAfter(tmp," popf ") ;
-	tmp=  insertAssemblyAfter(tmp," pop r15 ") ;
-	tmp=  insertAssemblyAfter(tmp," pop r14 ") ;
-	tmp=  insertAssemblyAfter(tmp," pop r13 ") ;
-	tmp=  insertAssemblyAfter(tmp," pop r12 ") ;
-	tmp=  insertAssemblyAfter(tmp," pop r11 ") ;
-	tmp=  insertAssemblyAfter(tmp," pop r10 ") ;
-	tmp=  insertAssemblyAfter(tmp," pop r9");
-	tmp=  insertAssemblyAfter(tmp," pop r8");
-	tmp=  insertAssemblyAfter(tmp," pop rax");
-	tmp=  insertAssemblyAfter(tmp," pop rbx");
-	tmp=  insertAssemblyAfter(tmp," pop rcx");
-	tmp=  insertAssemblyAfter(tmp," pop rdx");
-	tmp=  insertAssemblyAfter(tmp," pop rbp");
-	tmp=  insertAssemblyAfter(tmp," pop rsi");
-	tmp=  insertAssemblyAfter(tmp," pop rdi");
-	tmp=  insertAssemblyAfter(tmp," lea rsp, [rsp+128]");
+	// save flags and registrers
+	tmp = insertAssemblyAfter(tmp,  "pushf ") ;
+	for (vector<string>::const_iterator rit = regs.begin(); rit != regs.end(); ++rit)
+		tmp = insertAssemblyAfter(tmp, " push " + *rit);
+	// call fork server initialization routine (in external library)
+	tmp = insertAssemblyAfter(tmp,  "call 0 ", m_plt_zafl_initAflForkServer) ;
+	// restore registers and flags
+	for (vector<string>::const_reverse_iterator rit = regs.rbegin(); rit != regs.rend(); ++rit)
+    		tmp = insertAssemblyAfter(tmp, " pop " + *rit) ;
+	tmp = insertAssemblyAfter(tmp,  "popf ") ;
+	// red zome
+	tmp = insertAssemblyAfter(tmp,  "lea rsp, [rsp+128]");
 }
 
 void Zax_t::insertForkServer(string p_forkServerEntry)
