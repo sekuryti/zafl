@@ -21,15 +21,14 @@
  * E-mail: jwd@zephyr-software.com
  **************************************************************************/
 
-#include <libIRDB-cfg.hpp>
-#include <Rewrite_Utility.hpp>
+#include <irdb-cfg>
+#include <irdb-transform>
 
 #include "critical_edge_breaker.hpp"
 
 using namespace std;
 using namespace IRDB_SDK;
 using namespace Zafl;
-using namespace IRDBUtility;
 
 CriticalEdgeBreaker_t::CriticalEdgeBreaker_t(IRDB_SDK::FileIR_t *p_IR, const bool p_verbose) :
 	m_IR(p_IR),
@@ -61,9 +60,15 @@ void CriticalEdgeBreaker_t::breakCriticalEdges()
 //        
 unsigned CriticalEdgeBreaker_t::breakCriticalEdges(Function_t* p_func)
 {
-	libIRDB::ControlFlowGraph_t cfg(p_func);
-	const libIRDB::CriticalEdgeAnalyzer_t cea(cfg, false);
-	const auto critical_edges = cea.GetAllCriticalEdges();
+//	ControlFlowGraph_t cfg(p_func);
+	auto cfgp = ControlFlowGraph_t::factory(p_func);
+	auto &cfg = *cfgp;
+
+//	const CriticalEdgeAnalyzer_t cea(cfg, false);
+	auto ceap = CriticalEdges_t::factory(cfg, false);
+	auto &cea = *ceap;
+	
+	const auto critical_edges = cea.getAllCriticalEdges();
 	auto num_critical_edges_instrumented = 0;
 
 	cout << endl;
@@ -81,18 +86,19 @@ unsigned CriticalEdgeBreaker_t::breakCriticalEdges(Function_t* p_func)
 		auto source_block = get<0>(edge);
 		auto target_block = get<1>(edge);
 
-		auto last_instruction_in_source_block = source_block->GetInstructions()[source_block->GetInstructions().size()-1];
-		auto first_instruction_in_target_block = target_block->GetInstructions()[0];
+		auto last_instruction_in_source_block = source_block->getInstructions()[source_block->getInstructions().size()-1];
+		auto first_instruction_in_target_block = target_block->getInstructions()[0];
 
-		if (source_block->EndsInConditionalBranch())
+		if (source_block->endsInConditionalBranch())
 		{
-			const auto fileID = last_instruction_in_source_block->getAddress()->getFileID();
+			// const auto fileID = last_instruction_in_source_block->getAddress()->getFileID();
 			const auto func = last_instruction_in_source_block->getFunction();
 
 			if (last_instruction_in_source_block->getTarget() == first_instruction_in_target_block)
 			{
-				auto jmp = IRDBUtility::allocateNewInstruction(m_IR, fileID, func);
-				IRDBUtility::setInstructionAssembly(m_IR, jmp, "jmp 0", nullptr, first_instruction_in_target_block);
+				//auto jmp = IRDBUtility::allocateNewInstruction(m_IR, fileID, func);
+				auto jmp=m_IR->addNewInstruction(nullptr,func);	
+				setInstructionAssembly(m_IR, jmp, "jmp 0", nullptr, first_instruction_in_target_block);
 				jmp->setComment("break_critical_edge_jmp");
 
 				last_instruction_in_source_block->setTarget(jmp);
@@ -100,8 +106,9 @@ unsigned CriticalEdgeBreaker_t::breakCriticalEdges(Function_t* p_func)
 			}
 			else if (last_instruction_in_source_block->getFallthrough() == first_instruction_in_target_block)
 			{
-				auto jmp = IRDBUtility::allocateNewInstruction(m_IR, fileID, func);
-				IRDBUtility::setInstructionAssembly(m_IR, jmp, "jmp 0", nullptr, first_instruction_in_target_block);
+				// auto jmp = IRDBUtility::allocateNewInstruction(m_IR, fileID, func);
+				auto jmp=m_IR->addNewInstruction(nullptr,func);	
+				setInstructionAssembly(m_IR, jmp, "jmp 0", nullptr, first_instruction_in_target_block);
 				jmp->setComment("break_critical_edge_fallthrough");
 
 				last_instruction_in_source_block->setFallthrough(jmp);
@@ -114,7 +121,9 @@ unsigned CriticalEdgeBreaker_t::breakCriticalEdges(Function_t* p_func)
 	if (m_verbose)
 	{
 		cout << "Number critical edge instrumented: " << num_critical_edges_instrumented << endl;
-		libIRDB::ControlFlowGraph_t post_cfg(p_func);
+//		ControlFlowGraph_t post_cfg(p_func);
+		auto post_cfgp = ControlFlowGraph_t::factory(p_func);
+		auto &post_cfg = *post_cfgp;
 		m_IR->assembleRegistry();
 		cout << "Post CFG: " << endl;
 		cout << post_cfg << endl;

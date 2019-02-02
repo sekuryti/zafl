@@ -2,13 +2,13 @@
 #define _LIBTRANSFORM_CONSTANT_DECOMPOSE_H
 
 #include <irdb-core>
-#include <transform.hpp>
+#include <irdb-transform>
 
 
 namespace ConstantDecompose
 {
 // the actual transform.
-class ConstantDecompose_t : public libTransform::Transform
+class ConstantDecompose_t : public IRDB_SDK::Transform
 {
 public:
 	// explicitly disable default and copy constructors

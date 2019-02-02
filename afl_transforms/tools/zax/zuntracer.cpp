@@ -152,16 +152,16 @@ void ZUntracer_t::_afl_instrument_bb(Instruction_t *p_inst, const bool p_redZone
 	m_modifiedBlocks[blockid] = block_record;
 }
 
-set<libIRDB::BasicBlock_t*> ZUntracer_t::getBlocksToInstrument(libIRDB::ControlFlowGraph_t &cfg)
+set<BasicBlock_t*> ZUntracer_t::getBlocksToInstrument(ControlFlowGraph_t &cfg)
 {
 	static int bb_z_debug_id=-1;
 
 	if (m_verbose)
 		cout << cfg << endl;
 
-	auto keepers = set<libIRDB::BasicBlock_t*>();
+	auto keepers = set<BasicBlock_t*>();
 
-	for (auto &bb : cfg.GetBlocks())
+	for (auto &bb : cfg.getBlocks())
 	{
 		bb_z_debug_id++;
 
@@ -172,13 +172,13 @@ set<libIRDB::BasicBlock_t*> ZUntracer_t::getBlocksToInstrument(libIRDB::ControlF
 		// if whitelist specified, only allow instrumentation for functions/addresses in whitelist
 		if (m_whitelist.size() > 0) 
 		{
-			if (!isWhitelisted(bb->GetInstructions()[0]))
+			if (!isWhitelisted(bb->getInstructions()[0]))
 			{
 				continue;
 			}
 		}
 
-		if (isBlacklisted(bb->GetInstructions()[0]))
+		if (isBlacklisted(bb->getInstructions()[0]))
 			continue;
 
 		// debugging support
@@ -196,7 +196,7 @@ set<libIRDB::BasicBlock_t*> ZUntracer_t::getBlocksToInstrument(libIRDB::ControlF
 		}
 
 		// make sure we're not trying to instrument code we just inserted, e.g., fork server, added exit points
-		if (bb->GetInstructions()[0]->getBaseID() < 0)
+		if (bb->getInstructions()[0]->getBaseID() < 0)
 			continue;
 
 		// push/jmp pair, don't bother instrumenting
@@ -220,7 +220,7 @@ set<libIRDB::BasicBlock_t*> ZUntracer_t::getBlocksToInstrument(libIRDB::ControlF
 		//
 		if (m_bb_graph_optimize)
 		{
-			if (bb->GetSuccessors().size() == 2 && bb->EndsInConditionalBranch())
+			if (bb->getSuccessors().size() == 2 && bb->endsInConditionalBranch())
 			{
 				m_num_bb_skipped_cbranch++;
 				continue;
