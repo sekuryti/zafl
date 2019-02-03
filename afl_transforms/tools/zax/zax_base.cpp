@@ -46,7 +46,7 @@ void create_got_reloc(FileIR_t* fir, pair<DataScoop_t*,int> wrt, Instruction_t* 
 	(void)fir->addNewRelocation(i,wrt.second, "pcrel", wrt.first);
 }
 
-RegisterSet_t get_dead_regs(Instruction_t* insn, MEDS_AnnotationParser &meds_ap_param)
+RegisterSet_t getDeadRegs(Instruction_t* insn, MEDS_AnnotationParser &meds_ap_param)
 {
         std::pair<MEDS_Annotations_t::iterator,MEDS_Annotations_t::iterator> ret;
 
@@ -73,7 +73,7 @@ RegisterSet_t get_dead_regs(Instruction_t* insn, MEDS_AnnotationParser &meds_ap_
 }
 
 // return intersection of candidates and allowed general-purpose registers
-RegisterSet_t get_free_regs(const RegisterSet_t candidates, const RegisterSet_t allowed)
+RegisterSet_t getFreeRegs(const RegisterSet_t candidates, const RegisterSet_t allowed)
 {
 	std::set<RegisterName> free_regs;
 	set_intersection(candidates.begin(),candidates.end(),allowed.begin(),allowed.end(),
@@ -276,12 +276,12 @@ void ZaxBase_t::setBlacklist(const string& p_blackList)
 	blackListFile.close();
 }
 
-zafl_labelid_t ZaxBase_t::get_labelid(const unsigned p_max) 
+ZaflLabelId_t ZaxBase_t::getLabelId(const unsigned p_max) 
 {
 	return m_labelid++;
 }
 
-zafl_blockid_t ZaxBase_t::get_blockid(const unsigned p_max)
+ZaflBlockId_t ZaxBase_t::getBlockId(const unsigned p_max)
 {
 	m_blockid = (m_blockid+1) % p_max;
 	return m_blockid;
@@ -631,8 +631,8 @@ Instruction_t* ZaxBase_t::getInstructionToInstrument(const BasicBlock_t *p_bb, c
 
 	for (auto i : p_bb->getInstructions())
 	{
-		const auto dead_regs = get_dead_regs(i, ap);
-		const auto num_free_regs = get_free_regs(dead_regs, allowed_regs).size();
+		const auto dead_regs = getDeadRegs(i, ap);
+		const auto num_free_regs = getFreeRegs(dead_regs, allowed_regs).size();
 
 		if (i == first_instruction)
 			num_free_regs_first_instruction = num_free_regs;
@@ -741,7 +741,7 @@ int ZaxBase_t::execute()
 
 			}
 
-			afl_instrument_bb(bb, leafAnnotation, collAflSingleton);
+			instrumentBasicBlock(bb, leafAnnotation, collAflSingleton);
 		}
 
 		m_num_bb_instrumented += keepers.size();

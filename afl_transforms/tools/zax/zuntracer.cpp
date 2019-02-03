@@ -8,7 +8,7 @@ ZUntracer_t::ZUntracer_t(IRDB_SDK::pqxxDB_t &p_dbinterface, IRDB_SDK::FileIR_t *
 {
 }
 
-void ZUntracer_t::afl_instrument_bb(BasicBlock_t *p_bb, const bool p_redZoneHint, const bool p_collafl_optimization)
+void ZUntracer_t::instrumentBasicBlock(BasicBlock_t *p_bb, const bool p_redZoneHint, const bool p_collafl_optimization)
 {
 	if (!p_bb) throw;
 
@@ -16,20 +16,20 @@ void ZUntracer_t::afl_instrument_bb(BasicBlock_t *p_bb, const bool p_redZoneHint
 	const auto do_fixed_addr_optimization = (trace_map_fixed_addr!=nullptr);
 
 	if (do_fixed_addr_optimization)
-		_afl_instrument_bb_fixed(p_bb, trace_map_fixed_addr);
+		_instrumentBasicBlock_fixed(p_bb, trace_map_fixed_addr);
 	else
-		_afl_instrument_bb(p_bb, p_redZoneHint);
+		_instrumentBasicBlock(p_bb, p_redZoneHint);
 }
 
 // Highly efficient instrumentation using known address for tracemap
-void ZUntracer_t::_afl_instrument_bb_fixed(BasicBlock_t *p_bb, char* p_tracemap_addr)
+void ZUntracer_t::_instrumentBasicBlock_fixed(BasicBlock_t *p_bb, char* p_tracemap_addr)
 {
 	// 1st instruction in block record is the new entry point of the block (instr)
 	// 2nd instruction in block record is where the instruction at the old entry point is now at (orig)
 	auto instr = getInstructionToInstrument(p_bb);
 	if (!instr) throw;
 
-	const auto blockid = get_blockid();
+	const auto blockid = getBlockId();
 	BBRecord_t block_record;
 	block_record.push_back(instr);
 
@@ -41,7 +41,7 @@ void ZUntracer_t::_afl_instrument_bb_fixed(BasicBlock_t *p_bb, char* p_tracemap_
 	m_modifiedBlocks[blockid] = block_record;
 }
 
-void ZUntracer_t::_afl_instrument_bb(BasicBlock_t *p_bb, const bool p_redZoneHint)
+void ZUntracer_t::_instrumentBasicBlock(BasicBlock_t *p_bb, const bool p_redZoneHint)
 {
 	/*
 	Original afl instrumentation:
@@ -67,8 +67,8 @@ void ZUntracer_t::_afl_instrument_bb(BasicBlock_t *p_bb, const bool p_redZoneHin
 
 	block_record.push_back(instr);
 	
-	const auto blockid = get_blockid();
-	const auto labelid = get_labelid(); 
+	const auto blockid = getBlockId();
+	const auto labelid = getLabelId(); 
 
 	if (m_verbose)
 		cout << "working with blockid: " << blockid << " labelid: " << labelid << endl;
@@ -76,8 +76,8 @@ void ZUntracer_t::_afl_instrument_bb(BasicBlock_t *p_bb, const bool p_redZoneHin
 	if (m_use_stars) 
 	{
 		const auto allowed_regs = RegisterSet_t({rn_RAX, rn_RBX, rn_RCX, rn_RDX, rn_R8, rn_R9, rn_R10, rn_R11, rn_R12, rn_R13, rn_R14, rn_R15});
-		const auto dead_regs = get_dead_regs(instr, m_stars_analysis_engine.getAnnotations());
-		const auto free_regs = get_free_regs(dead_regs, allowed_regs);
+		const auto dead_regs = getDeadRegs(instr, m_stars_analysis_engine.getAnnotations());
+		const auto free_regs = getFreeRegs(dead_regs, allowed_regs);
 		if (free_regs.size() > 0)
 		{
 			auto r = *free_regs.begin();

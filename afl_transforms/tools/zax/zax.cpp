@@ -45,7 +45,7 @@ Zax_t::Zax_t(IRDB_SDK::pqxxDB_t &p_dbinterface, IRDB_SDK::FileIR_t *p_variantIR,
  * Return random block id
  * Try 100x to avoid duplicate ids
  */
-zafl_blockid_t Zax_t::get_blockid(const unsigned p_max) 
+ZaflBlockId_t Zax_t::getBlockId(const unsigned p_max) 
 {
        auto counter = 0;
        auto blockid = 0;
@@ -74,7 +74,7 @@ zafl_blockid_t Zax_t::get_blockid(const unsigned p_max)
 	        zafl_trace_bits[block_id]++;
 		zafl_prev_id = block_id >> 1;     
 */
-void Zax_t::afl_instrument_bb(BasicBlock_t *p_bb, const bool p_honorRedZone, const bool p_collafl_optimization)
+void Zax_t::instrumentBasicBlock(BasicBlock_t *p_bb, const bool p_honorRedZone, const bool p_collafl_optimization)
 {
 	char buf[8192];
 	auto live_flags = true;
@@ -105,11 +105,11 @@ void Zax_t::afl_instrument_bb(BasicBlock_t *p_bb, const bool p_honorRedZone, con
 	// most desireable position in the instrumentation.
 	if (m_use_stars) 
 	{
-		auto regset = get_dead_regs(instr, m_stars_analysis_engine.getAnnotations());
+		auto regset = getDeadRegs(instr, m_stars_analysis_engine.getAnnotations());
 		live_flags = regset.find(IRDB_SDK::rn_EFLAGS)==regset.end();
 		const auto allowed_regs = RegisterSet_t({rn_RAX, rn_RBX, rn_RCX, rn_RDX, rn_R8, rn_R9, rn_R10, rn_R11, rn_R12, rn_R13, rn_R14, rn_R15});
 
-		auto free_regs = get_free_regs(regset, allowed_regs);
+		auto free_regs = getFreeRegs(regset, allowed_regs);
 
 		for (auto r : regset)
 		{
@@ -201,8 +201,8 @@ void Zax_t::afl_instrument_bb(BasicBlock_t *p_bb, const bool p_honorRedZone, con
 		};
 
 	// get some IDs which we can use as to generate custom labels
-	const auto blockid = get_blockid();
-	const auto labelid = get_labelid(); 
+	const auto blockid = getBlockId();
+	const auto labelid = getLabelId(); 
 
 	if (m_verbose)
 	{

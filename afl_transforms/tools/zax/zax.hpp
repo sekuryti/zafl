@@ -18,11 +18,11 @@ namespace Zafl
 		virtual ~Zax_t() {};
 
 	protected:
-		virtual zafl_blockid_t get_blockid(const unsigned p_maxid=0xFFFF);
-		virtual void afl_instrument_bb(BasicBlock_t *p_bb, const bool p_hasLeafAnnotation, const bool p_collafl_optimization=false);
+		virtual ZaflBlockId_t getBlockId(const unsigned p_maxid=0xFFFF);
+		virtual void instrumentBasicBlock(BasicBlock_t *p_bb, const bool p_hasLeafAnnotation, const bool p_collafl_optimization=false);
 
 	private:
-		set<zafl_blockid_t>   m_used_blockid;  // internal bookkeeping to keep track of used block ids
+		set<ZaflBlockId_t>   m_used_blockid;  // internal bookkeeping to keep track of used block ids
 	};
 
 } 
