@@ -12,24 +12,21 @@ namespace Zafl
 	//
 	class CriticalEdgeBreaker_t
 	{
-	  public:
-		// explicitly disable default and copy constructors
-		CriticalEdgeBreaker_t(IRDB_SDK::FileIR_t *p_variantIR, const bool p_verbose=false);
-		unsigned getNumberExtraNodes() const;
+		public:
+			CriticalEdgeBreaker_t(FileIR_t *p_variantIR, const bool p_verbose=false);
+			unsigned getNumberExtraNodes() const;
 
-	  protected:
-		void breakCriticalEdges();
+		protected:
+			void breakCriticalEdges();
 
-	  private:
-		unsigned breakCriticalEdges(IRDB_SDK::Function_t*);
+		private:
+			unsigned breakCriticalEdges(Function_t*);
 
-	  private:
-		FileIR_t*  m_IR;
-		const bool          m_verbose;
-		unsigned            m_extra_nodes;
+		private:
+			FileIR_t*    m_IR;
+			const bool   m_verbose;
+			unsigned     m_extra_nodes;
 	};
-
-
 } 
 
 #endif

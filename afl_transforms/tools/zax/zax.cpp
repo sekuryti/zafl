@@ -21,15 +21,6 @@
  * E-mail: jwd@zephyr-software.com
  **************************************************************************/
 
-#include <stdlib.h>
-#include <string.h> 
-#include <algorithm>
-#include <cctype>
-#include <sstream>
-#include <irdb-cfg>
-#include <irdb-transform>
-#include <irdb-elfdep>
-
 #include "zax.hpp"
 
 using namespace std;

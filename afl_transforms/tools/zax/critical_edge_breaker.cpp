@@ -23,7 +23,6 @@
 
 #include <irdb-cfg>
 #include <irdb-transform>
-
 #include "critical_edge_breaker.hpp"
 
 using namespace std;
@@ -60,11 +59,9 @@ void CriticalEdgeBreaker_t::breakCriticalEdges()
 //        
 unsigned CriticalEdgeBreaker_t::breakCriticalEdges(Function_t* p_func)
 {
-//	ControlFlowGraph_t cfg(p_func);
 	auto cfgp = ControlFlowGraph_t::factory(p_func);
 	auto &cfg = *cfgp;
 
-//	const CriticalEdgeAnalyzer_t cea(cfg, false);
 	auto ceap = CriticalEdges_t::factory(cfg, false);
 	auto &cea = *ceap;
 	
@@ -91,12 +88,10 @@ unsigned CriticalEdgeBreaker_t::breakCriticalEdges(Function_t* p_func)
 
 		if (source_block->endsInConditionalBranch())
 		{
-			// const auto fileID = last_instruction_in_source_block->getAddress()->getFileID();
 			const auto func = last_instruction_in_source_block->getFunction();
 
 			if (last_instruction_in_source_block->getTarget() == first_instruction_in_target_block)
 			{
-				//auto jmp = IRDBUtility::allocateNewInstruction(m_IR, fileID, func);
 				auto jmp=m_IR->addNewInstruction(nullptr,func);	
 				setInstructionAssembly(m_IR, jmp, "jmp 0", nullptr, first_instruction_in_target_block);
 				jmp->setComment("break_critical_edge_jmp");
@@ -106,7 +101,6 @@ unsigned CriticalEdgeBreaker_t::breakCriticalEdges(Function_t* p_func)
 			}
 			else if (last_instruction_in_source_block->getFallthrough() == first_instruction_in_target_block)
 			{
-				// auto jmp = IRDBUtility::allocateNewInstruction(m_IR, fileID, func);
 				auto jmp=m_IR->addNewInstruction(nullptr,func);	
 				setInstructionAssembly(m_IR, jmp, "jmp 0", nullptr, first_instruction_in_target_block);
 				jmp->setComment("break_critical_edge_fallthrough");
@@ -121,7 +115,6 @@ unsigned CriticalEdgeBreaker_t::breakCriticalEdges(Function_t* p_func)
 	if (m_verbose)
 	{
 		cout << "Number critical edge instrumented: " << num_critical_edges_instrumented << endl;
-//		ControlFlowGraph_t post_cfg(p_func);
 		auto post_cfgp = ControlFlowGraph_t::factory(p_func);
 		auto &post_cfg = *post_cfgp;
 		m_IR->assembleRegistry();

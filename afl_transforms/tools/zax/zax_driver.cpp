@@ -23,8 +23,6 @@
 
 #include <stdlib.h>
 #include <getopt.h>
-#include <time.h>
-#include <sys/types.h>
 #include <unistd.h>
 
 #include "zax.hpp"
