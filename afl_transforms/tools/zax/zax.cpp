@@ -330,7 +330,7 @@ void Zax_t::afl_instrument_bb(Instruction_t *p_inst, const bool p_honorRedZone, 
 	if (m_use_stars) 
 	{
 		auto regset = get_dead_regs(p_inst, m_stars_analysis_engine.getAnnotations());
-		live_flags = regset.find(MEDS_Annotation::rn_EFLAGS)==regset.end();
+		live_flags = regset.find(IRDB_SDK::rn_EFLAGS)==regset.end();
 		const auto allowed_regs = RegisterSet_t({rn_RAX, rn_RBX, rn_RCX, rn_RDX, rn_R8, rn_R9, rn_R10, rn_R11, rn_R12, rn_R13, rn_R14, rn_R15});
 
 		auto free_regs = get_free_regs(regset, allowed_regs);
