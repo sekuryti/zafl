@@ -43,7 +43,7 @@ Zax_t::Zax_t(IRDB_SDK::pqxxDB_t &p_dbinterface, IRDB_SDK::FileIR_t *p_variantIR,
 
 /*
  * Return random block id
- * Try to avoid duplicate ids
+ * Try 100x to avoid duplicate ids
  */
 zafl_blockid_t Zax_t::get_blockid(const unsigned p_max) 
 {
