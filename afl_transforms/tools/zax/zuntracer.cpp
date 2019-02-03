@@ -4,17 +4,8 @@
 using namespace Zafl;
 using namespace MEDS_Annotation;
 
-ZUntracer_t::ZUntracer_t(IRDB_SDK::pqxxDB_t &p_dbinterface, IRDB_SDK::FileIR_t *p_variantIR, string p_forkServerEntryPoint, set<string> p_exitPoints, bool p_use_stars, bool p_autozafl, bool p_verbose) : Zax_t(p_dbinterface, p_variantIR, p_forkServerEntryPoint, p_exitPoints, p_use_stars, p_autozafl, p_verbose)
+ZUntracer_t::ZUntracer_t(IRDB_SDK::pqxxDB_t &p_dbinterface, IRDB_SDK::FileIR_t *p_variantIR, string p_forkServerEntryPoint, set<string> p_exitPoints, bool p_use_stars, bool p_autozafl) : ZaxBase_t(p_dbinterface, p_variantIR, p_forkServerEntryPoint, p_exitPoints, p_use_stars, p_autozafl)
 {
-	m_blockid = 0;
-}
-
-zafl_blockid_t ZUntracer_t::get_blockid(const unsigned p_max) 
-{
-//	assert (m_blockid < p_max);
-//	@todo: issue warning when wrapping around
-	m_blockid = (m_blockid+1) % p_max;
-	return m_blockid;
 }
 
 void ZUntracer_t::afl_instrument_bb(Instruction_t *p_inst, const bool p_redZoneHint, const bool p_collafl_optimization)
@@ -170,13 +161,8 @@ set<BasicBlock_t*> ZUntracer_t::getBlocksToInstrument(ControlFlowGraph_t &cfg)
 			continue;
  
 		// if whitelist specified, only allow instrumentation for functions/addresses in whitelist
-		if (m_whitelist.size() > 0) 
-		{
-			if (!isWhitelisted(bb->getInstructions()[0]))
-			{
-				continue;
-			}
-		}
+		if (!isWhitelisted(bb->getInstructions()[0]))
+			continue;
 
 		if (isBlacklisted(bb->getInstructions()[0]))
 			continue;
@@ -247,6 +233,6 @@ int ZUntracer_t::execute()
 		getFileIR()->assembleRegistry();
 	}
 
-	return Zax_t::execute();
+	return ZaxBase_t::execute();
 }
 

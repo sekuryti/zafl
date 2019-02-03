@@ -188,16 +188,19 @@ int main(int argc, char **argv)
 
 		try
 		{
-			auto zax_raw=
-				  untracer_mode ?  new ZUntracer_t(*pqxx_interface, firp.get(), entry_fork_server, exitpoints, use_stars, autozafl, verbose) : 
-						   new Zax_t(*pqxx_interface, firp.get(), entry_fork_server, exitpoints, use_stars, autozafl, verbose);
-			auto zax=unique_ptr<Zax_t>(zax_raw);
+			ZaxBase_t* zax_raw;
+			if (untracer_mode)
+				  zax_raw = new ZUntracer_t(*pqxx_interface, firp.get(), entry_fork_server, exitpoints, use_stars, autozafl);
+			else
+				  zax_raw = new Zax_t(*pqxx_interface, firp.get(), entry_fork_server, exitpoints, use_stars, autozafl);
+			auto zax = unique_ptr<ZaxBase_t>(zax_raw);
 
 			if (whitelistFile.size()>0)
 				zax->setWhitelist(whitelistFile);
 			if (blacklistFile.size()>0)
 				zax->setBlacklist(blacklistFile);
 
+			zax->setVerbose(verbose);
 			zax->setBasicBlockOptimization(bb_graph_optimize);
 			zax->setEnableForkServer(forkserver_enabled);
 			zax->setBreakupCriticalEdges(breakup_critical_edges);
