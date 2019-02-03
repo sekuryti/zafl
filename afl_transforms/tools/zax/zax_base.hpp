@@ -38,18 +38,19 @@ namespace Zafl
 			void setBlacklist(const string& p_filename); 
 			void setVerbose(bool); 
 			void setBasicBlockOptimization(bool);
+			void setBasicBlockFloatingInstrumentation(bool);
 			void setEnableForkServer(bool);
 			void setBreakupCriticalEdges(bool);
 
 		protected:
 			ZaxBase_t(pqxxDB_t &p_dbinterface, FileIR_t *p_variantIR, string p_entry, set<string> p_exits, bool p_use_stars=false, bool p_autozafl=false);
 
-			virtual void afl_instrument_bb(Instruction_t *inst, const bool p_hasLeafAnnotation, const bool p_collafl_optimization=false) = 0;
+			virtual void afl_instrument_bb(BasicBlock_t *p_bb, const bool p_hasLeafAnnotation, const bool p_collafl_optimization=false) = 0;
 
 			virtual zafl_blockid_t get_blockid(const unsigned p_maxid=0xFFFF);
 			virtual zafl_labelid_t get_labelid(const unsigned p_maxid=0xFFFF);
-			virtual set<BasicBlock_t*> getBlocksToInstrument(ControlFlowGraph_t &cfg);
-			virtual Instruction_t* getInstructionToInstrument(const BasicBlock_t *p_bb);
+			virtual set<BasicBlock_t*> getBlocksToInstrument(ControlFlowGraph_t &);
+			virtual Instruction_t* getInstructionToInstrument(const BasicBlock_t *, const unsigned p_num_free_regs_desired = 0);
 			virtual void setup();
 			virtual void teardown();
 			virtual void dumpAttributes();
@@ -64,8 +65,10 @@ namespace Zafl
 			bool isWhitelisted(const Function_t*) const;
 			bool isBlacklisted(const Instruction_t*) const;
 			bool isWhitelisted(const Instruction_t*) const;
-			bool BB_isPushJmp(const BasicBlock_t *p_bb) const;
-			bool BB_isPaddingNop(const BasicBlock_t *p_bb) const;
+			bool BB_isPushJmp(const BasicBlock_t *) const;
+			bool BB_isPaddingNop(const BasicBlock_t *) const;
+
+			bool getBasicBlockFloatingInstrumentation() const;
 
 		protected:
 			pqxxDB_t&                 m_dbinterface;
@@ -76,6 +79,7 @@ namespace Zafl
 			bool                      m_bb_graph_optimize;  // skip basic blocks based on graph
 			bool                      m_forkserver_enabled; // fork server enabled?
 			bool                      m_breakupCriticalEdges;
+			bool                      m_bb_float_instrumentation;  // skip basic blocks based on graph
 			bool                      m_verbose;
 
 			pair<DataScoop_t*,int>    m_trace_map;  // afl shared memory trace map
@@ -95,6 +99,8 @@ namespace Zafl
 			unsigned m_num_bb_skipped_onlychild;
 			unsigned m_num_bb_keep_exit_block;
 			unsigned m_num_bb_keep_cbranch_back_edge;
+			unsigned m_num_bb_float_instrumentation;
+			unsigned m_num_bb_float_regs_saved;
 			unsigned m_num_style_collafl;
 
 		private:

@@ -74,10 +74,8 @@ zafl_blockid_t Zax_t::get_blockid(const unsigned p_max)
 	        zafl_trace_bits[block_id]++;
 		zafl_prev_id = block_id >> 1;     
 */
-void Zax_t::afl_instrument_bb(Instruction_t *p_inst, const bool p_honorRedZone, const bool p_collafl_optimization)
+void Zax_t::afl_instrument_bb(BasicBlock_t *p_bb, const bool p_honorRedZone, const bool p_collafl_optimization)
 {
-	assert(p_inst);
-
 	char buf[8192];
 	auto live_flags = true;
 	char *reg_temp = NULL;
@@ -93,17 +91,21 @@ void Zax_t::afl_instrument_bb(Instruction_t *p_inst, const bool p_honorRedZone, 
 	const auto trace_map_fixed_addr       = getenv("ZAFL_TRACE_MAP_FIXED_ADDRESS");
 	const auto do_fixed_addr_optimization = (trace_map_fixed_addr!=nullptr);
 
+	const auto num_free_regs_desired = 3;
+	auto instr = getInstructionToInstrument(p_bb, num_free_regs_desired);
+	if (!instr) throw;
+
 	// don't try to reserve the trace_map reg if we aren't using it.
 	if(do_fixed_addr_optimization)  
 		save_trace_map=false;
 
-	block_record.push_back(p_inst);
+	block_record.push_back(instr);
 
 	// If we are using stars, try to assign rax, rcx, and rdx to their 
 	// most desireable position in the instrumentation.
 	if (m_use_stars) 
 	{
-		auto regset = get_dead_regs(p_inst, m_stars_analysis_engine.getAnnotations());
+		auto regset = get_dead_regs(instr, m_stars_analysis_engine.getAnnotations());
 		live_flags = regset.find(IRDB_SDK::rn_EFLAGS)==regset.end();
 		const auto allowed_regs = RegisterSet_t({rn_RAX, rn_RBX, rn_RCX, rn_RDX, rn_R8, rn_R9, rn_R10, rn_R11, rn_R12, rn_R13, rn_R14, rn_R15});
 
@@ -182,7 +184,7 @@ void Zax_t::afl_instrument_bb(Instruction_t *p_inst, const bool p_honorRedZone, 
 	// others use insertAssemblyAfter.
 	// we declare a macro-like lambda function to do the lifting for us.
 	auto inserted_before = false;
-	auto tmp = p_inst;
+	auto tmp = instr;
 	const auto do_insert=[&](const string& insn_str) -> void
 		{
 			if (inserted_before)
@@ -204,9 +206,9 @@ void Zax_t::afl_instrument_bb(Instruction_t *p_inst, const bool p_honorRedZone, 
 
 	if (m_verbose)
 	{
-		cout << "labelid: " << labelid << " baseid: " << p_inst->getBaseID() << " address: 0x" 
-		     << hex << p_inst->getAddress()->getVirtualOffset() << dec << " instruction: " 
-		     << p_inst->getDisassembly();
+		cout << "labelid: " << labelid << " baseid: " << instr->getBaseID() << " address: 0x" 
+		     << hex << instr->getAddress()->getVirtualOffset() << dec << " instruction: " 
+		     << instr->getDisassembly();
 	}
 
 	// Emit the instrumentation register-saving phase.

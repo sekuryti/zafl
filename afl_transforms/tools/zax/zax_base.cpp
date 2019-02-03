@@ -142,8 +142,6 @@ ZaxBase_t::ZaxBase_t(IRDB_SDK::pqxxDB_t &p_dbinterface, IRDB_SDK::FileIR_t *p_va
 		(void)ed->prependLibraryDepedencies("libzafl.so");
 	}
 
-	m_verbose = false;
-
 	// bind to external symbols declared in libzafl.so
 	m_plt_zafl_initAflForkServer=ed->appendPltEntry("zafl_initAflForkServer");
 	m_trace_map = ed->appendGotEntry("zafl_trace_map");
@@ -181,9 +179,13 @@ ZaxBase_t::ZaxBase_t(IRDB_SDK::pqxxDB_t &p_dbinterface, IRDB_SDK::FileIR_t *p_va
 	m_blacklist.insert("argp_error");
 	m_blacklist.insert("argp_parse");
 
+	m_verbose = false;
+	m_bb_float_instrumentation = false;
+
 	m_labelid = 0;
 	m_blockid = 0;
 
+	// stats
 	m_num_bb = 0;
 	m_num_bb_instrumented = 0;
 	m_num_bb_skipped = 0;
@@ -195,6 +197,8 @@ ZaxBase_t::ZaxBase_t(IRDB_SDK::pqxxDB_t &p_dbinterface, IRDB_SDK::FileIR_t *p_va
 	m_num_bb_keep_exit_block = 0;
 	m_num_bb_keep_cbranch_back_edge = 0;
 	m_num_style_collafl = 0;
+	m_num_bb_float_instrumentation = 0;
+	m_num_bb_float_regs_saved = 0;
 }
 
 void ZaxBase_t::setVerbose(bool p_verbose)
@@ -205,6 +209,9 @@ void ZaxBase_t::setVerbose(bool p_verbose)
 void ZaxBase_t::setBasicBlockOptimization(bool p_bb_graph_optimize) 
 {
 	m_bb_graph_optimize = p_bb_graph_optimize;
+	m_bb_graph_optimize ?
+		cout << "enable basic block optimization" << endl :
+		cout << "disable basic block optimization" << endl;
 }
 
 void ZaxBase_t::setEnableForkServer(bool p_forkserver_enabled) 
@@ -215,6 +222,22 @@ void ZaxBase_t::setEnableForkServer(bool p_forkserver_enabled)
 void ZaxBase_t::setBreakupCriticalEdges(bool p_breakupEdges)
 {
 	m_breakupCriticalEdges = p_breakupEdges;
+	m_breakupCriticalEdges ?
+		cout << "enable breaking of critical edges" << endl :
+		cout << "disable breaking of critical edges" << endl;
+}
+
+void ZaxBase_t::setBasicBlockFloatingInstrumentation(bool p_float)
+{
+	m_bb_float_instrumentation = p_float;
+	m_bb_float_instrumentation ?
+		cout << "enable floating instrumentation" << endl :
+		cout << "disable floating instrumentation" << endl;
+}
+
+bool ZaxBase_t::getBasicBlockFloatingInstrumentation() const
+{
+	return m_bb_float_instrumentation;
 }
 
 /*
@@ -577,10 +600,72 @@ set<BasicBlock_t*> ZaxBase_t::getBlocksToInstrument(ControlFlowGraph_t &cfg)
 }
 
 // by default, return the first instruction in block
-Instruction_t* ZaxBase_t::getInstructionToInstrument(const BasicBlock_t *p_bb)
+Instruction_t* ZaxBase_t::getInstructionToInstrument(const BasicBlock_t *p_bb, const unsigned p_num_free_regs_desired)
 {
-	if (!p_bb) return nullptr;
-	return p_bb->getInstructions()[0];
+	if (!p_bb) 
+		return nullptr;
+
+	const auto first_instruction = p_bb->getInstructions()[0];
+
+	// no STARS (i.e., no dead reg annotations)
+	// or floating instrumentation turned off
+	if (!getBasicBlockFloatingInstrumentation() || !m_use_stars)
+	{
+		for (auto i : p_bb->getInstructions())
+		{
+			if (i->getBaseID())
+				return i;
+		}
+
+		// fallback: return the first instruction
+		return first_instruction;
+	}
+
+	// scan basic block looking for instruction with requested number of free regs
+	const auto allowed_regs = RegisterSet_t({rn_RAX, rn_RBX, rn_RCX, rn_RDX, rn_R8, rn_R9, rn_R10, rn_R11, rn_R12, rn_R13, rn_R14, rn_R15});
+	auto ap = m_stars_analysis_engine.getAnnotations();
+	auto best_i = first_instruction;
+	auto max_free_regs = 0U;
+	auto num_free_regs_best_i = 0U;
+	auto num_free_regs_first_instruction = 0U;
+
+	for (auto i : p_bb->getInstructions())
+	{
+		const auto dead_regs = get_dead_regs(i, ap);
+		const auto num_free_regs = get_free_regs(dead_regs, allowed_regs).size();
+
+		if (i == first_instruction)
+			num_free_regs_first_instruction = num_free_regs;
+
+		if (num_free_regs >= p_num_free_regs_desired)
+		{
+			// found instruction with requested number of free registers
+			m_num_bb_float_instrumentation++;
+			if (i != first_instruction)
+			{
+				const auto num_saved = std::max(static_cast<long unsigned>(p_num_free_regs_desired), num_free_regs) - num_free_regs_first_instruction;
+				m_num_bb_float_regs_saved += num_saved;
+			}
+			return i;
+		}
+
+		// keep track of the best thus far
+		if (num_free_regs > max_free_regs)
+		{
+			max_free_regs = num_free_regs;
+			best_i = i;
+			num_free_regs_best_i = num_free_regs;
+		}
+	}
+
+	if (best_i != first_instruction) 
+	{
+		const auto num_saved = std::max(p_num_free_regs_desired, num_free_regs_best_i) - num_free_regs_first_instruction;
+		m_num_bb_float_regs_saved += num_saved;
+		m_num_bb_float_instrumentation++;
+	}
+
+	return best_i;
 }
 
 /*
@@ -656,9 +741,7 @@ int ZaxBase_t::execute()
 
 			}
 
-			auto instruction = getInstructionToInstrument(bb);
-			if (instruction)
-				afl_instrument_bb(instruction, leafAnnotation, collAflSingleton);
+			afl_instrument_bb(bb, leafAnnotation, collAflSingleton);
 		}
 
 		m_num_bb_instrumented += keepers.size();
@@ -686,6 +769,8 @@ void ZaxBase_t::dumpAttributes()
 	cout << "#ATTRIBUTE num_bb_skipped=" << m_num_bb_skipped << endl;
 	cout << "#ATTRIBUTE num_bb_skipped_pushjmp=" << m_num_bb_skipped_pushjmp << endl;
 	cout << "#ATTRIBUTE num_bb_skipped_nop_padding=" << m_num_bb_skipped_nop_padding << endl;
+	cout << "#ATTRIBUTE num_bb_float_instrumentation=" << m_num_bb_float_instrumentation << endl;
+	cout << "#ATTRIBUTE num_bb_float_register_saved=" << m_num_bb_float_regs_saved << endl;
 	cout << "#ATTRIBUTE graph_optimize=" << boolalpha << m_bb_graph_optimize << endl;
 	if (m_bb_graph_optimize)
 	{

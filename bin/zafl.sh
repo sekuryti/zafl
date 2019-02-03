@@ -19,19 +19,21 @@ usage()
 	echo "zafl.sh <input_binary> <output_zafl_binary> [options]"
 	echo 
 	echo "options:"
-	echo "     -s, --stars                            Use STARS (default)"
-	echo "     -S, --no-stars                         Do not use STARS"
-	echo "     -g, --graph-optimization               Use basic block graph optimizations"
-	echo "     -G, --no-graph-optimization            Do not use basic block graph optimizations (default)"
-	echo "     -t, --tempdir                          Specify location of analysis directory"
-	echo "     -e, --entry                            Specify fork server entry point"
-	echo "     -E, --exit                             Specify fork server exit point(s)"
-	echo "     -u, --untracer                         Specify untracer instrumentation"
-	echo "     -c, --enable-breakup-critical-edges    Breakup critical edges"
-	echo "     -C, --disable-breakup-critical-edges   Do not breakup critical edges"
-	echo "     -f, --fork-server-only                 Fork server only"
-	echo "     -m, --enable-fixed-map [<address>]     Use fixed address for tracing map (<address> must be hex and page-aligned, e.g., 0x10000)"
-	echo "     -M, --disable-fixed-map                Disable fixed address tracing map (default)"
+	echo "     -s, --stars                             Use STARS (default)"
+	echo "     -S, --no-stars                          Do not use STARS"
+	echo "     -g, --graph-optimization                Use basic block graph optimizations"
+	echo "     -G, --no-graph-optimization             Do not use basic block graph optimizations (default)"
+	echo "     -t, --tempdir                           Specify location of analysis directory"
+	echo "     -e, --entry                             Specify fork server entry point"
+	echo "     -E, --exit                              Specify fork server exit point(s)"
+	echo "     -u, --untracer                          Specify untracer instrumentation"
+	echo "     -c, --enable-breakup-critical-edges     Breakup critical edges"
+	echo "     -C, --disable-breakup-critical-edges    Do not breakup critical edges"
+	echo "     -f, --fork-server-only                  Fork server only"
+	echo "     -m, --enable-fixed-map [<address>]      Use fixed address for tracing map (<address> must be hex and page-aligned, e.g., 0x10000)"
+	echo "     -M, --disable-fixed-map                 Disable fixed address tracing map (default)"
+	echo "     -i, --enable-floating-instrumentation   Select best instrumentation point within basic block (default)"
+	echo "     -I, --disable-floating-instrumentation  Use first instruction for instrumentation in basic blocks"
 	echo 
 }
 
@@ -39,6 +41,7 @@ ida_or_rida_opt=" -s meds_static=off -s rida=on "
 stars_opt=" -o zax:--stars "
 zax_opt=" "
 other_args=""
+float_opt=" -o zax:--enable-floating-instrumentation "
 
 me=$(whoami)
 tmp_dir=/tmp/${me}/$$
@@ -164,6 +167,14 @@ parse_args()
 				ZAFL_TM_ENV=""
 				shift
 				;;
+			-i | --enable-floating-instrumentation)
+				float_opt= " -o zax:--enable-floating-instrumentation "
+				shift
+				;;
+			-I | --disable-floating-instrumentation)
+				float_opt= " -o zax:--disable-floating-instrumentation "
+				shift
+				;;
 			-*|--*=) # unsupported flags
 				echo "Error: Unsupported flag $1" >&2
 				exit 1
@@ -271,6 +282,7 @@ log_msg "Transforming input binary $input_binary into $output_zafl_binary"
 
 #cmd="$PSZ $input_binary $output_zafl_binary $ida_or_rida_opt -c move_globals=on -c zax=on -o move_globals:--elftables-only -o zipr:--traceplacement:on $stars_opt $zax_opt $verbose_opt $options $other_args"
 
+zax_opt=" $zax_opt $float_opt "
 cmd="$ZAFL_TM_ENV $PSZ $input_binary $output_zafl_binary $ida_or_rida_opt -c move_globals=on -c zax=on -o move_globals:--elftables-only $stars_opt $zax_opt $verbose_opt $options $other_args"
 
 if [ ! -z "$ZAFL_TM_ENV" ]; then

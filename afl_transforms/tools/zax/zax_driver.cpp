@@ -50,6 +50,8 @@ static void usage(char* name)
 	cerr<<"\t[--untracer|-u]                                Untracer-style block-coverage instrumentation"<<endl;
 	cerr<<"\t[--enable-critical-edge-breakup|-c]            Breakup critical edges"<<endl;
 	cerr<<"\t[--disable-critical-edge-breakup|-C]           Do not breakup critical edges (default)"<<endl;
+	cerr<<"\t[--enable-floating-instrumentation|-i]         Select best instrumentation within basic block"<<endl;
+	cerr<<"\t[--disable-floating-instrumentation|-I]        Instrument firt instruction in basic blocks"<<endl;
 }
 
 int main(int argc, char **argv)
@@ -72,6 +74,7 @@ int main(int argc, char **argv)
 	auto forkserver_enabled=true;
 	auto untracer_mode=false;
 	auto breakup_critical_edges=false;
+	auto floating_instrumentation=false;
 	set<string> exitpoints;
 
 	srand(getpid()+time(NULL));
@@ -94,9 +97,11 @@ int main(int argc, char **argv)
 		{"untracer", no_argument, 0, 'u'},
 		{"enable-critical-edge-breakup", no_argument, 0, 'c'},
 		{"disable-critical-edge-breakup", no_argument, 0, 'C'},
+		{"enable-floating-instrumentation", no_argument, 0, 'i'},
+		{"disable-floating-instrumentation", no_argument, 0, 'I'},
 		{0,0,0,0}
 	};
-	const char* short_opts="e:E:w:sv?hagGfFucC";
+	const char* short_opts="e:E:w:sv?hagGfFucCiI";
 
 	while(true)
 	{
@@ -154,6 +159,12 @@ int main(int argc, char **argv)
 		case 'C':
 			breakup_critical_edges=false;
 			break;
+		case 'i':
+			floating_instrumentation=true;
+			break;
+		case 'I':
+			floating_instrumentation=false;
+			break;
 		default:
 			break;
 		}
@@ -162,6 +173,13 @@ int main(int argc, char **argv)
 	if (entry_fork_server.size() > 0 && autozafl)
 	{
 		cerr << "--entrypoint and --autozafl are incompatible options" << endl;
+		usage(argv[0]);
+		exit(1);
+	}
+
+	if (floating_instrumentation && !use_stars)
+	{
+		cerr << "STARS must be turned on when using floating instrumentation" << endl;
 		usage(argv[0]);
 		exit(1);
 	}
@@ -202,6 +220,7 @@ int main(int argc, char **argv)
 
 			zax->setVerbose(verbose);
 			zax->setBasicBlockOptimization(bb_graph_optimize);
+			zax->setBasicBlockFloatingInstrumentation(floating_instrumentation);
 			zax->setEnableForkServer(forkserver_enabled);
 			zax->setBreakupCriticalEdges(breakup_critical_edges);
 

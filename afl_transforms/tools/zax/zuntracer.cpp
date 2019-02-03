@@ -8,36 +8,40 @@ ZUntracer_t::ZUntracer_t(IRDB_SDK::pqxxDB_t &p_dbinterface, IRDB_SDK::FileIR_t *
 {
 }
 
-void ZUntracer_t::afl_instrument_bb(Instruction_t *p_inst, const bool p_redZoneHint, const bool p_collafl_optimization)
+void ZUntracer_t::afl_instrument_bb(BasicBlock_t *p_bb, const bool p_redZoneHint, const bool p_collafl_optimization)
 {
-	assert(p_inst);
+	if (!p_bb) throw;
 
 	const auto trace_map_fixed_addr       = getenv("ZAFL_TRACE_MAP_FIXED_ADDRESS");
 	const auto do_fixed_addr_optimization = (trace_map_fixed_addr!=nullptr);
 
 	if (do_fixed_addr_optimization)
-		_afl_instrument_bb_fixed(p_inst, trace_map_fixed_addr);
+		_afl_instrument_bb_fixed(p_bb, trace_map_fixed_addr);
 	else
-		_afl_instrument_bb(p_inst, p_redZoneHint);
+		_afl_instrument_bb(p_bb, p_redZoneHint);
 }
 
-void ZUntracer_t::_afl_instrument_bb_fixed(Instruction_t *p_inst, char* p_tracemap_addr)
+// Highly efficient instrumentation using known address for tracemap
+void ZUntracer_t::_afl_instrument_bb_fixed(BasicBlock_t *p_bb, char* p_tracemap_addr)
 {
-	// 1st instruction in block record is the new entry point of the block (p_inst)
+	// 1st instruction in block record is the new entry point of the block (instr)
 	// 2nd instruction in block record is where the instruction at the old entry point is now at (orig)
+	auto instr = getInstructionToInstrument(p_bb);
+	if (!instr) throw;
+
 	const auto blockid = get_blockid();
 	BBRecord_t block_record;
-	block_record.push_back(p_inst);
+	block_record.push_back(instr);
 
 	// e.g.: mov BYTE [ 0x10000 + blockid ], 0x1
 	const auto s = string("mov BYTE [") + p_tracemap_addr + "+" + to_string(blockid) + "], 0x1";
-	const auto orig = insertAssemblyBefore(p_inst, s);
+	const auto orig = insertAssemblyBefore(instr, s);
 	block_record.push_back(orig);
 
 	m_modifiedBlocks[blockid] = block_record;
 }
 
-void ZUntracer_t::_afl_instrument_bb(Instruction_t *p_inst, const bool p_redZoneHint)
+void ZUntracer_t::_afl_instrument_bb(BasicBlock_t *p_bb, const bool p_redZoneHint)
 {
 	/*
 	Original afl instrumentation:
@@ -49,15 +53,19 @@ void ZUntracer_t::_afl_instrument_bb(Instruction_t *p_inst, const bool p_redZone
 		zafl_trace_bits[block_id] = 1;
 	*/
 
-	auto tmp = p_inst;
+	const auto num_free_regs_desired = 1;
+	auto instr = getInstructionToInstrument(p_bb, num_free_regs_desired);
+	if (!instr) throw;
+
+	auto tmp = instr;
 	auto tracemap_reg = string();
 	auto found_tracemap_free_register = false;
 
-	// 1st instruction in block record is the new entry point of the block (p_inst)
+	// 1st instruction in block record is the new entry point of the block (instr)
 	// 2nd instruction in block record is where the instruction at the old entry point is now at (orig)
 	BBRecord_t block_record;
 
-	block_record.push_back(p_inst);
+	block_record.push_back(instr);
 	
 	const auto blockid = get_blockid();
 	const auto labelid = get_labelid(); 
@@ -68,7 +76,7 @@ void ZUntracer_t::_afl_instrument_bb(Instruction_t *p_inst, const bool p_redZone
 	if (m_use_stars) 
 	{
 		const auto allowed_regs = RegisterSet_t({rn_RAX, rn_RBX, rn_RCX, rn_RDX, rn_R8, rn_R9, rn_R10, rn_R11, rn_R12, rn_R13, rn_R14, rn_R15});
-		const auto dead_regs = get_dead_regs(p_inst, m_stars_analysis_engine.getAnnotations());
+		const auto dead_regs = get_dead_regs(instr, m_stars_analysis_engine.getAnnotations());
 		const auto free_regs = get_free_regs(dead_regs, allowed_regs);
 		if (free_regs.size() > 0)
 		{

@@ -19,12 +19,12 @@ namespace Zafl
 			virtual int execute();
 
 		protected:
-			virtual void afl_instrument_bb(Instruction_t *p_inst, const bool p_hasLeafAnnotation, const bool p_collafl_optimization=false);
-			virtual set<BasicBlock_t*> getBlocksToInstrument(ControlFlowGraph_t &cfg);
+			virtual void afl_instrument_bb(BasicBlock_t*, const bool p_hasLeafAnnotation, const bool p_collafl_optimization=false);
+			virtual set<BasicBlock_t*> getBlocksToInstrument(ControlFlowGraph_t&);
 
 		private:
-			void _afl_instrument_bb_fixed(Instruction_t *p_inst, char* p_tracemap_addr);
-			void _afl_instrument_bb(Instruction_t *p_inst, const bool p_redZoneHint);
+			void _afl_instrument_bb_fixed(BasicBlock_t*, char* p_tracemap_addr);
+			void _afl_instrument_bb(BasicBlock_t*, const bool p_redZoneHint);
 	};
 
 } 
