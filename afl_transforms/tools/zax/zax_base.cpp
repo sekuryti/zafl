@@ -26,18 +26,17 @@
 #include <algorithm>
 #include <cctype>
 #include <sstream>
+#include <fstream>
 #include <irdb-cfg>
 #include <irdb-transform>
 #include <irdb-elfdep>
-#include <MEDS_DeadRegAnnotation.hpp>
-#include <MEDS_SafeFuncAnnotation.hpp>
+#include <irdb-deep>
 
 #include "zax_base.hpp"
 
 using namespace std;
 using namespace IRDB_SDK;
 using namespace Zafl;
-using namespace MEDS_Annotation;
 
 #define ALLOF(a) begin(a),end(a)
 
@@ -46,8 +45,13 @@ void create_got_reloc(FileIR_t* fir, pair<DataScoop_t*,int> wrt, Instruction_t* 
 	(void)fir->addNewRelocation(i,wrt.second, "pcrel", wrt.first);
 }
 
-RegisterSet_t getDeadRegs(Instruction_t* insn, MEDS_AnnotationParser &meds_ap_param)
+RegisterSet_t ZaxBase_t::getDeadRegs(Instruction_t* insn) const
 {
+	auto it = dead_registers -> find(insn);
+	if(it != dead_registers->end())
+		return it->second;
+        return RegisterSet_t();
+#if 0
         std::pair<MEDS_Annotations_t::iterator,MEDS_Annotations_t::iterator> ret;
 
         /* find it in the annotations */
@@ -70,19 +74,23 @@ RegisterSet_t getDeadRegs(Instruction_t* insn, MEDS_AnnotationParser &meds_ap_pa
 
         /* couldn't find the annotation, return an empty set.*/
         return RegisterSet_t();
+#endif
 }
 
 // return intersection of candidates and allowed general-purpose registers
-RegisterSet_t getFreeRegs(const RegisterSet_t candidates, const RegisterSet_t allowed)
+RegisterSet_t ZaxBase_t::getFreeRegs(const RegisterSet_t& candidates, const RegisterSet_t& allowed) const
 {
-	std::set<RegisterName> free_regs;
+	RegisterIDSet_t free_regs;
 	set_intersection(candidates.begin(),candidates.end(),allowed.begin(),allowed.end(),
                   std::inserter(free_regs,free_regs.begin()));
 	return free_regs;
 }
 
-static bool hasLeafAnnotation(Function_t* fn, MEDS_AnnotationParser &meds_ap_param)
+bool ZaxBase_t::hasLeafAnnotation(Function_t* fn) const
 {
+	auto it = leaf_functions -> find(fn);
+	return (it != leaf_functions->end());
+#if 0
 	assert(fn);
         const auto ret = meds_ap_param.getFuncAnnotations().equal_range(fn->getName());
 	const auto sfa_it = find_if(ret.first, ret.second, [](const MEDS_Annotations_FuncPair_t &it)
@@ -95,6 +103,7 @@ static bool hasLeafAnnotation(Function_t* fn, MEDS_AnnotationParser &meds_ap_par
 	);
 
 	return (sfa_it != ret.second);
+#endif
 }
 
 bool ZaxBase_t::BB_isPaddingNop(const BasicBlock_t *p_bb) const
@@ -116,7 +125,7 @@ ZaxBase_t::ZaxBase_t(IRDB_SDK::pqxxDB_t &p_dbinterface, IRDB_SDK::FileIR_t *p_va
 	:
 	Transform(p_variantIR),
 	m_dbinterface(p_dbinterface),
-	m_stars_analysis_engine(p_dbinterface),
+// 	m_stars_analysis_engine(p_dbinterface),
 	m_use_stars(p_use_stars),
 	m_autozafl(p_autozafl),
 	m_bb_graph_optimize(false),
@@ -127,7 +136,10 @@ ZaxBase_t::ZaxBase_t(IRDB_SDK::pqxxDB_t &p_dbinterface, IRDB_SDK::FileIR_t *p_va
 {
 	if (m_use_stars) {
 		cout << "Use STARS analysis engine" << endl;
-		m_stars_analysis_engine.do_STARS(getFileIR());
+		// m_stars_analysis_engine.do_STARS(getFileIR());
+		auto deep_analysis=DeepAnalysis_t::factory(getFileIR());
+		leaf_functions = deep_analysis -> getLeafFunctions();
+		dead_registers = deep_analysis -> getDeadRegisters();
 	}
 
 	auto ed=ElfDependencies_t::factory(getFileIR());
@@ -623,7 +635,7 @@ Instruction_t* ZaxBase_t::getInstructionToInstrument(const BasicBlock_t *p_bb, c
 
 	// scan basic block looking for instruction with requested number of free regs
 	const auto allowed_regs = RegisterSet_t({rn_RAX, rn_RBX, rn_RCX, rn_RDX, rn_R8, rn_R9, rn_R10, rn_R11, rn_R12, rn_R13, rn_R14, rn_R15});
-	auto &ap = m_stars_analysis_engine.getAnnotations();
+	// auto &ap = m_stars_analysis_engine.getAnnotations();
 	auto best_i = first_instruction;
 	auto max_free_regs = 0U;
 	auto num_free_regs_best_i = 0U;
@@ -631,7 +643,7 @@ Instruction_t* ZaxBase_t::getInstructionToInstrument(const BasicBlock_t *p_bb, c
 
 	for (auto i : p_bb->getInstructions())
 	{
-		const auto dead_regs = getDeadRegs(i, ap);
+		const auto dead_regs = getDeadRegs(i);
 		const auto num_free_regs = getFreeRegs(dead_regs, allowed_regs).size();
 
 		if (i == first_instruction)
@@ -689,6 +701,8 @@ int ZaxBase_t::execute()
 	{
 		bool operator()( const Function_t* lhs, const Function_t* rhs ) const 
 		{
+			assert(lhs->getBaseID() != BaseObj_t::NOT_IN_DATABASE);
+			assert(rhs->getBaseID() != BaseObj_t::NOT_IN_DATABASE);
 			return lhs->getBaseID() < rhs->getBaseID();
 		}
 	};
@@ -704,7 +718,7 @@ int ZaxBase_t::execute()
 		bool leafAnnotation = true;
 		if (m_use_stars) 
 		{
-			leafAnnotation = hasLeafAnnotation(f, m_stars_analysis_engine.getAnnotations());
+			leafAnnotation = hasLeafAnnotation(f);
 		}
 
 		auto cfgp = ControlFlowGraph_t::factory(f);

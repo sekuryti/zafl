@@ -1,8 +1,9 @@
 #include "zuntracer.hpp"
 #include "critical_edge_breaker.hpp"
 
+using namespace std;
+using namespace IRDB_SDK;
 using namespace Zafl;
-using namespace MEDS_Annotation;
 
 ZUntracer_t::ZUntracer_t(IRDB_SDK::pqxxDB_t &p_dbinterface, IRDB_SDK::FileIR_t *p_variantIR, string p_forkServerEntryPoint, set<string> p_exitPoints, bool p_use_stars, bool p_autozafl) : ZaxBase_t(p_dbinterface, p_variantIR, p_forkServerEntryPoint, p_exitPoints, p_use_stars, p_autozafl)
 {
@@ -76,12 +77,12 @@ void ZUntracer_t::_instrumentBasicBlock(BasicBlock_t *p_bb, const bool p_redZone
 	if (m_use_stars) 
 	{
 		const auto allowed_regs = RegisterSet_t({rn_RAX, rn_RBX, rn_RCX, rn_RDX, rn_R8, rn_R9, rn_R10, rn_R11, rn_R12, rn_R13, rn_R14, rn_R15});
-		const auto dead_regs = getDeadRegs(instr, m_stars_analysis_engine.getAnnotations());
+		const auto dead_regs = getDeadRegs(instr);
 		const auto free_regs = getFreeRegs(dead_regs, allowed_regs);
 		if (free_regs.size() > 0)
 		{
 			auto r = *free_regs.begin();
-			tracemap_reg = Register::toString(r);
+			tracemap_reg = registerToString(r);
 			found_tracemap_free_register = true;
 		}
 	}

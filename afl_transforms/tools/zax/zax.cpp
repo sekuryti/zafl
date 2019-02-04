@@ -26,7 +26,6 @@
 using namespace std;
 using namespace IRDB_SDK;
 using namespace Zafl;
-using namespace MEDS_Annotation;
 
 Zax_t::Zax_t(IRDB_SDK::pqxxDB_t &p_dbinterface, IRDB_SDK::FileIR_t *p_variantIR, string p_forkServerEntryPoint, set<string> p_exitPoints, bool p_use_stars, bool p_autozafl) : ZaxBase_t(p_dbinterface, p_variantIR, p_forkServerEntryPoint, p_exitPoints, p_use_stars, p_autozafl)
 {
@@ -96,7 +95,7 @@ void Zax_t::instrumentBasicBlock(BasicBlock_t *p_bb, const bool p_honorRedZone, 
 	// most desireable position in the instrumentation.
 	if (m_use_stars) 
 	{
-		auto regset = getDeadRegs(instr, m_stars_analysis_engine.getAnnotations());
+		auto regset = getDeadRegs(instr);
 		live_flags = regset.find(IRDB_SDK::rn_EFLAGS)==regset.end();
 		const auto allowed_regs = RegisterSet_t({rn_RAX, rn_RBX, rn_RCX, rn_RDX, rn_R8, rn_R9, rn_R10, rn_R11, rn_R12, rn_R13, rn_R14, rn_R15});
 
@@ -128,11 +127,11 @@ void Zax_t::instrumentBasicBlock(BasicBlock_t *p_bb, const bool p_honorRedZone, 
 		if (save_temp && free_regs.size() >= 1) 
 		{
 			auto r = *free_regs.begin(); 
-			auto r32 = Register::demoteTo32(r); assert(Register::isValidRegister(r32));
-			auto r16 = Register::demoteTo16(r); assert(Register::isValidRegister(r16));
-			reg_temp = strdup(Register::toString(r).c_str());
-			reg_temp32 = strdup(Register::toString(r32).c_str());
-			reg_temp16 = strdup(Register::toString(r16).c_str());
+			auto r32 = convertRegisterTo32bit(r); assert(isValidRegister(r32));
+			auto r16 = convertRegisterTo16bit(r); assert(isValidRegister(r16));
+			reg_temp = strdup(registerToString(r).c_str());
+			reg_temp32 = strdup(registerToString(r32).c_str());
+			reg_temp16 = strdup(registerToString(r16).c_str());
 			save_temp = false;
 			free_regs.erase(r);
 		}
@@ -140,7 +139,7 @@ void Zax_t::instrumentBasicBlock(BasicBlock_t *p_bb, const bool p_honorRedZone, 
 		if (save_trace_map && free_regs.size() >= 1) 
 		{
 			auto r = *free_regs.begin();
-			reg_trace_map = strdup(Register::toString(r).c_str());
+			reg_trace_map = strdup(registerToString(r).c_str());
 			save_trace_map = false;
 			free_regs.erase(r);
 		}
@@ -148,7 +147,7 @@ void Zax_t::instrumentBasicBlock(BasicBlock_t *p_bb, const bool p_honorRedZone, 
 		if (save_prev_id && free_regs.size() >= 1) 
 		{
 			auto r = *free_regs.begin();
-			reg_prev_id = strdup(Register::toString(r).c_str());
+			reg_prev_id = strdup(registerToString(r).c_str());
 			save_prev_id = false;
 			free_regs.erase(r);
 		}

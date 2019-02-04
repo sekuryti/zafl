@@ -4,22 +4,22 @@
 #include <irdb-core>
 #include <irdb-cfg>
 #include <irdb-transform>
-#include <stars.h>
-#include <MEDS_Register.hpp>
+#include <irdb-util>
+#include <irdb-deep>
 
 // utility functions
 // @todo: move these functions into other libs for reuse
 extern void create_got_reloc(IRDB_SDK::FileIR_t* fir, std::pair<IRDB_SDK::DataScoop_t*,int> wrt, IRDB_SDK::Instruction_t* i);
-extern MEDS_Annotation::RegisterSet_t getDeadRegs(IRDB_SDK::Instruction_t* insn, MEDS_Annotation::MEDS_AnnotationParser &meds_ap_param);
-extern MEDS_Annotation::RegisterSet_t getFreeRegs(const MEDS_Annotation::RegisterSet_t candidates, const MEDS_Annotation::RegisterSet_t allowed);
 
 namespace Zafl
 {
 	using namespace IRDB_SDK;
 	using namespace std;
-	using ZaflBlockId_t = unsigned;
-	using ZaflLabelId_t = unsigned;
+
+	using ZaflBlockId_t = uint32_t;
+	using ZaflLabelId_t = uint32_t;
 	using BBRecord_t = vector<Instruction_t*>;
+	using RegisterSet_t = IRDB_SDK::RegisterIDSet_t;
 
 	/*
 	 * Base class for afl-compatible instrumentation:
@@ -66,24 +66,28 @@ namespace Zafl
 			bool isWhitelisted(const Instruction_t*) const;
 			bool BB_isPushJmp(const BasicBlock_t *) const;
 			bool BB_isPaddingNop(const BasicBlock_t *) const;
-
 			bool getBasicBlockFloatingInstrumentation() const;
+			bool hasLeafAnnotation(Function_t* fn) const;
+			RegisterSet_t getDeadRegs(Instruction_t* insn) const;
+			RegisterSet_t getFreeRegs(const RegisterSet_t& candidates, const RegisterSet_t& allowed) const;
+
 
 		protected:
-			pqxxDB_t&                 m_dbinterface;
-			STARS::IRDB_Interface_t   m_stars_analysis_engine;
+			pqxxDB_t&                      m_dbinterface;
+			unique_ptr<FunctionSet_t>      leaf_functions;
+			unique_ptr<DeadRegisterMap_t>  dead_registers;
 
-			bool                      m_use_stars;          // use STARS to have access to dead register info
-			bool                      m_autozafl;           // link in library w/ auto fork server
-			bool                      m_bb_graph_optimize;  // skip basic blocks based on graph
-			bool                      m_forkserver_enabled; // fork server enabled?
-			bool                      m_breakupCriticalEdges;
-			bool                      m_bb_float_instrumentation;  // skip basic blocks based on graph
-			bool                      m_verbose;
+			bool                           m_use_stars;          // use STARS to have access to dead register info
+			bool                           m_autozafl;           // link in library w/ auto fork server
+			bool                           m_bb_graph_optimize;  // skip basic blocks based on graph
+			bool                           m_forkserver_enabled; // fork server enabled?
+			bool                           m_breakupCriticalEdges;
+			bool                           m_bb_float_instrumentation;  // skip basic blocks based on graph
+			bool                           m_verbose;
 
-			pair<DataScoop_t*,int>    m_trace_map;  // afl shared memory trace map
-			pair<DataScoop_t*,int>    m_prev_id;    // id of previous block
-			Instruction_t*            m_plt_zafl_initAflForkServer; // plt entry for afl fork server initialization routine
+			pair<DataScoop_t*,int>         m_trace_map;  // afl shared memory trace map
+			pair<DataScoop_t*,int>         m_prev_id;    // id of previous block
+			Instruction_t*                 m_plt_zafl_initAflForkServer; // plt entry for afl fork server initialization routine
 
 			map<ZaflBlockId_t, BBRecord_t> m_modifiedBlocks;  // keep track of modified blocks
 
