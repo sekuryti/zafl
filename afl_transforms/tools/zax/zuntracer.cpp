@@ -127,7 +127,7 @@ void ZUntracer_t::_instrumentBasicBlock(BasicBlock_t *p_bb, const bool p_redZone
 	assert(tracemap_reg.size()>0);
 
 	// load address trace map into rcx:     T123: mov rcx, QWORD [rel T123]
-	string load_trace_map = "T" + to_string(labelid) + ": mov " + tracemap_reg + " , QWORD [ rel T" + to_string(labelid) + "]";
+	const auto load_trace_map = "T" + to_string(labelid) + ": mov " + tracemap_reg + " , QWORD [ rel T" + to_string(labelid) + "]";
 	do_insert(load_trace_map);
 	create_got_reloc(getFileIR(), m_trace_map, tmp);
 
