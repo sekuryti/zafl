@@ -69,6 +69,7 @@ int main(int argc, char **argv)
 	auto whitelistFile=string();
 	auto blacklistFile=string();
 	auto bb_graph_optimize=false;
+	auto domgraph_optimize=false;
 	auto forkserver_enabled=true;
 	auto untracer_mode=false;
 	auto breakup_critical_edges=false;
@@ -90,6 +91,8 @@ int main(int argc, char **argv)
 		{"autozafl", no_argument, 0, 'a'},
 		{"enable-bb-graph-optimization", no_argument, 0, 'g'},
 		{"disable-bb-graph-optimization", no_argument, 0, 'G'},
+		{"enable-domgraph-optimization", no_argument, 0, 'd'},
+		{"disable-domgraph-optimization", no_argument, 0, 'D'},
 		{"enable-forkserver", no_argument, 0, 'f'},
 		{"disable-forkserver", no_argument, 0, 'F'},
 		{"untracer", no_argument, 0, 'u'},
@@ -99,7 +102,7 @@ int main(int argc, char **argv)
 		{"disable-floating-instrumentation", no_argument, 0, 'I'},
 		{0,0,0,0}
 	};
-	const char* short_opts="e:E:w:sv?hagGfFucCiI";
+	const char* short_opts="e:E:w:sv?hagGdDfFucCiI";
 
 	while(true)
 	{
@@ -115,7 +118,7 @@ int main(int argc, char **argv)
 		case '?':
 		case 'h':
 			usage(argv[0]);
-			exit(0);
+			exit(1);
 			break;
 		case 's':
 			use_stars=true;
@@ -141,6 +144,12 @@ int main(int argc, char **argv)
 			break;
 		case 'G':
 			bb_graph_optimize=false;
+			break;
+		case 'd':
+			domgraph_optimize=true;
+			break;
+		case 'D':
+			domgraph_optimize=false;
 			break;
 		case 'f':
 			forkserver_enabled=true;
@@ -218,6 +227,7 @@ int main(int argc, char **argv)
 
 			zax->setVerbose(verbose);
 			zax->setBasicBlockOptimization(bb_graph_optimize);
+			zax->setDomgraphOptimization(domgraph_optimize);
 			zax->setBasicBlockFloatingInstrumentation(floating_instrumentation);
 			zax->setEnableForkServer(forkserver_enabled);
 			zax->setBreakupCriticalEdges(breakup_critical_edges);

@@ -37,9 +37,11 @@ namespace Zafl
 			void setBlacklist(const string& p_filename); 
 			void setVerbose(bool); 
 			void setBasicBlockOptimization(bool);
+			void setDomgraphOptimization(bool);
 			void setBasicBlockFloatingInstrumentation(bool);
 			void setEnableForkServer(bool);
 			void setBreakupCriticalEdges(bool);
+			void filterBlocksByDomgraph(BasicBlockSet_t& in_out, const DominatorGraph_t  * dg );
 
 		protected:
 			ZaxBase_t(pqxxDB_t &p_dbinterface, FileIR_t *p_variantIR, string p_entry, set<string> p_exits, bool p_use_stars=false, bool p_autozafl=false);
@@ -48,7 +50,7 @@ namespace Zafl
 
 			virtual ZaflBlockId_t getBlockId(const unsigned p_maxid=0xFFFF);
 			virtual ZaflLabelId_t getLabelId(const unsigned p_maxid=0xFFFF);
-			virtual set<BasicBlock_t*> getBlocksToInstrument(ControlFlowGraph_t &);
+			virtual BasicBlockSet_t getBlocksToInstrument (const ControlFlowGraph_t& cfg);
 			virtual Instruction_t* getInstructionToInstrument(const BasicBlock_t *, const unsigned p_num_free_regs_desired = 0);
 			virtual void setup();
 			virtual void teardown();
@@ -80,6 +82,7 @@ namespace Zafl
 			bool                           m_use_stars;          // use STARS to have access to dead register info
 			bool                           m_autozafl;           // link in library w/ auto fork server
 			bool                           m_bb_graph_optimize;  // skip basic blocks based on graph
+			bool                           m_domgraph_optimize;  // skip basic blocks based on dominator graph
 			bool                           m_forkserver_enabled; // fork server enabled?
 			bool                           m_breakupCriticalEdges;
 			bool                           m_bb_float_instrumentation;  // skip basic blocks based on graph
@@ -92,19 +95,20 @@ namespace Zafl
 			map<ZaflBlockId_t, BBRecord_t> m_modifiedBlocks;  // keep track of modified blocks
 
 			// stats
-			unsigned m_num_bb;
-			unsigned m_num_bb_instrumented;
-			unsigned m_num_bb_skipped;
-			unsigned m_num_bb_skipped_pushjmp;
-			unsigned m_num_bb_skipped_nop_padding;
-			unsigned m_num_bb_skipped_innernode;
-			unsigned m_num_bb_skipped_cbranch;
-			unsigned m_num_bb_skipped_onlychild;
-			unsigned m_num_bb_keep_exit_block;
-			unsigned m_num_bb_keep_cbranch_back_edge;
-			unsigned m_num_bb_float_instrumentation;
-			unsigned m_num_bb_float_regs_saved;
-			unsigned m_num_style_collafl;
+			size_t m_num_bb;
+			size_t m_num_bb_instrumented;
+			size_t m_num_bb_skipped;
+			size_t m_num_bb_skipped_pushjmp;
+			size_t m_num_bb_skipped_nop_padding;
+			size_t m_num_bb_skipped_innernode;
+			size_t m_num_bb_skipped_cbranch;
+			size_t m_num_bb_skipped_onlychild;
+			size_t m_num_bb_keep_exit_block;
+			size_t m_num_bb_keep_cbranch_back_edge;
+			size_t m_num_bb_float_instrumentation;
+			size_t m_num_bb_float_regs_saved;
+			size_t m_num_style_collafl;
+			size_t m_num_domgraph_blocks_elided;
 
 		private:
 			string          m_fork_server_entry;  // string to specify fork server entry point

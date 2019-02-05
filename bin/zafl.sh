@@ -21,8 +21,10 @@ usage()
 	echo "options:"
 	echo "     -s, --stars                             Use STARS (default)"
 	echo "     -S, --no-stars                          Do not use STARS"
-	echo "     -g, --graph-optimization                Use basic block graph optimizations"
-	echo "     -G, --no-graph-optimization             Do not use basic block graph optimizations (default)"
+	echo "     -g, --graph-optimization                Use control flow graph optimizations"
+	echo "     -G, --no-graph-optimization             Do not use control flow graph optimizations (default)"
+	echo "     -d, --domgraph-optimization             Use Dominator graph optimizations"
+	echo "     -D, --no-domgraph-optimization          Do not use Dominator graph optimizations (default)"
 	echo "     -t, --tempdir                           Specify location of analysis directory"
 	echo "     -e, --entry                             Specify fork server entry point"
 	echo "     -E, --exit                              Specify fork server exit point(s)"
@@ -113,6 +115,14 @@ parse_args()
 				;;
 			-G | --no-graph-optimization)
 				zax_opt=" $zax_opt -o zax:-G "
+				shift
+				;;
+			-d | --domgraph-optimization)
+				zax_opt=" $zax_opt -o zax:-d "
+				shift
+				;;
+			-D | --no-domgraph-optimization)
+				zax_opt=" $zax_opt -o zax:-D "
 				shift
 				;;
 			-e | --entry)

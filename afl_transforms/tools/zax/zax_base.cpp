@@ -125,10 +125,10 @@ ZaxBase_t::ZaxBase_t(IRDB_SDK::pqxxDB_t &p_dbinterface, IRDB_SDK::FileIR_t *p_va
 	:
 	Transform(p_variantIR),
 	m_dbinterface(p_dbinterface),
-// 	m_stars_analysis_engine(p_dbinterface),
 	m_use_stars(p_use_stars),
 	m_autozafl(p_autozafl),
 	m_bb_graph_optimize(false),
+	m_domgraph_optimize(false),
 	m_forkserver_enabled(true),
 	m_breakupCriticalEdges(false),
 	m_fork_server_entry(p_forkServerEntryPoint),
@@ -211,6 +211,7 @@ ZaxBase_t::ZaxBase_t(IRDB_SDK::pqxxDB_t &p_dbinterface, IRDB_SDK::FileIR_t *p_va
 	m_num_style_collafl = 0;
 	m_num_bb_float_instrumentation = 0;
 	m_num_bb_float_regs_saved = 0;
+	m_num_domgraph_blocks_elided = 0;
 }
 
 void ZaxBase_t::setVerbose(bool p_verbose)
@@ -221,10 +222,17 @@ void ZaxBase_t::setVerbose(bool p_verbose)
 void ZaxBase_t::setBasicBlockOptimization(bool p_bb_graph_optimize) 
 {
 	m_bb_graph_optimize = p_bb_graph_optimize;
-	m_bb_graph_optimize ?
-		cout << "enable basic block optimization" << endl :
-		cout << "disable basic block optimization" << endl;
+	const auto enabled = m_bb_graph_optimize ? "enable" : "disable";
+	cout << enabled << " basic block optimization" << endl ;
 }
+
+void ZaxBase_t::setDomgraphOptimization(bool p_domgraph_optimize) 
+{
+	m_domgraph_optimize = p_domgraph_optimize;
+	const auto enabled = m_domgraph_optimize ? "enable" : "disable";
+	cout << enabled << " dominator graph optimization" << endl ;
+}
+
 
 void ZaxBase_t::setEnableForkServer(bool p_forkserver_enabled) 
 {
@@ -530,14 +538,14 @@ void ZaxBase_t::teardown()
 
 // in: control flow graph for a given function
 // out: set of basic blocks to instrument
-set<BasicBlock_t*> ZaxBase_t::getBlocksToInstrument(ControlFlowGraph_t &cfg)
+BasicBlockSet_t ZaxBase_t::getBlocksToInstrument(const ControlFlowGraph_t &cfg)
 {
 	static int bb_debug_id=-1;
 
 	if (m_verbose)
 		cout << cfg << endl;
 
-	auto keepers = set<BasicBlock_t*>();
+	auto keepers = BasicBlockSet_t();
 
 	for (auto &bb : cfg.getBlocks())
 	{
@@ -609,6 +617,31 @@ set<BasicBlock_t*> ZaxBase_t::getBlocksToInstrument(ControlFlowGraph_t &cfg)
 		keepers.insert(bb);
 	}
 	return keepers;
+}
+void ZaxBase_t::filterBlocksByDomgraph(BasicBlockSet_t& in_out,  const DominatorGraph_t* dg)
+{
+	auto copy=in_out;
+	for(auto block : copy)
+	{
+		auto &successors = block->getSuccessors();
+
+		const auto is_leaf_block = successors.size() == 0;
+
+		const auto is_non_dominated=
+			[&](const BasicBlock_t* successor) -> bool
+			{
+				const auto &dominators = dg->getDominators(successor);
+				return dominators.find(block) != end(dominators);
+			};
+		auto non_dominator_successor_it = find_if(ALLOF(successors), is_non_dominated);
+		const auto has_non_dominator_successor = non_dominator_successor_it != end(successors);
+		const auto keep = (is_leaf_block || has_non_dominator_successor);
+		if(!keep)
+		{
+			in_out.erase(block);
+			m_num_domgraph_blocks_elided++;
+		}
+	}
 }
 
 // by default, return the first instruction in block
@@ -721,13 +754,18 @@ int ZaxBase_t::execute()
 			leafAnnotation = hasLeafAnnotation(f);
 		}
 
-		auto cfgp = ControlFlowGraph_t::factory(f);
-		auto &cfg = *cfgp;
+		const auto cfgp = ControlFlowGraph_t::factory(f);
+		const auto &cfg = *cfgp;
+		const auto dom_graphp=DominatorGraph_t::factory(cfgp.get());
+		const auto has_domgraph_warnings = dom_graphp -> hasWarnings();  
 
 		const auto num_blocks_in_func = cfg.getBlocks().size();
 		m_num_bb += num_blocks_in_func;
 		
 		auto keepers = getBlocksToInstrument(cfg);
+		if(!has_domgraph_warnings)
+			filterBlocksByDomgraph(keepers,dom_graphp.get());
+
 		struct BBSorter
 		{
 			bool operator()( const BasicBlock_t* lhs, const BasicBlock_t* rhs ) const 
@@ -795,6 +833,7 @@ void ZaxBase_t::dumpAttributes()
 		cout << "#ATTRIBUTE num_bb_skipped_onlychild=" << m_num_bb_skipped_onlychild << endl;
 		cout << "#ATTRIBUTE num_bb_skipped_innernode=" << m_num_bb_skipped_innernode << endl;
 	}
+	cout << "#ATTRIBUTE num_domgraph_blocks_elided=" << m_num_domgraph_blocks_elided++ << endl;
 }
 
 // file dump of modified basic block info
