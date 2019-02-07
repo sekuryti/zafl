@@ -620,6 +620,8 @@ BasicBlockSet_t ZaxBase_t::getBlocksToInstrument(const ControlFlowGraph_t &cfg)
 }
 void ZaxBase_t::filterBlocksByDomgraph(BasicBlockSet_t& in_out,  const DominatorGraph_t* dg)
 {
+	if(!m_domgraph_optimize)
+		return;
 	auto copy=in_out;
 	for(auto block : copy)
 	{
