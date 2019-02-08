@@ -598,6 +598,16 @@ BasicBlockSet_t ZaxBase_t::getBlocksToInstrument(const ControlFlowGraph_t &cfg)
 
 		if (m_bb_graph_optimize)
 		{
+			const auto has_unique_preds=
+				[&](const BasicBlockSet_t& bbs) -> bool
+				{
+					for (const auto & b : bbs)
+					{
+						if (b->getPredecessors().size() != 1)
+							return false;
+					}
+					return true;
+				};
 			const auto has_ibta=
 				[&](const BasicBlockSet_t& successors) -> bool
 				{
@@ -611,6 +621,7 @@ BasicBlockSet_t ZaxBase_t::getBlocksToInstrument(const ControlFlowGraph_t &cfg)
 
 			if (bb->getSuccessors().size() == 2 && 
 			    bb->endsInConditionalBranch() && 
+				has_unique_preds(bb->getSuccessors()) &&
 			    !has_ibta(bb->getSuccessors()))
 			{
 				// for now, until we get a more principled way of pruning the graph,
