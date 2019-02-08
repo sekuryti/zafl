@@ -596,19 +596,28 @@ BasicBlockSet_t ZaxBase_t::getBlocksToInstrument(const ControlFlowGraph_t &cfg)
 			continue;
 		}
 
-		// optimization:
-		//    inner node: 1 predecessor and 1 successor
-		//    
-		//    predecessor has only 1 successor (namely this bb)
-		//    bb has 1 predecessor 
 		if (m_bb_graph_optimize)
 		{
-			if (bb->getSuccessors().size() == 2 && bb->endsInConditionalBranch())
+			const auto has_ibta=
+				[&](const BasicBlockSet_t& successors) -> bool
+				{
+					for (const auto & s : successors)
+					{
+						if (s->getInstructions()[0]->getIndirectBranchTargetAddress())
+							return true;
+					}
+					return false;
+				};
+
+			if (bb->getSuccessors().size() == 2 && 
+			    bb->endsInConditionalBranch() && 
+			    !has_ibta(bb->getSuccessors()))
 			{
 				// for now, until we get a more principled way of pruning the graph,
 				// make sure to keep both successors
 				for (auto next_bb : bb->getSuccessors())
 					keepers.insert(next_bb);
+
 				m_num_bb_skipped_cbranch++;
 				continue;
 			}
@@ -618,6 +627,7 @@ BasicBlockSet_t ZaxBase_t::getBlocksToInstrument(const ControlFlowGraph_t &cfg)
 	}
 	return keepers;
 }
+
 void ZaxBase_t::filterBlocksByDomgraph(BasicBlockSet_t& in_out,  const DominatorGraph_t* dg)
 {
 	if(!m_domgraph_optimize)
