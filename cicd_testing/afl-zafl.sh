@@ -14,20 +14,17 @@ sudo $ZAFL_HOME/zfuzz/util/afl_setup_core_pattern.sh
 echo "Test various zafl configurations"
 $ZAFL_HOME/zfuzz/test/strings/test_strings.sh
 $ZAFL_HOME/zfuzz/test/bc/test_bc.sh
-$ZAFL_HOME/zfuzz/test/sha256sum/test_sha256sum.sh
 $ZAFL_HOME/zfuzz/test/od/test_od.sh
 
 echo "Test graph optimizations"
 $ZAFL_HOME/zfuzz/afl_transforms/tools/zax/test/test_graph.sh
 
-echo "Test zafl with ZAFL_TRACE_MAP_FIXED_ADDRESS=0x10000"
-export ZAFL_TRACE_MAP_FIXED_ADDRESS=0x10000
-$ZAFL_HOME/zfuzz/test/strings/test_strings.sh
-$ZAFL_HOME/zfuzz/test/bc/test_bc.sh
-$ZAFL_HOME/zfuzz/test/bc.fixed_map/test_bc.sh
-$ZAFL_HOME/zfuzz/test/sha256sum/test_sha256sum.sh
-$ZAFL_HOME/zfuzz/test/od/test_od.sh
-
 echo "Test zuntracer configurations"
 $ZAFL_HOME/zfuzz/test/ls.zuntracer/test_ls.sh
+
+echo "Test zafl with ZAFL_TRACE_MAP_FIXED_ADDRESS=0x10000"
+export ZAFL_TRACE_MAP_FIXED_ADDRESS=0x10000
+$ZAFL_HOME/zfuzz/test/bc.fixed_map/test_bc.sh
+$ZAFL_HOME/zfuzz/test/sha256sum/test_sha256sum.sh
+
 
