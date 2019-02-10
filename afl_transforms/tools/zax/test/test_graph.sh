@@ -15,6 +15,14 @@ log_error()
 	exit 1
 }
 
+check_afl()
+{
+	which afl-showmap
+	if [ ! $? -eq 0 ]; then
+		log_error "AFL doesn't seem to be installed. Try: sudo apt install afl before proceeding"
+	fi
+}
+
 build_one()
 {
 	orig=$1
@@ -90,6 +98,7 @@ verify_afl_map()
 }
 
 clean_all
+check_afl
 build_all
 verify_output
 verify_afl_map
