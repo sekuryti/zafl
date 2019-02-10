@@ -97,7 +97,6 @@ ZaxBase_t::ZaxBase_t(IRDB_SDK::pqxxDB_t &p_dbinterface, IRDB_SDK::FileIR_t *p_va
 {
 	if (m_use_stars) {
 		cout << "Use STARS analysis engine" << endl;
-		// m_stars_analysis_engine.do_STARS(getFileIR());
 		auto deep_analysis=DeepAnalysis_t::factory(getFileIR());
 		leaf_functions = deep_analysis -> getLeafFunctions();
 		dead_registers = deep_analysis -> getDeadRegisters();
@@ -550,7 +549,11 @@ BasicBlockSet_t ZaxBase_t::getBlocksToInstrument(const ControlFlowGraph_t &cfg)
 
 		// make sure we're not trying to instrument code we just inserted, e.g., fork server, added exit points
 		if (bb->getInstructions()[0]->getBaseID() < 0)
+		{
+			if (m_verbose)
+				cout << "Base ID < 0" << endl;
 			continue;
+		}
 
 		// push/jmp pair, don't bother instrumenting
 		if (BB_isPushJmp(bb))
@@ -566,32 +569,6 @@ BasicBlockSet_t ZaxBase_t::getBlocksToInstrument(const ControlFlowGraph_t &cfg)
 			continue;
 		}
 
-		if (m_graph_optimize)
-		{
-			const auto successors_have_unique_preds = 
-				find_if(ALLOF(bb->getSuccessors()), [](const BasicBlock_t* s)
-					{
-						return s->getPredecessors().size() > 1;
-					}) == bb->getSuccessors().end();
-
-			const auto successor_with_ibta = 
-				find_if(ALLOF(bb->getSuccessors()), [](const BasicBlock_t* s)
-					{
-						return s->getInstructions()[0]->getIndirectBranchTargetAddress();
-					}) != bb->getSuccessors().end();
-		
-			if (bb->getSuccessors().size() == 2 && 
-			    bb->endsInConditionalBranch() && 
-				successors_have_unique_preds &&
-			    !successor_with_ibta)
-			{
-				// for now, until we get a more principled way of pruning the graph
-				keepers.insert(ALLOF(bb->getSuccessors()));
-				m_num_bb_skipped_cbranch++; // warning: count may not be strictly accurate
-				continue;
-			}
-		}
-
 		keepers.insert(bb);
 	}
 	return keepers;
@@ -599,6 +576,7 @@ BasicBlockSet_t ZaxBase_t::getBlocksToInstrument(const ControlFlowGraph_t &cfg)
 
 void ZaxBase_t::filterEntryBlock(BasicBlockSet_t& p_in_out, BasicBlock_t* p_entry)
 {
+
 	if (!m_graph_optimize)
 		return;
 
@@ -615,12 +593,16 @@ void ZaxBase_t::filterEntryBlock(BasicBlockSet_t& p_in_out, BasicBlock_t* p_entr
 	// entry block has single successor
 	p_in_out.erase(p_entry);
 	m_num_entry_blocks_elided++;
+	if (m_verbose) {
+		cout << "Eliding entry block" << endl; 
+	}
 }
 
 void ZaxBase_t::filterExitBlocks(BasicBlockSet_t& p_in_out)
 {
 	if (!m_graph_optimize)
 		return;
+	
 	auto copy=p_in_out;
 	for(auto block : copy)
 	{
@@ -642,9 +624,54 @@ void ZaxBase_t::filterExitBlocks(BasicBlockSet_t& p_in_out)
 		// predecessor in <p_in_out>
 		p_in_out.erase(block);
 		m_num_exit_blocks_elided++;
+		if (m_verbose) {
+			cout << "Eliding exit block" << endl; 
+		}
 	}
 }
 
+void ZaxBase_t::filterConditionalBranches(BasicBlockSet_t& p_in_out)
+{
+	if (!m_graph_optimize)
+		return;
+	auto copy=p_in_out;
+	for(auto block : copy)
+	{
+		const auto successors_have_unique_preds = 
+			find_if(ALLOF(block->getSuccessors()), [](const BasicBlock_t* s)
+				{
+					return s->getPredecessors().size() > 1;
+				}) == block->getSuccessors().end();
+
+		const auto successor_with_ibta = 
+			find_if(ALLOF(block->getSuccessors()), [](const BasicBlock_t* s)
+				{
+					return s->getInstructions()[0]->getIndirectBranchTargetAddress();
+				}) != block->getSuccessors().end();
+	
+		const auto all_successors_kept = 
+			find_if(ALLOF(block->getSuccessors()), [p_in_out](BasicBlock_t* s)
+				{
+					return p_in_out.find(s) == p_in_out.end();
+				}) == block->getSuccessors().end();
+
+		if (block->endsInConditionalBranch() && 
+		    all_successors_kept &&
+			successors_have_unique_preds &&
+		    !successor_with_ibta)
+		{
+			// block ends in conditional branch
+			// successors are in <p_in_out>
+			// successors have unique predecessors
+			// no successor is an ibta
+			if (m_verbose)
+				cout << "Eliding conditional branch -- keeping successors" << endl;
+			p_in_out.erase(block);
+			m_num_bb_skipped_cbranch++;
+			continue;
+		}
+	}
+}
 void ZaxBase_t::filterBlocksByDomgraph(BasicBlockSet_t& p_in_out,  const DominatorGraph_t* dg)
 {
 	if(!m_domgraph_optimize)
@@ -791,12 +818,31 @@ int ZaxBase_t::execute()
 		const auto num_blocks_in_func = cfg.getBlocks().size();
 		m_num_bb += num_blocks_in_func;
 		
+		const auto entry_block = cfg.getEntry();
 		auto keepers = getBlocksToInstrument(cfg);
+
+		if (m_verbose)
+			cout << "num blocks to keep (baseline): " << keepers.size() << endl;
+
 		if(!has_domgraph_warnings)
 			filterBlocksByDomgraph(keepers,dom_graphp.get());
 
-		filterEntryBlock(keepers, cfg.getEntry());
-		filterExitBlocks(keepers);
+		if (m_verbose)
+			cout << "num blocks to keep (after filter dom): " << keepers.size() << endl;
+
+		if (m_graph_optimize)
+		{
+			filterConditionalBranches(keepers);
+			if (m_verbose)
+				cout << "num blocks to keep (after filter conditional branches): " << keepers.size() << endl;
+			filterEntryBlock(keepers, entry_block);
+			if (m_verbose)
+				cout << "num blocks to keep (after filter entry): " << keepers.size() << endl;
+
+			filterExitBlocks(keepers);
+			if (m_verbose)
+				cout << "num blocks to keep (after filter exits): " << keepers.size() << endl;
+		}
 
 		struct BBSorter
 		{
@@ -820,9 +866,10 @@ int ZaxBase_t::execute()
 			    !bb->getInstructions()[0]->getIndirectBranchTargetAddress()
 			   )
 			{
+				if (m_verbose) 
+					cout << "Doing collAfl style" << endl;
 				collAflSingleton = true;
 				m_num_style_collafl++;
-
 			}
 
 			instrumentBasicBlock(bb, leafAnnotation, collAflSingleton);

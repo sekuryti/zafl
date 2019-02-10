@@ -1,5 +1,5 @@
 PUT=test_mystrlen.exe
-MYARG="123456789a"
+MYARG="0123456789abcdef"
 
 ZAFL_PUT="$PUT.zafl $PUT.zafl.c $PUT.zafl.g $PUT.zafl.d $PUT.zafl.d.g $PUT.zafl.c.d.g"
 
@@ -76,7 +76,8 @@ verify_afl_map()
 	do
 		diff $PUT.zafl.max_count $p.max_count >/dev/null 2>&1
 		if [ $? -eq 0 ]; then
-			log_msg "maximum edge counter for $PUT.zafl and $p match"
+			max=$(cat $PUT.zafl.max_count)
+			log_msg "maximum edge counter for $PUT.zafl and $p match ($max)"
 		else
 			echo -n "Maximum count for $PUT: "
 			cat $PUT.zafl.max_count

@@ -42,6 +42,7 @@ namespace Zafl
 			void setEnableForkServer(bool);
 			void setBreakupCriticalEdges(bool);
 			void filterBlocksByDomgraph(BasicBlockSet_t& in_out, const DominatorGraph_t  * dg );
+			void filterConditionalBranches(BasicBlockSet_t& p_in_out);
 			void filterEntryBlock(BasicBlockSet_t& in_out, BasicBlock_t* p_entry);
 			void filterExitBlocks(BasicBlockSet_t& in_out);
 
