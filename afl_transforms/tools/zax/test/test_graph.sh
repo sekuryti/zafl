@@ -1,3 +1,4 @@
+cd $(dirname $(realpath $0) )
 PUT=test_mystrlen.exe
 MYARG="0123456789abcdef"
 
