@@ -17,7 +17,7 @@ log_error()
 
 check_afl()
 {
-	which afl-showmap
+	which afl-showmap >/dev/null 2>&1
 	if [ ! $? -eq 0 ]; then
 		log_error "AFL doesn't seem to be installed. Try: 'sudo apt install afl' before proceeding or download/build afl directly from source"
 	fi
