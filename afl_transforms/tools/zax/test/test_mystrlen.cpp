@@ -1,9 +1,10 @@
 #include <iostream>
+
 using namespace std;
 
 size_t my_strlen(char *arg)
 {
-	auto count = 0;
+	int count = 0;
 	while (*arg!='\0')
 	{
 		count++;
