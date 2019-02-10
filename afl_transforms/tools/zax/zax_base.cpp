@@ -50,39 +50,14 @@ RegisterSet_t ZaxBase_t::getDeadRegs(Instruction_t* insn) const
 	auto it = dead_registers -> find(insn);
 	if(it != dead_registers->end())
 		return it->second;
-        return RegisterSet_t();
-#if 0
-        std::pair<MEDS_Annotations_t::iterator,MEDS_Annotations_t::iterator> ret;
-
-        /* find it in the annotations */
-        ret = meds_ap_param.getAnnotations().equal_range(insn->getBaseID());
-        MEDS_DeadRegAnnotation* p_annotation;
-
-        /* for each annotation for this instruction */
-        for (MEDS_Annotations_t::iterator it = ret.first; it != ret.second; ++it)
-        {
-                        p_annotation=dynamic_cast<MEDS_DeadRegAnnotation*>(it->second);
-                        if(p_annotation==NULL)
-                                continue;
-
-                        /* bad annotation? */
-                        if(!p_annotation->isValid())
-                                continue;
-
-                        return p_annotation->getRegisterSet();
-        }
-
-        /* couldn't find the annotation, return an empty set.*/
-        return RegisterSet_t();
-#endif
+	return RegisterSet_t();
 }
 
 // return intersection of candidates and allowed general-purpose registers
 RegisterSet_t ZaxBase_t::getFreeRegs(const RegisterSet_t& candidates, const RegisterSet_t& allowed) const
 {
 	RegisterIDSet_t free_regs;
-	set_intersection(candidates.begin(),candidates.end(),allowed.begin(),allowed.end(),
-                  std::inserter(free_regs,free_regs.begin()));
+	set_intersection(ALLOF(candidates), ALLOF(allowed), std::inserter(free_regs,free_regs.begin()));
 	return free_regs;
 }
 
@@ -90,20 +65,6 @@ bool ZaxBase_t::hasLeafAnnotation(Function_t* fn) const
 {
 	auto it = leaf_functions -> find(fn);
 	return (it != leaf_functions->end());
-#if 0
-	assert(fn);
-        const auto ret = meds_ap_param.getFuncAnnotations().equal_range(fn->getName());
-	const auto sfa_it = find_if(ret.first, ret.second, [](const MEDS_Annotations_FuncPair_t &it)
-		{
-			auto p_annotation=dynamic_cast<MEDS_SafeFuncAnnotation*>(it.second);
-			if(p_annotation==NULL)
-				return false;
-			return p_annotation->isLeaf();
-		}
-	);
-
-	return (sfa_it != ret.second);
-#endif
 }
 
 bool ZaxBase_t::BB_isPaddingNop(const BasicBlock_t *p_bb) const
