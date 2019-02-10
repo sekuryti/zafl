@@ -19,7 +19,7 @@ check_afl()
 {
 	which afl-showmap
 	if [ ! $? -eq 0 ]; then
-		log_error "AFL doesn't seem to be installed. Try: sudo apt install afl before proceeding"
+		log_error "AFL doesn't seem to be installed. Try: 'sudo apt install afl' before proceeding or download/build afl directly from source"
 	fi
 }
 
