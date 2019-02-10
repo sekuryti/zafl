@@ -833,6 +833,8 @@ int ZaxBase_t::execute()
 
 		if (m_verbose)
 		{
+ 			getFileIR()->assembleRegistry();
+		 	getFileIR()->setBaseIDS();
 			cout << "Post transformation CFG for " << f->getName() << ":" << endl;
 			auto post_cfg=ControlFlowGraph_t::factory(f);	
 			cout << *post_cfg << endl;
