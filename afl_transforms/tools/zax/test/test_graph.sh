@@ -86,13 +86,13 @@ verify_afl_map()
 		diff $PUT.zafl.max_count $p.max_count >/dev/null 2>&1
 		if [ $? -eq 0 ]; then
 			max=$(cat $PUT.zafl.max_count)
-			log_msg "maximum edge counter for $PUT.zafl and $p match ($max)"
+			log_msg "maximum afl edge value for $PUT.zafl and $p match ($max)"
 		else
 			echo -n "Maximum count for $PUT: "
 			cat $PUT.zafl.max_count
 			echo -n "Maximum count for $p: "
 			cat $p.max_count
-			log_error "maximum edge counter does not match for $PUT.zafl and $p"
+			log_error "maximum afl edge value does not match for $PUT.zafl and $p"
 		fi
 	done
 }
