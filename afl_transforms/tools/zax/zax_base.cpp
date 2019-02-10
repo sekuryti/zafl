@@ -127,7 +127,7 @@ ZaxBase_t::ZaxBase_t(IRDB_SDK::pqxxDB_t &p_dbinterface, IRDB_SDK::FileIR_t *p_va
 	m_dbinterface(p_dbinterface),
 	m_use_stars(p_use_stars),
 	m_autozafl(p_autozafl),
-	m_bb_graph_optimize(false),
+	m_graph_optimize(false),
 	m_domgraph_optimize(false),
 	m_forkserver_enabled(true),
 	m_breakupCriticalEdges(false),
@@ -212,6 +212,8 @@ ZaxBase_t::ZaxBase_t(IRDB_SDK::pqxxDB_t &p_dbinterface, IRDB_SDK::FileIR_t *p_va
 	m_num_bb_float_instrumentation = 0;
 	m_num_bb_float_regs_saved = 0;
 	m_num_domgraph_blocks_elided = 0;
+	m_num_exit_blocks_elided = 0;
+	m_num_entry_blocks_elided = 0;
 }
 
 void ZaxBase_t::setVerbose(bool p_verbose)
@@ -221,8 +223,8 @@ void ZaxBase_t::setVerbose(bool p_verbose)
 
 void ZaxBase_t::setBasicBlockOptimization(bool p_bb_graph_optimize) 
 {
-	m_bb_graph_optimize = p_bb_graph_optimize;
-	const auto enabled = m_bb_graph_optimize ? "enable" : "disable";
+	m_graph_optimize = p_bb_graph_optimize;
+	const auto enabled = m_graph_optimize ? "enable" : "disable";
 	cout << enabled << " basic block optimization" << endl ;
 }
 
@@ -431,10 +433,12 @@ void ZaxBase_t::setupForkServer()
 		}
 
 	}
-	getFileIR()->assembleRegistry();
-	getFileIR()->setBaseIDS();
 
 	// it's ok not to have a fork server at all, e.g. libraries
+
+ 	getFileIR()->assembleRegistry();
+ 	getFileIR()->setBaseIDS();
+
 }
 
 void ZaxBase_t::insertExitPoints()
@@ -487,6 +491,9 @@ void ZaxBase_t::insertExitPoints()
 			}
 		}
 	}
+
+ 	getFileIR()->assembleRegistry();
+ 	getFileIR()->setBaseIDS();
 }
 
 // blacklist functions:
@@ -598,40 +605,28 @@ BasicBlockSet_t ZaxBase_t::getBlocksToInstrument(const ControlFlowGraph_t &cfg)
 			continue;
 		}
 
-		if (m_bb_graph_optimize)
+		if (m_graph_optimize)
 		{
-			const auto has_unique_preds=
-				[&](const BasicBlockSet_t& bbs) -> bool
-				{
-					for (const auto & b : bbs)
+			const auto successors_have_unique_preds = 
+				find_if(ALLOF(bb->getSuccessors()), [](const BasicBlock_t* s)
 					{
-						if (b->getPredecessors().size() != 1)
-							return false;
-					}
-					return true;
-				};
-			const auto has_ibta=
-				[&](const BasicBlockSet_t& successors) -> bool
-				{
-					for (const auto & s : successors)
-					{
-						if (s->getInstructions()[0]->getIndirectBranchTargetAddress())
-							return true;
-					}
-					return false;
-				};
+						return s->getPredecessors().size() > 1;
+					}) == bb->getSuccessors().end();
 
+			const auto successor_with_ibta = 
+				find_if(ALLOF(bb->getSuccessors()), [](const BasicBlock_t* s)
+					{
+						return s->getInstructions()[0]->getIndirectBranchTargetAddress();
+					}) != bb->getSuccessors().end();
+		
 			if (bb->getSuccessors().size() == 2 && 
 			    bb->endsInConditionalBranch() && 
-				has_unique_preds(bb->getSuccessors()) &&
-			    !has_ibta(bb->getSuccessors()))
+				successors_have_unique_preds &&
+			    !successor_with_ibta)
 			{
-				// for now, until we get a more principled way of pruning the graph,
-				// make sure to keep both successors
-				for (auto next_bb : bb->getSuccessors())
-					keepers.insert(next_bb);
-
-				m_num_bb_skipped_cbranch++;
+				// for now, until we get a more principled way of pruning the graph
+				keepers.insert(ALLOF(bb->getSuccessors()));
+				m_num_bb_skipped_cbranch++; // warning: count may not be strictly accurate
 				continue;
 			}
 		}
@@ -641,11 +636,59 @@ BasicBlockSet_t ZaxBase_t::getBlocksToInstrument(const ControlFlowGraph_t &cfg)
 	return keepers;
 }
 
-void ZaxBase_t::filterBlocksByDomgraph(BasicBlockSet_t& in_out,  const DominatorGraph_t* dg)
+void ZaxBase_t::filterEntryBlock(BasicBlockSet_t& p_in_out, BasicBlock_t* p_entry)
+{
+	if (!m_graph_optimize)
+		return;
+
+	if (p_entry->getSuccessors().size() != 1)
+		return;
+
+	if (p_in_out.find(p_entry) == p_in_out.end())
+		return;
+
+	if (p_in_out.find(*(p_entry->getSuccessors().begin())) == p_in_out.end())
+		return;
+
+	// both entry and successor are in <p_in_out>
+	// entry block has single successor
+	p_in_out.erase(p_entry);
+	m_num_entry_blocks_elided++;
+}
+
+void ZaxBase_t::filterExitBlocks(BasicBlockSet_t& p_in_out)
+{
+	if (!m_graph_optimize)
+		return;
+	auto copy=p_in_out;
+	for(auto block : copy)
+	{
+		if (!block->getIsExitBlock())
+			continue;
+
+		if (block->getInstructions()[0]->getIndirectBranchTargetAddress())
+			continue;
+
+		if (block->getPredecessors().size() != 1)
+			continue;
+
+		if (copy.find(*block->getPredecessors().begin()) == copy.end())
+			continue;
+
+		// must be an exit block
+		// exit block is not an ibta
+		// only 1 predecessor
+		// predecessor in <p_in_out>
+		p_in_out.erase(block);
+		m_num_exit_blocks_elided++;
+	}
+}
+
+void ZaxBase_t::filterBlocksByDomgraph(BasicBlockSet_t& p_in_out,  const DominatorGraph_t* dg)
 {
 	if(!m_domgraph_optimize)
 		return;
-	auto copy=in_out;
+	auto copy=p_in_out;
 	for(auto block : copy)
 	{
 		auto &successors = block->getSuccessors();
@@ -663,7 +706,7 @@ void ZaxBase_t::filterBlocksByDomgraph(BasicBlockSet_t& in_out,  const Dominator
 		const auto keep = (is_leaf_block || has_non_dominator_successor);
 		if(!keep)
 		{
-			in_out.erase(block);
+			p_in_out.erase(block);
 			m_num_domgraph_blocks_elided++;
 		}
 	}
@@ -791,6 +834,9 @@ int ZaxBase_t::execute()
 		if(!has_domgraph_warnings)
 			filterBlocksByDomgraph(keepers,dom_graphp.get());
 
+		filterEntryBlock(keepers, cfg.getEntry());
+		filterExitBlocks(keepers);
+
 		struct BBSorter
 		{
 			bool operator()( const BasicBlock_t* lhs, const BasicBlock_t* rhs ) const 
@@ -808,7 +854,7 @@ int ZaxBase_t::execute()
 			auto collAflSingleton = false;
 			// for collAfl-style instrumentation, we want #predecessors==1
 			// if the basic block entry point is an IBTA, we don't know the #predecessors
-			if (m_bb_graph_optimize               && 
+			if (m_graph_optimize               && 
 			    bb->getPredecessors().size() == 1 && 
 			    !bb->getInstructions()[0]->getIndirectBranchTargetAddress()
 			   )
@@ -826,7 +872,7 @@ int ZaxBase_t::execute()
 
 		if (m_verbose)
 		{
-			cout << "Post transformation CFG:" << endl;
+			cout << "Post transformation CFG for " << f->getName() << ":" << endl;
 			auto post_cfg=ControlFlowGraph_t::factory(f);	
 			cout << *post_cfg << endl;
 		}
@@ -848,8 +894,8 @@ void ZaxBase_t::dumpAttributes()
 	cout << "#ATTRIBUTE num_bb_skipped_nop_padding=" << m_num_bb_skipped_nop_padding << endl;
 	cout << "#ATTRIBUTE num_bb_float_instrumentation=" << m_num_bb_float_instrumentation << endl;
 	cout << "#ATTRIBUTE num_bb_float_register_saved=" << m_num_bb_float_regs_saved << endl;
-	cout << "#ATTRIBUTE graph_optimize=" << boolalpha << m_bb_graph_optimize << endl;
-	if (m_bb_graph_optimize)
+	cout << "#ATTRIBUTE graph_optimize=" << boolalpha << m_graph_optimize << endl;
+	if (m_graph_optimize)
 	{
 		cout << "#ATTRIBUTE num_bb_skipped_cond_branch=" << m_num_bb_skipped_cbranch << endl;
 		cout << "#ATTRIBUTE num_bb_keep_cbranch_back_edge=" << m_num_bb_keep_cbranch_back_edge << endl;
@@ -858,7 +904,9 @@ void ZaxBase_t::dumpAttributes()
 		cout << "#ATTRIBUTE num_bb_skipped_onlychild=" << m_num_bb_skipped_onlychild << endl;
 		cout << "#ATTRIBUTE num_bb_skipped_innernode=" << m_num_bb_skipped_innernode << endl;
 	}
-	cout << "#ATTRIBUTE num_domgraph_blocks_elided=" << m_num_domgraph_blocks_elided++ << endl;
+	cout << "#ATTRIBUTE num_domgraph_blocks_elided=" << m_num_domgraph_blocks_elided << endl;
+	cout << "#ATTRIBUTE num_entry_blocks_elided=" << m_num_entry_blocks_elided << endl;
+	cout << "#ATTRIBUTE num_exit_blocks_elided=" << m_num_exit_blocks_elided << endl;
 }
 
 // file dump of modified basic block info

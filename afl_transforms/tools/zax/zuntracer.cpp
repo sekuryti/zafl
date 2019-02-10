@@ -213,7 +213,7 @@ set<BasicBlock_t*> ZUntracer_t::getBlocksToInstrument(ControlFlowGraph_t &cfg)
 		//    very experimental!
 		//    elide instrumentation for conditional branches
 		//
-		if (m_bb_graph_optimize)
+		if (m_graph_optimize)
 		{
 			if (bb->getSuccessors().size() == 2 && bb->endsInConditionalBranch())
 			{

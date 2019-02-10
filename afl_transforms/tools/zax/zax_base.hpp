@@ -42,6 +42,8 @@ namespace Zafl
 			void setEnableForkServer(bool);
 			void setBreakupCriticalEdges(bool);
 			void filterBlocksByDomgraph(BasicBlockSet_t& in_out, const DominatorGraph_t  * dg );
+			void filterEntryBlock(BasicBlockSet_t& in_out, BasicBlock_t* p_entry);
+			void filterExitBlocks(BasicBlockSet_t& in_out);
 
 		protected:
 			ZaxBase_t(pqxxDB_t &p_dbinterface, FileIR_t *p_variantIR, string p_entry, set<string> p_exits, bool p_use_stars=false, bool p_autozafl=false);
@@ -81,7 +83,7 @@ namespace Zafl
 
 			bool                           m_use_stars;          // use STARS to have access to dead register info
 			bool                           m_autozafl;           // link in library w/ auto fork server
-			bool                           m_bb_graph_optimize;  // skip basic blocks based on graph
+			bool                           m_graph_optimize;     // skip basic blocks based on graph
 			bool                           m_domgraph_optimize;  // skip basic blocks based on dominator graph
 			bool                           m_forkserver_enabled; // fork server enabled?
 			bool                           m_breakupCriticalEdges;
@@ -109,6 +111,8 @@ namespace Zafl
 			size_t m_num_bb_float_regs_saved;
 			size_t m_num_style_collafl;
 			size_t m_num_domgraph_blocks_elided;
+			size_t m_num_entry_blocks_elided;
+			size_t m_num_exit_blocks_elided;
 
 		private:
 			string          m_fork_server_entry;  // string to specify fork server entry point
