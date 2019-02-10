@@ -431,6 +431,8 @@ void ZaxBase_t::setupForkServer()
 		}
 
 	}
+	getFileIR()->assembleRegistry();
+	getFileIR()->setBaseIDS();
 
 	// it's ok not to have a fork server at all, e.g. libraries
 }
