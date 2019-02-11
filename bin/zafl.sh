@@ -107,6 +107,7 @@ parse_args()
 				;;
 			-S | --no-stars)
 				stars_opt=" "
+				float_opt=" -o zax:--disable-floating-instrumentation "
 				shift
 				;;
 			-g | --graph-optimization)
