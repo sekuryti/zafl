@@ -2,6 +2,11 @@
 
 using namespace std;
 
+volatile int identity(int x)
+{
+	return x;
+}
+
 size_t my_strlen(char *arg)
 {
 	int count = 0;
@@ -9,6 +14,7 @@ size_t my_strlen(char *arg)
 	{
 		count++;
 		arg++;
+		count = identity(count);
 	}
 
 	return count;
