@@ -676,26 +676,55 @@ void ZaxBase_t::filterBlocksByDomgraph(BasicBlockSet_t& p_in_out,  const Dominat
 {
 	if(!m_domgraph_optimize)
 		return;
+
+	if(m_verbose)
+	{
+		cout<<"And the Dominator graph is:" <<endl;
+		cout<<*dg<<endl;
+	}
+
 	auto copy=p_in_out;
 	for(auto block : copy)
 	{
-		auto &successors = block->getSuccessors();
+		const auto &dominates = dg->getDominated(block);
 
-		const auto is_leaf_block = successors.size() == 0;
+		const auto is_dg_leaf = dominates.size()==1; // leaf in the dom tree -- we dominate ourselves.
+				// this is leaf of cfg: successors.size() == 0;
 
-		const auto is_non_dominated=
+		const auto is_dominated=
 			[&](const BasicBlock_t* successor) -> bool
 			{
 				const auto &dominators = dg->getDominators(successor);
 				return dominators.find(block) != end(dominators);
 			};
+		const auto is_non_dominated= [&](const BasicBlock_t* successor) -> bool
+			{
+				return !is_dominated(successor);
+			};
+
+		auto &successors = block->getSuccessors();
 		auto non_dominator_successor_it = find_if(ALLOF(successors), is_non_dominated);
 		const auto has_non_dominator_successor = non_dominator_successor_it != end(successors);
-		const auto keep = (is_leaf_block || has_non_dominator_successor);
+		const auto keep = (is_dg_leaf || has_non_dominator_successor);
 		if(!keep)
 		{
 			p_in_out.erase(block);
 			m_num_domgraph_blocks_elided++;
+			if(m_verbose)
+			{
+				cout<<"Eliding instrumentation in block id      = " << dec << block->getInstructions()[0]->getBaseID() << endl;
+				cout<<"is_dg_leaf            = " << boolalpha << is_dg_leaf << endl;
+				cout<<"has_non_dom_successor = " << boolalpha << has_non_dominator_successor << endl;
+			}
+		}
+		else
+		{
+			if(m_verbose)
+			{
+				cout<<"Instrumenting block id      = " << dec << block->getInstructions()[0]->getBaseID() << endl;
+				cout<<"is_dg_leaf            = " << boolalpha << is_dg_leaf << endl;
+				cout<<"has_non_dom_successor = " << boolalpha << has_non_dominator_successor << endl;
+			}
 		}
 	}
 }
@@ -824,11 +853,19 @@ int ZaxBase_t::execute()
 		if (m_verbose)
 			cout << "num blocks to keep (baseline): " << keepers.size() << endl;
 
-		if(!has_domgraph_warnings)
-			filterBlocksByDomgraph(keepers,dom_graphp.get());
+		if(has_domgraph_warnings)
+		{
+			if(m_verbose)
+			{
+				cout << " Domgraph has warnings, eliding domgraph filter" << endl;
+				cout << " And the domgraph is: " << endl;
+				cout << *dom_graphp << endl;
+			}
+		}
+		filterBlocksByDomgraph(keepers,dom_graphp.get());
 
 		if (m_verbose)
-			cout << "num blocks to keep (after filter dom): " << keepers.size() << endl;
+			cout << "num blocks to keep (after filter dom): " << keepers.size() << " / " << cfgp->getBlocks().size() << endl;
 
 		if (m_graph_optimize)
 		{

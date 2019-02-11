@@ -25,7 +25,7 @@ usage()
 	echo "     -G, --no-graph-optimization             Do not use control flow graph optimizations (default)"
 	echo "     -d, --domgraph-optimization             Use Dominator graph optimizations"
 	echo "     -D, --no-domgraph-optimization          Do not use Dominator graph optimizations (default)"
-	echo "     -t, --tempdir                           Specify location of analysis directory"
+	echo "     -t, --tempdir <dir>                     Specify location of analysis results directory"
 	echo "     -e, --entry                             Specify fork server entry point"
 	echo "     -E, --exit                              Specify fork server exit point(s)"
 	echo "     -u, --untracer                          Specify untracer instrumentation"
@@ -36,6 +36,7 @@ usage()
 	echo "     -M, --disable-fixed-map                 Disable fixed address tracing map (default)"
 	echo "     -i, --enable-floating-instrumentation   Select best instrumentation point within basic block (default)"
 	echo "     -I, --disable-floating-instrumentation  Use first instruction for instrumentation in basic blocks"
+	echo "     -v                                      Verbose mode" 
 	echo 
 }
 
