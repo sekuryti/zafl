@@ -69,14 +69,14 @@ log_message "Fuzz for $AFL_TIMEOUT secs"
 fuzz_with_zafl $(realpath ./bc.stars.zafl)
 
 # build with graph optimization
-zafl.sh `which bc` bc.stars.zafl.g -g --tempdir analysis.bc.stars.zafl.g
+zafl.sh `which bc` bc.stars.zafl.d.g -d -g --tempdir analysis.bc.stars.zafl.g
 if [ $? -eq 0 ]; then
-	log_success "build bc.stars.zafl.g"
+	log_success "build bc.stars.zafl.d.g"
 else
-	log_error "build bc.stars.zafl.g"
+	log_error "build bc.stars.zafl.d.g"
 fi
 log_message "Fuzz for $AFL_TIMEOUT secs"
-fuzz_with_zafl $(realpath ./bc.stars.zafl.g)
+fuzz_with_zafl $(realpath ./bc.stars.zafl.d.g)
 
 # build ZAFL version of readline shared library
 readline=$( ldd `which bc` | grep libreadline | cut -d'>' -f2 | cut -d'(' -f1 )
