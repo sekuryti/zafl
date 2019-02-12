@@ -292,10 +292,8 @@ fi
 #
 log_msg "Transforming input binary $input_binary into $output_zafl_binary"
 
-#cmd="$PSZ $input_binary $output_zafl_binary $ida_or_rida_opt -c move_globals=on -c zax=on -o move_globals:--elftables-only -o zipr:--traceplacement:on $stars_opt $zax_opt $verbose_opt $options $other_args"
-
 zax_opt=" $zax_opt $float_opt "
-cmd="$ZAFL_TM_ENV $PSZ $input_binary $output_zafl_binary $ida_or_rida_opt -c move_globals=on -c zax=on -o move_globals:--elftables-only $stars_opt $zax_opt $verbose_opt $options $other_args"
+cmd="$ZAFL_TM_ENV $PSZ -c rida $input_binary $output_zafl_binary $ida_or_rida_opt -c move_globals=on -c zax=on -o move_globals:--elftables-only $stars_opt $zax_opt $verbose_opt $options $other_args"
 
 if [ ! -z "$ZAFL_TM_ENV" ]; then
 	log_msg "Trace map will be expected at fixed address"
