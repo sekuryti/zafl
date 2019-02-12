@@ -163,17 +163,14 @@ ZaxBase_t::ZaxBase_t(IRDB_SDK::pqxxDB_t &p_dbinterface, IRDB_SDK::FileIR_t *p_va
 	m_num_bb_skipped = 0;
 	m_num_bb_skipped_pushjmp = 0;
 	m_num_bb_skipped_nop_padding = 0;
-	m_num_bb_skipped_innernode = 0;
 	m_num_bb_skipped_cbranch = 0;
-	m_num_bb_skipped_onlychild = 0;
-	m_num_bb_keep_exit_block = 0;
-	m_num_bb_keep_cbranch_back_edge = 0;
 	m_num_style_collafl = 0;
 	m_num_bb_float_instrumentation = 0;
 	m_num_bb_float_regs_saved = 0;
 	m_num_domgraph_blocks_elided = 0;
 	m_num_exit_blocks_elided = 0;
 	m_num_entry_blocks_elided = 0;
+	m_num_single_block_function_elided = 0;
 }
 
 void ZaxBase_t::setVerbose(bool p_verbose)
@@ -562,16 +559,22 @@ BasicBlockSet_t ZaxBase_t::getBlocksToInstrument(const ControlFlowGraph_t &cfg)
 			continue;
 		}
 
-		// padding nop, don't bother
-		if (BB_isPaddingNop(bb))
-		{
-			m_num_bb_skipped_nop_padding++;
-			continue;
-		}
-
 		keepers.insert(bb);
 	}
 	return keepers;
+}
+
+void ZaxBase_t::filterPaddingNOP(BasicBlockSet_t& p_in_out)
+{
+	auto copy=p_in_out;
+	for(auto block : copy)
+	{
+		if (BB_isPaddingNop(block))
+		{
+			p_in_out.erase(block);
+			m_num_bb_skipped_nop_padding++;
+		}
+	}
 }
 
 void ZaxBase_t::filterEntryBlock(BasicBlockSet_t& p_in_out, BasicBlock_t* p_entry)
@@ -618,7 +621,11 @@ void ZaxBase_t::filterExitBlocks(BasicBlockSet_t& p_in_out)
 		if (copy.find(*block->getPredecessors().begin()) == copy.end())
 			continue;
 
-		// must be an exit block
+		const auto last_instruction_index = block->getInstructions().size() - 1;
+		if (block->getInstructions()[last_instruction_index]->getDisassembly().find("ret")==string::npos)
+			continue;
+
+		// must be an exit block (ret)
 		// exit block is not an ibta
 		// only 1 predecessor
 		// predecessor in <p_in_out>
@@ -841,12 +848,19 @@ int ZaxBase_t::execute()
 
 		const auto cfgp = ControlFlowGraph_t::factory(f);
 		const auto &cfg = *cfgp;
+		const auto num_blocks_in_func = cfg.getBlocks().size();
+		m_num_bb += num_blocks_in_func;
+
+		if (m_graph_optimize && num_blocks_in_func == 1)
+		{
+			m_num_single_block_function_elided++;
+			m_num_bb_skipped++;
+			continue;
+		}
+
 		const auto dom_graphp=DominatorGraph_t::factory(cfgp.get());
 		const auto has_domgraph_warnings = dom_graphp -> hasWarnings();  
 
-		const auto num_blocks_in_func = cfg.getBlocks().size();
-		m_num_bb += num_blocks_in_func;
-		
 		const auto entry_block = cfg.getEntry();
 		auto keepers = getBlocksToInstrument(cfg);
 
@@ -880,6 +894,8 @@ int ZaxBase_t::execute()
 			if (m_verbose)
 				cout << "num blocks to keep (after filter exits): " << keepers.size() << endl;
 		}
+
+		filterPaddingNOP(keepers);
 
 		struct BBSorter
 		{
@@ -942,18 +958,12 @@ void ZaxBase_t::dumpAttributes()
 	cout << "#ATTRIBUTE num_bb_float_instrumentation=" << m_num_bb_float_instrumentation << endl;
 	cout << "#ATTRIBUTE num_bb_float_register_saved=" << m_num_bb_float_regs_saved << endl;
 	cout << "#ATTRIBUTE graph_optimize=" << boolalpha << m_graph_optimize << endl;
-	if (m_graph_optimize)
-	{
-		cout << "#ATTRIBUTE num_bb_skipped_cond_branch=" << m_num_bb_skipped_cbranch << endl;
-		cout << "#ATTRIBUTE num_bb_keep_cbranch_back_edge=" << m_num_bb_keep_cbranch_back_edge << endl;
-		cout << "#ATTRIBUTE num_bb_keep_exit_block=" << m_num_bb_keep_exit_block << endl;
-		cout << "#ATTRIBUTE num_style_collafl=" << m_num_style_collafl << endl;
-		cout << "#ATTRIBUTE num_bb_skipped_onlychild=" << m_num_bb_skipped_onlychild << endl;
-		cout << "#ATTRIBUTE num_bb_skipped_innernode=" << m_num_bb_skipped_innernode << endl;
-	}
+	cout << "#ATTRIBUTE num_bb_skipped_cond_branch=" << m_num_bb_skipped_cbranch << endl;
+	cout << "#ATTRIBUTE num_style_collafl=" << m_num_style_collafl << endl;
 	cout << "#ATTRIBUTE num_domgraph_blocks_elided=" << m_num_domgraph_blocks_elided << endl;
 	cout << "#ATTRIBUTE num_entry_blocks_elided=" << m_num_entry_blocks_elided << endl;
 	cout << "#ATTRIBUTE num_exit_blocks_elided=" << m_num_exit_blocks_elided << endl;
+	cout << "#ATTRIBUTE num_single_block_function_elided=" << m_num_single_block_function_elided << endl;
 }
 
 // file dump of modified basic block info

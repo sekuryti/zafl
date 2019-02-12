@@ -41,6 +41,7 @@ namespace Zafl
 			void setBasicBlockFloatingInstrumentation(bool);
 			void setEnableForkServer(bool);
 			void setBreakupCriticalEdges(bool);
+			void filterPaddingNOP(BasicBlockSet_t& p_in_out);
 			void filterBlocksByDomgraph(BasicBlockSet_t& in_out, const DominatorGraph_t  * dg );
 			void filterConditionalBranches(BasicBlockSet_t& p_in_out);
 			void filterEntryBlock(BasicBlockSet_t& in_out, BasicBlock_t* p_entry);
@@ -103,17 +104,14 @@ namespace Zafl
 			size_t m_num_bb_skipped;
 			size_t m_num_bb_skipped_pushjmp;
 			size_t m_num_bb_skipped_nop_padding;
-			size_t m_num_bb_skipped_innernode;
 			size_t m_num_bb_skipped_cbranch;
-			size_t m_num_bb_skipped_onlychild;
-			size_t m_num_bb_keep_exit_block;
-			size_t m_num_bb_keep_cbranch_back_edge;
 			size_t m_num_bb_float_instrumentation;
 			size_t m_num_bb_float_regs_saved;
 			size_t m_num_style_collafl;
 			size_t m_num_domgraph_blocks_elided;
 			size_t m_num_entry_blocks_elided;
 			size_t m_num_exit_blocks_elided;
+			size_t m_num_single_block_function_elided;
 
 		private:
 			string          m_fork_server_entry;  // string to specify fork server entry point
