@@ -2,9 +2,15 @@
 
 using namespace std;
 
-volatile int identity(int x)
+int x = 0;
+
+volatile int identity(int y)
 {
-	return x;
+	if (y % 39 == 0)
+		x = 1;
+	else
+		x = 2;
+	return y;
 }
 
 size_t my_strlen(char *arg)
@@ -23,5 +29,6 @@ size_t my_strlen(char *arg)
 int main(int argc, char **argv)
 {
 	if (argc > 1)
-		cout << "length: " << my_strlen(argv[1]) << endl;
+		cout << "length= " << my_strlen(argv[1]) << endl;
+	cout << "x= " << x << endl;
 }
