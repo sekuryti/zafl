@@ -16,10 +16,10 @@ main()
 	if [[ $CICD_NIGHTLY == 1 ]] ; then
 		export ZAFL_TRACE_MAP_FIXED_ADDRESS=0x10000
 		benchmarks="tcpdump ncal bzip2 tar"
-		configs="kill_deads.rida zafl zafl_nostars zafl_opt_graph zafl_domgraph zafl_untracer_critical_edges zafl_fix_map"
+		configs="zafl_nostars zafl_opt_graph zafl_domgraph zafl_untracer_critical_edges zafl_fix_map"
 	else
 		benchmarks="readelf touch"
-		configs="kill_deads.rida zafl zafl_domgraph zafl_untracer_critical_edges"
+		configs="zafl zafl_domgraph"
 	fi
 
 	# test other zafl configs on various apps
