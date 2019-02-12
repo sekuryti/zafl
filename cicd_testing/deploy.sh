@@ -47,7 +47,7 @@ do_push()
 
 do_logout()
 {
-	docker logout
+	docker logout $ZAFL_PATH
 }
 
 main()
