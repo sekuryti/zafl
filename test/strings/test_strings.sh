@@ -63,16 +63,16 @@ mkdir $session
 pushd $session
 
 # build ZAFL version of strings executable
-zafl.sh `which strings` strings.zafl --tempdir analysis.strings.zafl
+zafl.sh `which strings` strings.zafl.d.g -d -g --tempdir analysis.strings.zafl
 if [ $? -eq 0 ]; then
-	log_success "build strings.zafl"
+	log_success "build strings.zafl.d.g"
 else
-	log_error "build strings.zafl"
+	log_error "build strings.zafl.d.g"
 fi
-grep ATTR analysis.strings.zafl/logs/zax.log
+grep ATTR analysis.strings.zafl.d.g/logs/zax.log
 
 log_message "Fuzz for $AFL_TIMEOUT secs"
-fuzz_with_zafl $(realpath ./strings.zafl)
+fuzz_with_zafl $(realpath ./strings.zafl.d.g)
 
 cleanup
 popd

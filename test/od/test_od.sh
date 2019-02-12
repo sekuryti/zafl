@@ -55,29 +55,17 @@ fuzz_with_zafl()
 mkdir $session
 pushd $session
 
-# build ZAFL version of od executable
-zafl.sh `which od` od.zafl --tempdir analysis.od.zafl
+# build ZAFL (with graph optimizations) version of od executable
+zafl.sh `which od` od.zafl.d.g -d -g --tempdir analysis.od.zafl.d.g
 if [ $? -eq 0 ]; then
-	log_success "build od.zafl"
+	log_success "build od.zafl.d.g"
 else
-	log_error "build od.zafl"
+	log_error "build od.zafl.d.g"
 fi
-grep ATTR analysis.od.zafl/logs/zax.log
-
-log_message "Fuzz for $AFL_TIMEOUT secs"
-fuzz_with_zafl $(realpath ./od.zafl)
-
-# build ZAFL (no Ida) version of od executable
-zafl.sh `which od` od.rida.zafl --tempdir analysis.od.rida.zafl
-if [ $? -eq 0 ]; then
-	log_success "build od.rida.zafl"
-else
-	log_error "build od.rida.zafl"
-fi
-grep ATTR analysis.od.rida.zafl/logs/zax.log
+grep ATTR analysis.od.zafl.d.g/logs/zax.log
 
 log_message "Fuzz rida.zafl for $AFL_TIMEOUT secs"
-fuzz_with_zafl $(realpath ./od.rida.zafl)
+fuzz_with_zafl $(realpath ./od.zafl.d.g)
 
 cleanup
 popd
