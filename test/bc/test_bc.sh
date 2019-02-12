@@ -57,17 +57,6 @@ fuzz_with_zafl()
 mkdir -p $session
 pushd $session
 
-# build ZAFL version of bc executable
-zafl.sh `which bc` bc.stars.zafl --tempdir analysis.bc.stars.zafl
-if [ $? -eq 0 ]; then
-	log_success "build bc.stars.zafl"
-else
-	log_error "build bc.stars.zafl"
-fi
-grep ATTR analysis.bc.stars.zafl/logs/zax.log
-log_message "Fuzz for $AFL_TIMEOUT secs"
-fuzz_with_zafl $(realpath ./bc.stars.zafl)
-
 # build with graph optimization
 zafl.sh `which bc` bc.stars.zafl.d.g -d -g --tempdir analysis.bc.stars.zafl.g
 if [ $? -eq 0 ]; then
@@ -91,26 +80,14 @@ else
 	log_error "build zafl version of $readline_basename at $readline_realpath"
 fi
 
-ldd bc.stars.zafl
-
-log_message "Fuzz for $AFL_TIMEOUT secs (with readline library zafl'ed)"
-fuzz_with_zafl $(realpath ./bc.stars.zafl)
-
 # test functionality
 echo "2+3" | `which bc` > out.bc.orig
-echo "2+3" | ./bc.stars.zafl > out.bc.stars.zafl
-echo "2+3" | ./bc.stars.zafl.g > out.bc.stars.zafl.g
-diff out.bc.orig out.bc.stars.zafl >/dev/null 2>&1
+echo "2+3" | ./bc.stars.zafl.d.g > out.bc.stars.zafl.d.g
+diff out.bc.orig out.bc.stars.zafl.d.g >/dev/null 2>&1
 if [ $? -eq 0 ]; then
-	log_success "bc.stars.zafl basic functionality"
+	log_success "bc.stars.zafl.d.g basic functionality"
 else
-	log_error "bc.stars.zafl basic functionality"
-fi
-diff out.bc.orig out.bc.stars.zafl.g >/dev/null 2>&1
-if [ $? -eq 0 ]; then
-	log_success "bc.stars.zafl.g basic functionality"
-else
-	log_error "bc.stars.zafl.g basic functionality"
+	log_error "bc.stars.zafl.d.g basic functionality"
 fi
 
 popd
