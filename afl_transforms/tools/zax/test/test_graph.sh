@@ -1,9 +1,11 @@
 cd $(dirname $(realpath $0) )
 
 PUT=test_mystrlen.exe
+# make arg 16 chars sharp as it falls on an afl boundary for the hit count
 MYARG="0123456789abcdef"
+
 PUT2=test_mystrlen2.exe
-MYARG2="0123456789abcdef12345sdafdasjfadsjk"
+MYARG2="0123456789abcdefaadsf"
 
 ZAFL_PUT="$PUT.zafl $PUT.zafl.c $PUT.zafl.g $PUT.zafl.d $PUT.zafl.d.g $PUT.zafl.c.d.g"
 ZAFL_PUT2="$PUT2.zafl $PUT2.zafl.c $PUT2.zafl.g $PUT2.zafl.d $PUT2.zafl.d.g $PUT2.zafl.c.d.g"
