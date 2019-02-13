@@ -7,8 +7,13 @@ MYARG="0123456789abcdef"
 PUT2=test_mystrlen2.exe
 MYARG2="0123456789abcdefaadsf"
 
+PUT3=test_running.exe
+MYARG3="000aaaaaaaa"
+MYARG3A="000aaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+
 ZAFL_PUT="$PUT.zafl $PUT.zafl.c $PUT.zafl.g $PUT.zafl.d $PUT.zafl.d.g $PUT.zafl.c.d.g"
 ZAFL_PUT2="$PUT2.zafl $PUT2.zafl.c $PUT2.zafl.g $PUT2.zafl.d $PUT2.zafl.d.g $PUT2.zafl.c.d.g"
+ZAFL_PUT3="$PUT3.zafl $PUT3.zafl.c $PUT3.zafl.g $PUT3.zafl.d $PUT3.zafl.d.g $PUT3.zafl.c.d.g"
 
 log_msg()
 {
@@ -31,8 +36,8 @@ check_afl()
 
 build_one()
 {
-	orig=$1
-	zafl=$2
+	local orig=$1
+	local zafl=$2
 	shift
 	shift
 	zafl.sh $orig $zafl $@
@@ -47,6 +52,7 @@ build_all()
 {
 	g++ test_mystrlen.cpp -o $PUT
 	g++ test_mystrlen2.cpp -o $PUT2
+	g++ test_running.cpp -o $PUT3
 }
 
 zafl_all()
@@ -64,21 +70,23 @@ zafl_all()
 
 clean_all()
 {
-	rm -fr ${PUT}* ${PUT2}*
+	rm -fr ${PUT}* ${PUT2}* ${PUT3}*
 }
 
 verify_output()
 {
-	orig_zafl=$1
+	local arg=$1
 	shift
-	all_configs=$*
+	local orig_zafl=$1
+	shift
+	local all_configs=$*
 
-	./$orig_zafl $MYARG > $orig_zafl.output.orig
+	./$orig_zafl $arg > $orig_zafl.output.orig
 
 	for p in $all_configs 
 	do
 		echo "Program under test: $p"
-		./${p} $MYARG > $p.output
+		./${p} $arg > $p.output
 		diff $orig_zafl.output.orig $p.output
 		if [ ! $? -eq 0 ]; then
 			log_error "output verification failure: $p.output"
@@ -90,11 +98,11 @@ verify_output()
 
 verify_afl_map()
 {
-	arg=$1
+	local arg=$1
 	shift
-	orig_zafl=$1
+	local orig_zafl=$1
 	shift
-	all_configs=$*
+	local all_configs=$*
 	for p in $all_configs
 	do
 		echo "Computing trace maps for input $MYARG"
@@ -124,11 +132,17 @@ check_afl
 build_all
 
 zafl_all $PUT
-verify_output $PUT $ZAFL_PUT
+verify_output $MYARG $PUT $ZAFL_PUT
 verify_afl_map $MYARG $PUT $ZAFL_PUT
 
 zafl_all $PUT2
-verify_output $PUT2 $ZAFL_PUT2
+verify_output $MYARG2 $PUT2 $ZAFL_PUT2
 verify_afl_map $MYARG2 $PUT2 $ZAFL_PUT2
+
+zafl_all $PUT3
+verify_output $MYARG3 $PUT3 $ZAFL_PUT3
+verify_afl_map $MYARG3 $PUT3 $ZAFL_PUT3
+verify_output $MYARG3A $PUT3 $ZAFL_PUT3
+verify_afl_map $MYARG3A $PUT3 $ZAFL_PUT3
 
 clean_all
