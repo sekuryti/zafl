@@ -4,6 +4,7 @@ set -x
 
 
 # update submodules
+git submodule foreach --recursive git reset --hard
 git submodule sync --recursive
 git submodule update --recursive --init
 # gather info for debugging later, probably not necessary 
