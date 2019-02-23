@@ -187,8 +187,14 @@ ZaxBase_t::ZaxBase_t(IRDB_SDK::pqxxDB_t &p_dbinterface, IRDB_SDK::FileIR_t *p_va
 	if (m_do_fixed_addr_optimization) {
 		cout << "fixed address optimization enabled" << endl;
 		m_trace_map_fixed_addr = strtoul(trace_map_fixed_addr_s,nullptr,0);
-		m_previd_fixed_addr = m_trace_map_fixed_addr + 65536 + 4096 + 32;
-		m_context_fixed_addr = m_trace_map_fixed_addr + 65536 + 4096 + 64;
+		// must match values in libzafl.so
+		// @todo: include libzafl.hpp
+		const auto trace_map_size = 65536; // power of 2 
+		const auto gap = 4096;             // page, multiple of 4K
+		const auto previd_offset = 32;     // word aligned
+		const auto context_offset = 64;    // word aligned (make sure no overlap with previd)
+		m_previd_fixed_addr = m_trace_map_fixed_addr + trace_map_size + gap + previd_offset;
+		m_context_fixed_addr = m_trace_map_fixed_addr + trace_map_size + gap + context_offset;
 		cout << hex;
 		cout << "tracemap fixed at: 0x" << m_trace_map_fixed_addr << endl;
 		cout << "prev_id fixed at : 0x" << m_previd_fixed_addr << endl;

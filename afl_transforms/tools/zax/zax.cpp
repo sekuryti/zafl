@@ -343,7 +343,6 @@ void Zax_t::instrumentBasicBlock(BasicBlock_t *p_bb, const bool p_honorRedZone, 
 		// <noaddr> mov    rax, <blockid>
 		sprintf(buf,"mov   %s,0x%x", reg_temp, blockid);
 		do_insert(buf);
-	
 	}
 
 	// write into the trace map.
@@ -367,22 +366,24 @@ void Zax_t::instrumentBasicBlock(BasicBlock_t *p_bb, const bool p_honorRedZone, 
 	}
 
 	// write out block id into zafl_prev_id for the next instrumentation.
-// FIXME:  Why are we doing this if we aren't bothering to hash the previous block ID?
 	//  1e:   mov    eax,0x91a                          
-	if (useFixedAddresses())
+	if (!p_collafl_optimization)
 	{
-		sprintf(buf, "mov   WORD [0x%lx], 0x%x", getFixedAddressPrevId(), blockid >> 1);
-		do_insert(buf);
-	}
-	else
-	{
-		sprintf(buf, "mov   %s, 0x%x", reg_temp32, blockid >> 1);
-		do_insert(buf);
+		if (useFixedAddresses())
+		{
+			sprintf(buf, "mov   WORD [0x%lx], 0x%x", getFixedAddressPrevId(), blockid >> 1);
+			do_insert(buf);
+		}
+		else
+		{
+			sprintf(buf, "mov   %s, 0x%x", reg_temp32, blockid >> 1);
+			do_insert(buf);
 
-		// store prev_id
-		//  23:   mov    WORD PTR [rdx],ax       
-		sprintf(buf, "mov   WORD [%s], %s", reg_prev_id, reg_temp16);
-		do_insert(buf);
+			// store prev_id
+			//  23:   mov    WORD PTR [rdx],ax       
+			sprintf(buf, "mov   WORD [%s], %s", reg_prev_id, reg_temp16);
+			do_insert(buf);
+		}
 	}
 
 	// finally, restore any flags/registers so that the program can execute.
