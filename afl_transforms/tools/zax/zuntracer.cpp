@@ -1,5 +1,4 @@
 #include "zuntracer.hpp"
-#include "critical_edge_breaker.hpp"
 
 using namespace std;
 using namespace IRDB_SDK;
@@ -226,22 +225,3 @@ set<BasicBlock_t*> ZUntracer_t::getBlocksToInstrument(ControlFlowGraph_t &cfg)
 	}
 	return keepers;
 }
-
-// 
-// breakup critical edges
-// use block-level instrumentation
-// 
-int ZUntracer_t::execute()
-{
-	if (m_breakupCriticalEdges)
-	{
-		CriticalEdgeBreaker_t ceb(getFileIR(), m_verbose);
-		cout << "#ATTRIBUTE num_bb_extra_blocks=" << ceb.getNumberExtraNodes() << endl;
-
-		getFileIR()->setBaseIDS();
-		getFileIR()->assembleRegistry();
-	}
-
-	return ZaxBase_t::execute();
-}
-

@@ -49,7 +49,9 @@ static void usage(char* name)
 	cerr<<"\t[--enable-critical-edge-breakup|-c]            Breakup critical edges"<<endl;
 	cerr<<"\t[--disable-critical-edge-breakup|-C]           Do not breakup critical edges (default)"<<endl;
 	cerr<<"\t[--enable-floating-instrumentation|-i]         Select best instrumentation within basic block"<<endl;
-	cerr<<"\t[--disable-floating-instrumentation|-I]        Instrument firt instruction in basic blocks"<<endl;
+	cerr<<"\t[--disable-floating-instrumentation|-I]        Instrument first instruction in basic blocks"<<endl;
+	cerr<<"\t[--enable-context-sensitivity <style>]         Use calling context sensitivity, style={callsite,function}"<<endl;
+	cerr<<"\t[--disable-context-sensitivity]                Disable calling context sensitivity"<<endl;
 }
 
 int main(int argc, char **argv)
@@ -74,6 +76,7 @@ int main(int argc, char **argv)
 	auto untracer_mode=false;
 	auto breakup_critical_edges=false;
 	auto floating_instrumentation=false;
+	auto context_sensitivity=ContextSensitivity_None;
 	set<string> exitpoints;
 
 	srand(getpid()+time(NULL));
@@ -100,9 +103,10 @@ int main(int argc, char **argv)
 		{"disable-critical-edge-breakup", no_argument, 0, 'C'},
 		{"enable-floating-instrumentation", no_argument, 0, 'i'},
 		{"disable-floating-instrumentation", no_argument, 0, 'I'},
+		{"enable-context-sensitivity", required_argument, 0, 'z'},
 		{0,0,0,0}
 	};
-	const char* short_opts="e:E:w:sv?hagGdDfFucCiI";
+	const char* short_opts="z:e:E:w:sv?hagGdDfFucCiI";
 
 	while(true)
 	{
@@ -172,6 +176,14 @@ int main(int argc, char **argv)
 		case 'I':
 			floating_instrumentation=false;
 			break;
+		case 'z':
+			if (optarg == string("callsite"))
+				context_sensitivity=ContextSensitivity_Callsite; // Angora fuzzer style
+			else if (optarg == string("function"))
+				context_sensitivity=ContextSensitivity_Function;
+			else
+				context_sensitivity=ContextSensitivity_None;
+			break;
 		default:
 			break;
 		}
@@ -231,6 +243,7 @@ int main(int argc, char **argv)
 			zax->setBasicBlockFloatingInstrumentation(floating_instrumentation);
 			zax->setEnableForkServer(forkserver_enabled);
 			zax->setBreakupCriticalEdges(breakup_critical_edges);
+			zax->setContextSensitivity(context_sensitivity); 
 
 			int success=zax->execute();
 

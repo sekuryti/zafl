@@ -16,7 +16,6 @@ namespace Zafl
 			ZUntracer_t(const ZUntracer_t&) = delete;
 			ZUntracer_t(IRDB_SDK::pqxxDB_t &p_dbinterface, IRDB_SDK::FileIR_t *p_variantIR, string p_entry, set<string> p_exits, bool p_use_stars=false, bool p_autozafl=false);
 			virtual ~ZUntracer_t() {};
-			virtual int execute();
 
 		protected:
 			virtual void instrumentBasicBlock(BasicBlock_t*, const bool p_hasLeafAnnotation, const bool p_collafl_optimization=false);

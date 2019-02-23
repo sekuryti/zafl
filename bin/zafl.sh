@@ -36,15 +36,17 @@ usage()
 	echo "     -M, --disable-fixed-map                 Disable fixed address tracing map (default)"
 	echo "     -i, --enable-floating-instrumentation   Select best instrumentation point within basic block (default)"
 	echo "     -I, --disable-floating-instrumentation  Use first instruction for instrumentation in basic blocks"
+	echo "     --enable-context-sensitivity <style>      style={callsite,function} only function supported currently"
 	echo "     -v                                      Verbose mode" 
 	echo 
 }
 
 ida_or_rida_opt=" -c rida "
 stars_opt=" -o zax:--stars "
-zax_opt=" "
+zax_opt=""
 other_args=""
 float_opt=" -o zax:--enable-floating-instrumentation "
+context_sensitivity_opt=""
 
 me=$(whoami)
 tmp_dir=/tmp/${me}/$$
@@ -180,13 +182,32 @@ parse_args()
 				shift
 				;;
 			-i | --enable-floating-instrumentation)
-				float_opt= " -o zax:--enable-floating-instrumentation "
+				float_opt=" -o zax:--enable-floating-instrumentation "
 				shift
 				;;
 			-I | --disable-floating-instrumentation)
-				float_opt= " -o zax:--disable-floating-instrumentation "
+				float_opt=" -o zax:--disable-floating-instrumentation "
 				shift
 				;;
+			--enable-context-sensitivity)
+				shift
+				case $1 in
+					function)
+						context_sensitivity_opt=" -o zax:\"--enable-context-sensitivity function\" "
+						shift
+					;;
+					callsite)
+						context_sensitivity_opt=" -o zax:--enable-context-sensitivity callsite "
+						echo "Error: context sensitivity <callsite> currently unsupported"
+						exit 1
+					;;
+					*)
+						echo "Error: must specify function or callsite for context sensitivity"
+						exit 1
+					;;
+				esac
+				;;
+
 			-*|--*=) # unsupported flags
 				echo "Error: Unsupported flag $1" >&2
 				exit 1
@@ -292,7 +313,7 @@ fi
 #
 log_msg "Transforming input binary $input_binary into $output_zafl_binary"
 
-zax_opt=" $zax_opt $float_opt "
+zax_opt=" $zax_opt $float_opt $context_sensitivity_opt "
 cmd="$ZAFL_TM_ENV $PSZ $input_binary $output_zafl_binary $ida_or_rida_opt -c move_globals=on -c zax=on -o move_globals:--elftables-only $stars_opt $zax_opt $verbose_opt $options $other_args"
 
 if [ ! -z "$ZAFL_TM_ENV" ]; then

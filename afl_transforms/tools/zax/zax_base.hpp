@@ -18,8 +18,10 @@ namespace Zafl
 
 	using ZaflBlockId_t = uint32_t;
 	using ZaflLabelId_t = uint32_t;
+	using ZaflContextId_t = uint32_t;
 	using BBRecord_t = vector<Instruction_t*>;
 	using RegisterSet_t = IRDB_SDK::RegisterIDSet_t;
+	enum ContextSensitivity_t {ContextSensitivity_None, ContextSensitivity_Callsite, ContextSensitivity_Function};
 
 	/*
 	 * Base class for afl-compatible instrumentation:
@@ -41,11 +43,13 @@ namespace Zafl
 			void setBasicBlockFloatingInstrumentation(bool);
 			void setEnableForkServer(bool);
 			void setBreakupCriticalEdges(bool);
+			void setContextSensitivity(ContextSensitivity_t);
 			void filterPaddingNOP(BasicBlockSet_t& p_in_out);
 			void filterBlocksByDomgraph(BasicBlockSet_t& in_out, const DominatorGraph_t  * dg );
 			void filterConditionalBranches(BasicBlockSet_t& p_in_out);
 			void filterEntryBlock(BasicBlockSet_t& in_out, BasicBlock_t* p_entry);
 			void filterExitBlocks(BasicBlockSet_t& in_out);
+			void addContextSensitivity(const ControlFlowGraph_t&);
 
 		protected:
 			ZaxBase_t(pqxxDB_t &p_dbinterface, FileIR_t *p_variantIR, string p_entry, set<string> p_exits, bool p_use_stars=false, bool p_autozafl=false);
@@ -54,6 +58,7 @@ namespace Zafl
 
 			virtual ZaflBlockId_t getBlockId(const unsigned p_maxid=0xFFFF);
 			virtual ZaflLabelId_t getLabelId(const unsigned p_maxid=0xFFFF);
+			virtual ZaflContextId_t getContextId(const unsigned p_maxid=0xFFFF);
 			virtual BasicBlockSet_t getBlocksToInstrument (const ControlFlowGraph_t& cfg);
 			virtual Instruction_t* getInstructionToInstrument(const BasicBlock_t *, const unsigned p_num_free_regs_desired = 0);
 			virtual void setup();
@@ -73,10 +78,12 @@ namespace Zafl
 			bool BB_isPushJmp(const BasicBlock_t *) const;
 			bool BB_isPaddingNop(const BasicBlock_t *) const;
 			bool getBasicBlockFloatingInstrumentation() const;
+			ContextSensitivity_t getContextSensitivity() const;
 			bool hasLeafAnnotation(Function_t* fn) const;
 			RegisterSet_t getDeadRegs(Instruction_t* insn) const;
 			RegisterSet_t getFreeRegs(const RegisterSet_t& candidates, const RegisterSet_t& allowed) const;
-
+			void addContextSensitivity_Callsite(const ControlFlowGraph_t&);
+			void addContextSensitivity_Function(const ControlFlowGraph_t&);
 
 		protected:
 			pqxxDB_t&                      m_dbinterface;
@@ -91,12 +98,15 @@ namespace Zafl
 			bool                           m_breakupCriticalEdges;
 			bool                           m_bb_float_instrumentation;  // skip basic blocks based on graph
 			bool                           m_verbose;
-
 			pair<DataScoop_t*,int>         m_trace_map;  // afl shared memory trace map
 			pair<DataScoop_t*,int>         m_prev_id;    // id of previous block
+			pair<DataScoop_t*,int>         m_context_id;    // calling context variable
 			Instruction_t*                 m_plt_zafl_initAflForkServer; // plt entry for afl fork server initialization routine
 
+			set<ZaflContextId_t>           m_used_contextid;  // internal bookkeeping to keep track of used block ids
 			map<ZaflBlockId_t, BBRecord_t> m_modifiedBlocks;  // keep track of modified blocks
+
+			ContextSensitivity_t           m_context_sensitivity;  // none, @callsite, @function
 
 			// stats
 			size_t m_num_bb;
@@ -112,6 +122,7 @@ namespace Zafl
 			size_t m_num_entry_blocks_elided;
 			size_t m_num_exit_blocks_elided;
 			size_t m_num_single_block_function_elided;
+			size_t m_num_contexts;
 
 		private:
 			string          m_fork_server_entry;  // string to specify fork server entry point
@@ -120,6 +131,7 @@ namespace Zafl
 			set<string>     m_blacklist;          // blacklisted functions and/or instructions
 			ZaflLabelId_t   m_labelid;            // internal bookkeeping to generate labels
 			ZaflBlockId_t   m_blockid;            // internal bookkeeping to generate labels
+			Instruction_t*  m_entry_point;        // entry point where fork server was inserted
 
 	};
 } 
