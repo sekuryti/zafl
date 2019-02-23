@@ -19,6 +19,7 @@ $ZAFL_HOME/zfuzz/test/od/test_od.sh
 echo "Test graph optimizations"
 $ZAFL_HOME/zfuzz/afl_transforms/tools/zax/test/test_graph.sh
 $ZAFL_HOME/zfuzz/afl_transforms/tools/zax/test/test_context.sh
+$ZAFL_HOME/zfuzz/afl_transforms/tools/zax/test/test_context_recursion.sh
 
 echo "Test zafl with ZAFL_TRACE_MAP_FIXED_ADDRESS=0x10000"
 export ZAFL_TRACE_MAP_FIXED_ADDRESS=0x10000
