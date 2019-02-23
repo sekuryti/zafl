@@ -714,7 +714,7 @@ void ZaxBase_t::filterConditionalBranches(BasicBlockSet_t& p_in_out)
 
 		if (block->endsInConditionalBranch() && 
 		    all_successors_kept &&
-			successors_have_unique_preds &&
+		    successors_have_unique_preds &&
 		    !successor_with_ibta)
 		{
 			// block ends in conditional branch
@@ -729,6 +729,7 @@ void ZaxBase_t::filterConditionalBranches(BasicBlockSet_t& p_in_out)
 		}
 	}
 }
+
 void ZaxBase_t::filterBlocksByDomgraph(BasicBlockSet_t& p_in_out,  const DominatorGraph_t* dg)
 {
 	if(!m_domgraph_optimize)
@@ -900,7 +901,7 @@ void ZaxBase_t::dumpMap()
 
 void ZaxBase_t::addContextSensitivity_Callsite(const ControlFlowGraph_t& cfg)
 {
-		assert(0);
+	assert(0);
 }
 
 // update calling context hash at entry point
@@ -960,7 +961,7 @@ void ZaxBase_t::addContextSensitivity_Function(const ControlFlowGraph_t& cfg)
 			return tmp;
 		};
 
-	auto add_hash_context_instrumentation = [&](ZaflContextId_t contextid, Instruction_t* i)
+	auto add_hash_context_instrumentation = [&](ZaflContextId_t contextid, Instruction_t* i, const bool honor_red_zone)
 		{
 			inserted_before = false;
 
@@ -972,10 +973,12 @@ void ZaxBase_t::addContextSensitivity_Function(const ControlFlowGraph_t& cfg)
 
 			const auto allowed_regs = RegisterSet_t({rn_RAX, rn_RBX, rn_RCX, rn_RDX, rn_R8, rn_R9, rn_R10, rn_R11, rn_R12, rn_R13, rn_R14, rn_R15});
 			const auto dead_regs = getDeadRegs(i);
+			const auto live_flags = dead_regs.find(IRDB_SDK::rn_EFLAGS)==dead_regs.end();
 			auto free_regs = getFreeRegs(dead_regs, allowed_regs);
 
-			// @todo: red zone?
-			
+			if (honor_red_zone)
+				i = do_insert(i, "lea rsp, [rsp-128]");
+
 			if (free_regs.size() > 0)
 			{
 				reg_context = registerToString(FIRSTOF(free_regs));
@@ -998,8 +1001,14 @@ void ZaxBase_t::addContextSensitivity_Function(const ControlFlowGraph_t& cfg)
 				i = do_insert(i, "push " + reg_temp);
 			}
 
+			if (live_flags)
+				i = do_insert(i, "pushf");
+
 			// compute new hash chain value
 			i = compute_hash_chain(contextid, i, reg_context, reg_temp);
+
+			if (live_flags)
+				i = do_insert(i, "popf");
 
 			if (save_temp)
 				i = do_insert(i, "pop " + reg_temp);
@@ -1007,19 +1016,24 @@ void ZaxBase_t::addContextSensitivity_Function(const ControlFlowGraph_t& cfg)
 			if (save_context)
 				i = do_insert(i, "pop " + reg_context);
 
+			if (honor_red_zone)
+				i = do_insert(i, "lea rsp, [rsp+128]");
 		};
+
+	bool honor_red_zone = true;
+	if (m_use_stars) 
+		honor_red_zone = hasLeafAnnotation(cfg.getFunction());
 
 	auto contextid = getContextId();
 	auto entry_block = cfg.getEntry();
 	inserted_before = false;
-	add_hash_context_instrumentation(contextid, entry_block->getInstructions()[0]);
+	add_hash_context_instrumentation(contextid, entry_block->getInstructions()[0], honor_red_zone);
 
-	// find all exit blocks
+	// find all exit blocks with returns
 	auto find_exits = BasicBlockSet_t();
 	copy_if(ALLOF(cfg.getBlocks()), inserter(find_exits, find_exits.begin()), [entry_block](BasicBlock_t* bb) {
 			if (bb == entry_block) return false; 			
 			if (!bb->getIsExitBlock()) return false; 			
-			// make sure it's a ret
 			const auto last_instruction_index = bb->getInstructions().size() - 1;
 			return (bb->getInstructions()[last_instruction_index]->getDisassembly().find("ret")!=string::npos);
 		});
@@ -1028,7 +1042,7 @@ void ZaxBase_t::addContextSensitivity_Function(const ControlFlowGraph_t& cfg)
 	{
 		const auto last_instruction_index = bb->getInstructions().size()-1;
 		inserted_before = false;
-		add_hash_context_instrumentation(contextid, bb->getInstructions()[last_instruction_index]);
+		add_hash_context_instrumentation(contextid, bb->getInstructions()[last_instruction_index], honor_red_zone);
 	}
 }
 
@@ -1098,11 +1112,9 @@ int ZaxBase_t::execute()
 		// skip if function has no entry point
 		if (!f->getEntryPoint()) continue;
 
-		bool leafAnnotation = true;
+		bool honorRedZone = true;
 		if (m_use_stars) 
-		{
-			leafAnnotation = hasLeafAnnotation(f);
-		}
+			honorRedZone = hasLeafAnnotation(f);
 
 		const auto cfgp = ControlFlowGraph_t::factory(f);
 		const auto &cfg = *cfgp;
@@ -1183,7 +1195,7 @@ int ZaxBase_t::execute()
 				m_num_style_collafl++;
 			}
 
-			instrumentBasicBlock(bb, leafAnnotation, collAflSingleton);
+			instrumentBasicBlock(bb, honorRedZone, collAflSingleton);
 		}
 
 		m_num_bb_instrumented += keepers.size();
