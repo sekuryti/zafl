@@ -36,7 +36,9 @@ usage()
 	echo "     -M, --disable-fixed-map                 Disable fixed address tracing map (default)"
 	echo "     -i, --enable-floating-instrumentation   Select best instrumentation point within basic block (default)"
 	echo "     -I, --disable-floating-instrumentation  Use first instruction for instrumentation in basic blocks"
-	echo "     --enable-context-sensitivity <style>      style={callsite,function} only function supported currently"
+	echo "     --enable-context-sensitivity <style>    style={callsite,function} only function supported currently"
+#	echo "     -l, --enable-locality                   Maintain code locality (best effort) when instrumenting binary"
+#	echo "     -L, --disable-locality                  Randomized layout when instrumenting binary"
 	echo "     -v                                      Verbose mode" 
 	echo 
 }
@@ -47,6 +49,8 @@ zax_opt=""
 other_args=""
 float_opt=" -o zax:--enable-floating-instrumentation "
 context_sensitivity_opt=""
+trace_opt=""
+
 
 me=$(whoami)
 tmp_dir=/tmp/${me}/$$
@@ -207,7 +211,14 @@ parse_args()
 					;;
 				esac
 				;;
-
+			-l | --enable-locality)
+				trace_opt=" --step-option zipr:--traceplacement:on --step-option zipr:true "
+				shift
+				;;
+			-L | --disable-locality)
+				trace_opt=""
+				shift
+				;;
 			-*|--*=) # unsupported flags
 				echo "Error: Unsupported flag $1" >&2
 				exit 1
@@ -249,7 +260,7 @@ find_main()
 
 	if [  $? -eq 0 ]; then
 		main_addr=$(cut -d' ' -f1 $tmp_main)
-		log_msg "detected main at: 0x$main_addr"
+		log_msg "Detected main at: 0x$main_addr"
 		options=" $options -o zax:'-e 0x$main_addr'"
 	else
 		grep -B1 "libc_start_main@" $tmp_objdump >/dev/null 2>&1
@@ -314,13 +325,17 @@ fi
 log_msg "Transforming input binary $input_binary into $output_zafl_binary"
 
 zax_opt=" $zax_opt $float_opt $context_sensitivity_opt "
-cmd="$ZAFL_TM_ENV $PSZ $input_binary $output_zafl_binary $ida_or_rida_opt -c move_globals=on -c zax=on -o move_globals:--elftables-only $stars_opt $zax_opt $verbose_opt $options $other_args"
+cmd="$ZAFL_TM_ENV $PSZ $input_binary $output_zafl_binary $ida_or_rida_opt -c move_globals=on -c zax=on -o move_globals:--elftables-only $stars_opt $zax_opt $verbose_opt $options $other_args $trace_opt"
 
 if [ ! -z "$ZAFL_TM_ENV" ]; then
 	log_msg "Trace map will be expected at fixed address"
 	if [ -z $ZAFL_TRACE_MAP_FIXED_ADDRESS ]; then
 		log_warning "When running afl-fuzz, make sure that the environment variable ZAFL_TRACE_MAP_FIXED_ADDRESS is exported and set properly to (otherwise the instrumented binary will crash):"
 		log_warning "export $ZAFL_TM_ENV"
+	fi
+else
+	if [ ! -z $ZAFL_TRACE_MAP_FIXED_ADDRESS ]; then
+		log_msg "Trace map will be at fixed address: $ZAFL_TRACE_MAP_FIXED_ADDRESS"
 	fi
 fi
 

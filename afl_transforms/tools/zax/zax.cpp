@@ -81,16 +81,22 @@ void Zax_t::instrumentBasicBlock(BasicBlock_t *p_bb, const bool p_honorRedZone, 
 	auto save_context = (getContextSensitivity() != ContextSensitivity_None) ? true : false;
 	auto block_record=BBRecord_t();
 
-	const auto trace_map_fixed_addr       = getenv("ZAFL_TRACE_MAP_FIXED_ADDRESS");
-	const auto do_fixed_addr_optimization = (trace_map_fixed_addr!=nullptr);
+	// if fixed address, only need 1 register
+	// if not, need up to 4 registers
+	auto num_free_regs_desired = save_context ? 4 : 3;
+	if (useFixedAddresses())
+		num_free_regs_desired = 1; 
 
-	const auto num_free_regs_desired = save_context ? 4 : 3;
 	auto instr = getInstructionToInstrument(p_bb, num_free_regs_desired);
 	if (!instr) throw;
 
 	// don't try to reserve the trace_map reg if we aren't using it.
-	if(do_fixed_addr_optimization)  
+	if(useFixedAddresses())  
+	{
 		save_trace_map=false;
+		save_prev_id=false;
+		save_context=false;
+	}
 
 	block_record.push_back(instr);
 
@@ -118,7 +124,7 @@ void Zax_t::instrumentBasicBlock(BasicBlock_t *p_bb, const bool p_honorRedZone, 
 				save_trace_map = false;
 				free_regs.erase(r);
 			}
-			else if (r == rn_RDX)
+			else if (r == rn_RDX && save_prev_id)
 			{
 				reg_prev_id = strdup("rdx");
 				save_prev_id = false;
@@ -164,7 +170,7 @@ void Zax_t::instrumentBasicBlock(BasicBlock_t *p_bb, const bool p_honorRedZone, 
 
 		if (getContextSensitivity() != ContextSensitivity_None)
 		{
-			if (free_regs.size() >= 1)
+			if (save_context && free_regs.size() >= 1)
 			{
 				auto r = *free_regs.begin();
 				auto r16 = convertRegisterTo16bit(r);
@@ -262,23 +268,29 @@ void Zax_t::instrumentBasicBlock(BasicBlock_t *p_bb, const bool p_honorRedZone, 
 	// load the previous block ID.
 	//   0:   mov    rdx,QWORD PTR [rip+0x0]        # 7 <f+0x7>
 // FIXME:  Why are we doing this if we aren't bothering to hash the previous block ID?
-	sprintf(buf, "P%d: mov  %s, QWORD [rel P%d]", labelid, reg_prev_id, labelid); // rdx
-	do_insert(buf);
-	create_got_reloc(getFileIR(), m_prev_id, tmp);
 
-	
+	if (!useFixedAddresses())
+	{
+		sprintf(buf, "P%d: mov  %s, QWORD [rel P%d]", labelid, reg_prev_id, labelid); // rdx
+		do_insert(buf);
+		create_got_reloc(getFileIR(), m_prev_id, tmp);
+	}
+
 	if (getContextSensitivity() != ContextSensitivity_None)
 	{
-		sprintf(buf, "C%d: mov  %s, QWORD [rel C%d]", labelid, reg_context, labelid); 
-		do_insert(buf);
-		create_got_reloc(getFileIR(), m_context_id, tmp);
+		if (!useFixedAddresses())
+		{
+			sprintf(buf, "C%d: mov  %s, QWORD [rel C%d]", labelid, reg_context, labelid); 
+			do_insert(buf);
+			create_got_reloc(getFileIR(), m_context_id, tmp);
 
-		sprintf(buf,"mov %s, [%s]", reg_context, reg_context);
-		do_insert(buf);
+			sprintf(buf,"mov %s, [%s]", reg_context, reg_context);
+			do_insert(buf);
+		}
 	}
 
 	// if we are using a variable address trace map, generate the address.
-	if(!do_fixed_addr_optimization)
+	if(!useFixedAddresses())
 	{
 		//   7:   mov    rcx,QWORD PTR [rip+0x0]        # e <f+0xe>
 		sprintf(buf, "T%d: mov  %s, QWORD [rel T%d]", labelid, reg_trace_map, labelid); 
@@ -292,7 +304,14 @@ void Zax_t::instrumentBasicBlock(BasicBlock_t *p_bb, const bool p_honorRedZone, 
 	if (!p_collafl_optimization)
 	{
 		//   e:   movzx  eax,WORD PTR [rdx]                      
-		sprintf(buf,"movzx  %s,WORD [%s]", reg_temp32, reg_prev_id);
+		if (useFixedAddresses())
+		{
+			sprintf(buf,"movzx  %s,WORD [0x%lx]", reg_temp32, getFixedAddressPrevId());
+		}
+		else
+		{
+			sprintf(buf,"movzx  %s,WORD [%s]", reg_temp32, reg_prev_id);
+		}
 		do_insert(buf);
 
 		//  11:   xor    ax,0x1234                              
@@ -302,9 +321,17 @@ void Zax_t::instrumentBasicBlock(BasicBlock_t *p_bb, const bool p_honorRedZone, 
 		// hash with calling context value
 		if (getContextSensitivity() != ContextSensitivity_None)
 		{
-			// xor ax, <context_id_register>
-			sprintf(buf, "xor   %s,%s", reg_temp16, reg_context16);
-			do_insert(buf);
+			if (useFixedAddresses())
+			{
+				sprintf(buf, "xor   %s,WORD [0x%lx]", reg_temp16, getFixedAddressContext());
+				do_insert(buf);
+			}
+			else
+			{
+				// xor ax, <context_id_register>
+				sprintf(buf, "xor   %s,%s", reg_temp16, reg_context16);
+				do_insert(buf);
+			}
 		}
 
 		//  15:   movzx  eax,ax                                
@@ -320,11 +347,11 @@ void Zax_t::instrumentBasicBlock(BasicBlock_t *p_bb, const bool p_honorRedZone, 
 	}
 
 	// write into the trace map.
-	if(do_fixed_addr_optimization)
+	if(useFixedAddresses())
 	{
 		// do it the fast way with the fixed-adresss trace map
 		//  1b:   80 00 01                add    BYTE PTR [rax],0x1                  
-		sprintf(buf,"add    BYTE [%s + 0x%lx],0x1", reg_temp, strtoul(trace_map_fixed_addr,nullptr,0) );
+		sprintf(buf,"add    BYTE [%s + 0x%lx],0x1", reg_temp, getFixedAddressMap());
 		do_insert(buf);
 	}
 	else
@@ -342,13 +369,21 @@ void Zax_t::instrumentBasicBlock(BasicBlock_t *p_bb, const bool p_honorRedZone, 
 	// write out block id into zafl_prev_id for the next instrumentation.
 // FIXME:  Why are we doing this if we aren't bothering to hash the previous block ID?
 	//  1e:   mov    eax,0x91a                          
-	sprintf(buf, "mov   %s, 0x%x", reg_temp32, blockid >> 1);
-	do_insert(buf);
+	if (useFixedAddresses())
+	{
+		sprintf(buf, "mov   WORD [0x%lx], 0x%x", getFixedAddressPrevId(), blockid >> 1);
+		do_insert(buf);
+	}
+	else
+	{
+		sprintf(buf, "mov   %s, 0x%x", reg_temp32, blockid >> 1);
+		do_insert(buf);
 
-	// store prev_id
-	//  23:   mov    WORD PTR [rdx],ax       
-	sprintf(buf, "mov    WORD [%s], %s", reg_prev_id, reg_temp16);
-	do_insert(buf);
+		// store prev_id
+		//  23:   mov    WORD PTR [rdx],ax       
+		sprintf(buf, "mov   WORD [%s], %s", reg_prev_id, reg_temp16);
+		do_insert(buf);
+	}
 
 	// finally, restore any flags/registers so that the program can execute.
 	if (live_flags)       do_insert("popf");
