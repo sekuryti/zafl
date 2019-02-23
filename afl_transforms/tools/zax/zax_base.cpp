@@ -179,6 +179,48 @@ ZaxBase_t::ZaxBase_t(IRDB_SDK::pqxxDB_t &p_dbinterface, IRDB_SDK::FileIR_t *p_va
 	m_num_entry_blocks_elided = 0;
 	m_num_single_block_function_elided = 0;
 	m_num_contexts = 0;
+
+	// fixed addresses (must match libzafl)
+	const auto trace_map_fixed_addr_s = getenv("ZAFL_TRACE_MAP_FIXED_ADDRESS");
+	m_do_fixed_addr_optimization = (trace_map_fixed_addr_s!=nullptr);
+
+	if (m_do_fixed_addr_optimization) {
+		cout << "fixed address optimization enabled" << endl;
+		m_trace_map_fixed_addr = strtoul(trace_map_fixed_addr_s,nullptr,0);
+		m_previd_fixed_addr = m_trace_map_fixed_addr + 65536 + 4096 + 32;
+		m_context_fixed_addr = m_trace_map_fixed_addr + 65536 + 4096 + 64;
+		cout << hex;
+		cout << "tracemap fixed at: 0x" << m_trace_map_fixed_addr << endl;
+		cout << "prev_id fixed at : 0x" << m_previd_fixed_addr << endl;
+		cout << "context fixed at : 0x" << m_context_fixed_addr << endl;
+		cout << dec;
+	}
+	else
+	{
+		m_trace_map_fixed_addr = 0;
+		m_previd_fixed_addr = 0;
+		m_context_fixed_addr = 0;
+	}
+}
+
+bool ZaxBase_t::useFixedAddresses() const
+{
+	return m_do_fixed_addr_optimization;
+}
+
+unsigned long ZaxBase_t::getFixedAddressMap() const
+{
+	return m_trace_map_fixed_addr;
+}
+
+unsigned long ZaxBase_t::getFixedAddressPrevId() const
+{
+	return m_previd_fixed_addr;
+}
+
+unsigned long ZaxBase_t::getFixedAddressContext() const
+{
+	return m_context_fixed_addr;
 }
 
 void ZaxBase_t::setVerbose(bool p_verbose)
@@ -941,19 +983,38 @@ void ZaxBase_t::addContextSensitivity_Function(const ControlFlowGraph_t& cfg)
 	auto compute_hash_chain = [&](ZaflContextId_t contextid, Instruction_t * instr, string reg_context, string reg_temp) -> Instruction_t*
 		{
 			auto labelid = getLabelId();
-			const auto hash_context_reloc = string("E") + to_string(labelid) + ": mov " + reg_context + ", QWORD [rel E" + to_string(labelid) + "]"; 
 			auto tmp = instr;
-			tmp = do_insert(tmp, hash_context_reloc);
-			create_got_reloc(getFileIR(), m_context_id, tmp);
+
+			// fast way with fixed addresses:
+			//         xor [regc], <context_id>
+			//
+			// inefficient way:
+			//      E: mov   regc, QWORD[rel E]
+			//         mov   rtmp, [regc]
+			//         xor   rtmp, <context_id>
+			//         mov [regc], rtmp
+			//
+			//         
+			if (useFixedAddresses())
+			{
+				const auto xor_context = string("xor WORD [0x") + to_hex_string(getFixedAddressContext()) + "]" + "," + to_string(contextid);
+				tmp = do_insert(tmp, xor_context);
+			}
+			else
+			{
+				const auto hash_context_reloc = string("E") + to_string(labelid) + ": mov " + reg_context + ", QWORD [rel E" + to_string(labelid) + "]"; 
+				tmp = do_insert(tmp, hash_context_reloc);
+				create_got_reloc(getFileIR(), m_context_id, tmp);
 			
-			const auto deref_context = string("mov ") + reg_temp + ", [" + reg_context + "]";
-			tmp = do_insert(tmp, deref_context);
+				const auto deref_context = string("mov ") + reg_temp + ", [" + reg_context + "]";
+				tmp = do_insert(tmp, deref_context);
 
-			const auto hash_chain = string("xor ") + reg_temp + ", " + to_string(contextid);
-			tmp = do_insert(tmp, hash_chain);
+				const auto hash_chain = string("xor ") + reg_temp + ", " + to_string(contextid);
+				tmp = do_insert(tmp, hash_chain);
 
-			const auto store_context = string("mov [") + reg_context + "]" + "," + reg_temp;
-			tmp = do_insert(tmp, store_context);
+				const auto store_context = string("mov [") + reg_context + "]" + "," + reg_temp;
+				tmp = do_insert(tmp, store_context);
+			}
 
 			return tmp;
 		};
@@ -965,8 +1026,14 @@ void ZaxBase_t::addContextSensitivity_Function(const ControlFlowGraph_t& cfg)
 			// look for instruction in entry block with at least 1 free reg
 			auto reg_context = string("r14");
 			auto reg_temp = string("r15");
-			bool save_context = false;
-			bool save_temp = false;
+			bool save_context = true;
+			bool save_temp = true;
+
+			if (useFixedAddresses())
+			{
+				save_context = false;
+				save_temp = false;
+			}
 
 			const auto allowed_regs = RegisterSet_t({rn_RAX, rn_RBX, rn_RCX, rn_RDX, rn_R8, rn_R9, rn_R10, rn_R11, rn_R12, rn_R13, rn_R14, rn_R15});
 			const auto dead_regs = getDeadRegs(i);
@@ -976,27 +1043,25 @@ void ZaxBase_t::addContextSensitivity_Function(const ControlFlowGraph_t& cfg)
 			if (honor_red_zone)
 				i = do_insert(i, "lea rsp, [rsp-128]");
 
-			if (free_regs.size() > 0)
+			if (save_context && free_regs.size() > 0)
 			{
 				reg_context = registerToString(FIRSTOF(free_regs));
 				free_regs.erase(FIRSTOF(free_regs));
-			}
-			else
-			{
-				save_context = true;
-				i = do_insert(i, "push " + reg_context);
+				save_context = false;
 			}
 
-			if (free_regs.size() > 0)
+			if (save_temp && free_regs.size() > 0)
 			{
 				reg_temp = registerToString(FIRSTOF(free_regs));
 				free_regs.erase(FIRSTOF(free_regs));
+				save_temp = false;
 			}
-			else
-			{
-				save_temp = true;
+
+			if (save_context)
+				i = do_insert(i, "push " + reg_context);
+
+			if (save_temp)
 				i = do_insert(i, "push " + reg_temp);
-			}
 
 			if (live_flags)
 				i = do_insert(i, "pushf");

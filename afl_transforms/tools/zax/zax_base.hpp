@@ -85,6 +85,11 @@ namespace Zafl
 			void addContextSensitivity_Callsite(const ControlFlowGraph_t&);
 			void addContextSensitivity_Function(const ControlFlowGraph_t&);
 
+			bool useFixedAddresses() const;
+			unsigned long getFixedAddressMap() const;
+			unsigned long getFixedAddressPrevId() const;
+			unsigned long getFixedAddressContext() const;
+
 		protected:
 			pqxxDB_t&                      m_dbinterface;
 			unique_ptr<FunctionSet_t>      leaf_functions;
@@ -107,6 +112,8 @@ namespace Zafl
 			map<ZaflBlockId_t, BBRecord_t> m_modifiedBlocks;  // keep track of modified blocks
 
 			ContextSensitivity_t           m_context_sensitivity;  // none, @callsite, @function
+
+
 
 			// stats
 			size_t m_num_bb;
@@ -132,6 +139,12 @@ namespace Zafl
 			ZaflLabelId_t   m_labelid;            // internal bookkeeping to generate labels
 			ZaflBlockId_t   m_blockid;            // internal bookkeeping to generate labels
 			Instruction_t*  m_entry_point;        // entry point where fork server was inserted
+
+			// fixed address mode
+			bool            m_do_fixed_addr_optimization;
+			unsigned long   m_trace_map_fixed_addr;
+			unsigned long   m_previd_fixed_addr;
+			unsigned long   m_context_fixed_addr;
 
 	};
 } 
