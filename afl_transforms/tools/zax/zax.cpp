@@ -73,15 +73,18 @@ void Zax_t::instrumentBasicBlock(BasicBlock_t *p_bb, const bool p_honorRedZone, 
 	char *reg_temp16 = NULL;
 	char *reg_trace_map = NULL;
 	char *reg_prev_id = NULL;
+	char *reg_context = NULL;
+	char *reg_context16 = NULL;
 	auto save_temp = true;
 	auto save_trace_map = true;
 	auto save_prev_id = true;
+	auto save_context = (getContextSensitivity() != ContextSensitivity_None) ? true : false;
 	auto block_record=BBRecord_t();
 
 	const auto trace_map_fixed_addr       = getenv("ZAFL_TRACE_MAP_FIXED_ADDRESS");
 	const auto do_fixed_addr_optimization = (trace_map_fixed_addr!=nullptr);
 
-	const auto num_free_regs_desired = 3;
+	const auto num_free_regs_desired = save_context ? 4 : 3;
 	auto instr = getInstructionToInstrument(p_bb, num_free_regs_desired);
 	if (!instr) throw;
 
@@ -97,8 +100,8 @@ void Zax_t::instrumentBasicBlock(BasicBlock_t *p_bb, const bool p_honorRedZone, 
 	{
 		auto regset = getDeadRegs(instr);
 		live_flags = regset.find(IRDB_SDK::rn_EFLAGS)==regset.end();
-		const auto allowed_regs = RegisterSet_t({rn_RAX, rn_RBX, rn_RCX, rn_RDX, rn_R8, rn_R9, rn_R10, rn_R11, rn_R12, rn_R13, rn_R14, rn_R15});
 
+		const auto allowed_regs = RegisterSet_t({rn_RAX, rn_RBX, rn_RCX, rn_RDX, rn_R8, rn_R9, rn_R10, rn_R11, rn_R12, rn_R13, rn_R14, rn_R15});
 		auto free_regs = getFreeRegs(regset, allowed_regs);
 
 		for (auto r : regset)
@@ -119,6 +122,13 @@ void Zax_t::instrumentBasicBlock(BasicBlock_t *p_bb, const bool p_honorRedZone, 
 			{
 				reg_prev_id = strdup("rdx");
 				save_prev_id = false;
+				free_regs.erase(r);
+			}
+			else if (r == rn_R8 && save_context)
+			{
+				reg_context=strdup("r8");
+				reg_context16=strdup("r8w");
+				save_context = false;
 				free_regs.erase(r);
 			}
 		}
@@ -151,6 +161,19 @@ void Zax_t::instrumentBasicBlock(BasicBlock_t *p_bb, const bool p_honorRedZone, 
 			save_prev_id = false;
 			free_regs.erase(r);
 		}
+
+		if (getContextSensitivity() != ContextSensitivity_None)
+		{
+			if (free_regs.size() >= 1)
+			{
+				auto r = *free_regs.begin();
+				auto r16 = convertRegisterTo16bit(r);
+				reg_context = strdup(registerToString(r).c_str());
+				reg_context16 = strdup(registerToString(r16).c_str());
+				save_context = false;
+				free_regs.erase(r);
+			}
+		}
 	}
 
 	// In the event we couldn't find a free register, or we aren't using stars
@@ -161,13 +184,16 @@ void Zax_t::instrumentBasicBlock(BasicBlock_t *p_bb, const bool p_honorRedZone, 
 	if (!reg_temp16)    reg_temp16    = strdup("ax");
 	if (!reg_trace_map) reg_trace_map = strdup("rcx");
 	if (!reg_prev_id)   reg_prev_id   = strdup("rdx");
+	if (!reg_context)   reg_context   = strdup("r8");
+	if (!reg_context16) reg_context16   = strdup("r8w");
 
 	if (m_verbose)
 	{
 		cout << "save_temp: " << save_temp << " save_trace_map: " << save_trace_map << " save_prev_id: " << save_prev_id << " live_flags: " << live_flags << endl;
 		cout << "reg_temp: " << reg_temp << " " << reg_temp32 << " " << reg_temp16 
 			<< " reg_trace_map: " << reg_trace_map
-			<< " reg_prev_id: " << reg_prev_id << endl;
+			<< " reg_prev_id: " << reg_prev_id
+			<< " reg_context: " << reg_context << endl;
 	}
 
 	// warning: first instrumentation must use insertAssemblyBefore
@@ -205,10 +231,11 @@ void Zax_t::instrumentBasicBlock(BasicBlock_t *p_bb, const bool p_honorRedZone, 
 	// Omit saving any registers we don't need to save because we
 	// were able to locate a free register.
 	if (p_honorRedZone)  do_insert("lea rsp, [rsp-128]");
-	if (save_temp)            do_insert("push rax");
-	if (save_trace_map)       do_insert("push rcx");
-	if (save_prev_id)         do_insert("push rdx");
-	if (live_flags)           do_insert("pushf");
+	if (save_temp)       do_insert("push rax");
+	if (save_trace_map)  do_insert("push rcx");
+	if (save_prev_id)    do_insert("push rdx");
+	if (save_context)    do_insert("push r8");
+	if (live_flags)      do_insert("pushf");
 
 	const auto live_flags_str = live_flags ? "live" : "dead"; 
 	if (m_verbose) cout << "   flags are "  << live_flags_str << endl;
@@ -239,6 +266,17 @@ void Zax_t::instrumentBasicBlock(BasicBlock_t *p_bb, const bool p_honorRedZone, 
 	do_insert(buf);
 	create_got_reloc(getFileIR(), m_prev_id, tmp);
 
+	
+	if (getContextSensitivity() != ContextSensitivity_None)
+	{
+		sprintf(buf, "C%d: mov  %s, QWORD [rel C%d]", labelid, reg_context, labelid); 
+		do_insert(buf);
+		create_got_reloc(getFileIR(), m_context_id, tmp);
+
+		sprintf(buf,"mov %s, [%s]", reg_context, reg_context);
+		do_insert(buf);
+	}
+
 	// if we are using a variable address trace map, generate the address.
 	if(!do_fixed_addr_optimization)
 	{
@@ -248,6 +286,7 @@ void Zax_t::instrumentBasicBlock(BasicBlock_t *p_bb, const bool p_honorRedZone, 
 		create_got_reloc(getFileIR(), m_trace_map, tmp);
 	}
 
+	// compute index into trace map
 	// do the calculation to has the previouus block ID with this block ID
 	// in the faster or slower fashion depending on the requested technique.
 	if (!p_collafl_optimization)
@@ -260,6 +299,14 @@ void Zax_t::instrumentBasicBlock(BasicBlock_t *p_bb, const bool p_honorRedZone, 
 		sprintf(buf, "xor   %s,0x%x", reg_temp16, blockid);
 		do_insert(buf);
 	
+		// hash with calling context value
+		if (getContextSensitivity() != ContextSensitivity_None)
+		{
+			// xor ax, <context_id_register>
+			sprintf(buf, "xor   %s,%s", reg_temp16, reg_context16);
+			do_insert(buf);
+		}
+
 		//  15:   movzx  eax,ax                                
 		sprintf(buf,"movzx  %s,%s", reg_temp32, reg_temp16);
 		do_insert(buf);
@@ -298,16 +345,18 @@ void Zax_t::instrumentBasicBlock(BasicBlock_t *p_bb, const bool p_honorRedZone, 
 	sprintf(buf, "mov   %s, 0x%x", reg_temp32, blockid >> 1);
 	do_insert(buf);
 
+	// store prev_id
 	//  23:   mov    WORD PTR [rdx],ax       
 	sprintf(buf, "mov    WORD [%s], %s", reg_prev_id, reg_temp16);
 	do_insert(buf);
 
 	// finally, restore any flags/registers so that the program can execute.
-	if (live_flags)          do_insert("popf");
-	if (save_prev_id)        do_insert("pop rdx");
-	if (save_trace_map)      do_insert("pop rcx");
-	if (save_temp)           do_insert("pop rax");
-	if (p_honorRedZone) do_insert("lea rsp, [rsp+128]");
+	if (live_flags)       do_insert("popf");
+	if (save_context)     do_insert("pop r8");
+	if (save_prev_id)     do_insert("pop rdx");
+	if (save_trace_map)   do_insert("pop rcx");
+	if (save_temp)        do_insert("pop rax");
+	if (p_honorRedZone)   do_insert("lea rsp, [rsp+128]");
 	
 	m_modifiedBlocks[blockid] = block_record;
 
@@ -319,5 +368,7 @@ void Zax_t::instrumentBasicBlock(BasicBlock_t *p_bb, const bool p_honorRedZone, 
 	free(reg_temp16);
 	free(reg_trace_map);
 	free(reg_prev_id);
+	free(reg_context);
+	free(reg_context16);
 }
 

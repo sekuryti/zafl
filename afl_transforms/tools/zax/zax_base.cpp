@@ -33,12 +33,14 @@
 #include <irdb-deep>
 
 #include "zax_base.hpp"
+#include "critical_edge_breaker.hpp"
 
 using namespace std;
 using namespace IRDB_SDK;
 using namespace Zafl;
 
 #define ALLOF(a) begin(a),end(a)
+#define FIRSTOF(a) (*(begin(a)))
 
 void create_got_reloc(FileIR_t* fir, pair<DataScoop_t*,int> wrt, Instruction_t* i)
 {
@@ -118,6 +120,7 @@ ZaxBase_t::ZaxBase_t(IRDB_SDK::pqxxDB_t &p_dbinterface, IRDB_SDK::FileIR_t *p_va
 	m_plt_zafl_initAflForkServer=ed->appendPltEntry("zafl_initAflForkServer");
 	m_trace_map = ed->appendGotEntry("zafl_trace_map");
 	m_prev_id = ed->appendGotEntry("zafl_prev_id");
+	m_context_id = ed->appendGotEntry("zafl_context");
 
 	// let's not instrument these functions ever
 	// see isBlacklisted() for other blacklisted functions
@@ -154,6 +157,10 @@ ZaxBase_t::ZaxBase_t(IRDB_SDK::pqxxDB_t &p_dbinterface, IRDB_SDK::FileIR_t *p_va
 	m_verbose = false;
 	m_bb_float_instrumentation = false;
 
+	setContextSensitivity(ContextSensitivity_None);
+
+	m_entry_point = nullptr;
+
 	m_labelid = 0;
 	m_blockid = 0;
 
@@ -171,6 +178,7 @@ ZaxBase_t::ZaxBase_t(IRDB_SDK::pqxxDB_t &p_dbinterface, IRDB_SDK::FileIR_t *p_va
 	m_num_exit_blocks_elided = 0;
 	m_num_entry_blocks_elided = 0;
 	m_num_single_block_function_elided = 0;
+	m_num_contexts = 0;
 }
 
 void ZaxBase_t::setVerbose(bool p_verbose)
@@ -217,6 +225,28 @@ void ZaxBase_t::setBasicBlockFloatingInstrumentation(bool p_float)
 bool ZaxBase_t::getBasicBlockFloatingInstrumentation() const
 {
 	return m_bb_float_instrumentation;
+}
+
+void ZaxBase_t::setContextSensitivity(ContextSensitivity_t p_context_style)
+{
+	m_context_sensitivity = p_context_style;
+	switch (m_context_sensitivity)
+	{
+		case ContextSensitivity_None:
+			cout << "disable context sensitivity" << endl;
+			break;
+		case ContextSensitivity_Function:
+			cout << "enable context sensitivity (style: function)" << endl;
+			break;
+		case ContextSensitivity_Callsite:
+			cout << "enable context sensitivity (style: callsite)" << endl;
+			break;
+	}
+}
+
+ContextSensitivity_t ZaxBase_t::getContextSensitivity() const
+{
+	return m_context_sensitivity;
 }
 
 /*
@@ -266,6 +296,24 @@ ZaflBlockId_t ZaxBase_t::getBlockId(const unsigned p_max)
 	return m_blockid;
 }
 
+ZaflContextId_t ZaxBase_t::getContextId(const unsigned p_max)
+{
+       auto counter = 0;
+       auto contextid = 0;
+
+       // only try getting new context id 100 times
+       // avoid returning duplicate if we can help it
+       while (counter++ < 100) {
+               contextid = rand() % p_max; 
+               if (m_used_contextid.find(contextid) == m_used_contextid.end())
+               {
+                       m_used_contextid.insert(contextid);
+                       return contextid;
+               }
+       }
+       return contextid;
+}
+
 void ZaxBase_t::insertExitPoint(Instruction_t *p_inst)
 {
 	assert(p_inst->getAddress()->getVirtualOffset());
@@ -303,6 +351,8 @@ void ZaxBase_t::insertForkServer(Instruction_t* p_entry)
 	// blacklist insertion point
 	cout << "Blacklisting entry point: " << ss.str() << endl;
 	m_blacklist.insert(ss.str());
+
+	m_entry_point = p_entry;
 
 	// insert the instrumentation
 	auto tmp=p_entry;
@@ -474,7 +524,7 @@ bool ZaxBase_t::isBlacklisted(const Instruction_t *p_inst) const
 {
 	stringstream ss;
 	ss << "0x" << hex << p_inst->getAddress()->getVirtualOffset();
-	return (m_blacklist.count(ss.str()) > 0 || isBlacklisted(p_inst->getFunction()));
+	return (m_blacklist.count(ss.str()) > 0 || isBlacklisted(p_inst->getFunction()) || p_inst == m_entry_point);
 }
 
 bool ZaxBase_t::isWhitelisted(const Instruction_t *p_inst) const
@@ -768,6 +818,9 @@ Instruction_t* ZaxBase_t::getInstructionToInstrument(const BasicBlock_t *p_bb, c
 
 	for (auto i : p_bb->getInstructions())
 	{
+		if (isBlacklisted(i))
+			continue;
+
 		const auto dead_regs = getDeadRegs(i);
 		const auto num_free_regs = getFreeRegs(dead_regs, allowed_regs).size();
 
@@ -805,6 +858,202 @@ Instruction_t* ZaxBase_t::getInstructionToInstrument(const BasicBlock_t *p_bb, c
 	return best_i;
 }
 
+void ZaxBase_t::dumpAttributes()
+{
+	cout << "#ATTRIBUTE num_bb=" << dec << m_num_bb << endl;
+	cout << "#ATTRIBUTE num_bb_instrumented=" << m_num_bb_instrumented << endl;
+	cout << "#ATTRIBUTE num_bb_skipped=" << m_num_bb_skipped << endl;
+	cout << "#ATTRIBUTE num_bb_skipped_pushjmp=" << m_num_bb_skipped_pushjmp << endl;
+	cout << "#ATTRIBUTE num_bb_skipped_nop_padding=" << m_num_bb_skipped_nop_padding << endl;
+	cout << "#ATTRIBUTE num_bb_float_instrumentation=" << m_num_bb_float_instrumentation << endl;
+	cout << "#ATTRIBUTE num_bb_float_register_saved=" << m_num_bb_float_regs_saved << endl;
+	cout << "#ATTRIBUTE graph_optimize=" << boolalpha << m_graph_optimize << endl;
+	cout << "#ATTRIBUTE num_bb_skipped_cond_branch=" << m_num_bb_skipped_cbranch << endl;
+	cout << "#ATTRIBUTE num_style_collafl=" << m_num_style_collafl << endl;
+	cout << "#ATTRIBUTE num_domgraph_blocks_elided=" << m_num_domgraph_blocks_elided << endl;
+	cout << "#ATTRIBUTE num_entry_blocks_elided=" << m_num_entry_blocks_elided << endl;
+	cout << "#ATTRIBUTE num_exit_blocks_elided=" << m_num_exit_blocks_elided << endl;
+	cout << "#ATTRIBUTE num_single_block_function_elided=" << m_num_single_block_function_elided << endl;
+	cout << "#ATTRIBUTE num_contexts=" << m_num_contexts << endl;
+}
+
+// file dump of modified basic block info
+void ZaxBase_t::dumpMap()
+{
+	getFileIR()->setBaseIDS();           // make sure instructions have IDs
+	getFileIR()->assembleRegistry();     // make sure to assemble all instructions
+
+	std::ofstream mapfile("zax.map");
+
+	mapfile << "# BLOCK_ID  ID_EP:size  ID_OLDEP:size (ID_INSTRUMENTATION:size)*" << endl;
+	for (auto &mb : m_modifiedBlocks)
+	{
+		const auto blockid = mb.first;
+		mapfile << dec << blockid << " ";
+		for (auto &entry : mb.second)
+		{
+			mapfile << hex << entry->getBaseID() << ":" << dec << entry->getDataBits().size() << " ";
+		}
+		mapfile << endl;
+	}
+}
+
+void ZaxBase_t::addContextSensitivity_Callsite(const ControlFlowGraph_t& cfg)
+{
+		assert(0);
+}
+
+// update calling context hash at entry point
+// revert calling context hash on exit 
+void ZaxBase_t::addContextSensitivity_Function(const ControlFlowGraph_t& cfg)
+{
+	bool inserted_before = false;
+
+	// don't bother with single block functions
+	if (cfg.getBlocks().size() == 1)
+		return;
+
+	m_num_contexts++;
+
+	//
+	// entry_point
+	//      context = prev_context % RANDOM_CONTEXT_ID
+	//
+	// exit point (returns)
+	//      context = prev_context % RANDOM_CONTEXT_ID
+	//
+	const auto do_insert=[&](Instruction_t* instr, const string& insn_str) -> Instruction_t*
+		{
+			if (inserted_before)
+			{
+				instr = insertAssemblyAfter(instr, insn_str);
+				return instr;
+			}
+			else
+			{
+				insertAssemblyBefore(instr, insn_str);
+				inserted_before = true;
+				return instr;
+			}
+		};
+
+	
+	auto compute_hash_chain = [&](ZaflContextId_t contextid, Instruction_t * instr, string reg_context, string reg_temp) -> Instruction_t*
+		{
+			auto labelid = getLabelId();
+			const auto hash_context_reloc = string("E") + to_string(labelid) + ": mov " + reg_context + ", QWORD [rel E" + to_string(labelid) + "]"; 
+			auto tmp = instr;
+			tmp = do_insert(tmp, hash_context_reloc);
+			create_got_reloc(getFileIR(), m_context_id, tmp);
+			
+			const auto deref_context = string("mov ") + reg_temp + ", [" + reg_context + "]";
+			tmp = do_insert(tmp, deref_context);
+
+			const auto hash_chain = string("xor ") + reg_temp + ", " + to_string(contextid);
+			tmp = do_insert(tmp, hash_chain);
+
+			const auto store_context = string("mov [") + reg_context + "]" + "," + reg_temp;
+			tmp = do_insert(tmp, store_context);
+
+			//  5ae:   48 8b 05 23 0a 20 00    mov    rax,QWORD PTR [rip+0x200a23]        # 200fd8 <x>
+			//  5b5:   c7 00 d2 04 00 00       mov    DWORD PTR [rax],0x4d2
+			return tmp;
+		};
+
+	auto add_hash_context_instrumentation = [&](ZaflContextId_t contextid, Instruction_t* i)
+		{
+			inserted_before = false;
+
+			// look for instruction in entry block with at least 1 free reg
+			auto reg_context = string("r14");
+			auto reg_temp = string("r15");
+			bool save_context = false;
+			bool save_temp = false;
+
+			const auto allowed_regs = RegisterSet_t({rn_RAX, rn_RBX, rn_RCX, rn_RDX, rn_R8, rn_R9, rn_R10, rn_R11, rn_R12, rn_R13, rn_R14, rn_R15});
+			const auto dead_regs = getDeadRegs(i);
+			auto free_regs = getFreeRegs(dead_regs, allowed_regs);
+
+			// @todo: red zone?
+			
+			if (free_regs.size() > 0)
+			{
+				reg_context = registerToString(FIRSTOF(free_regs));
+				free_regs.erase(FIRSTOF(free_regs));
+			}
+			else
+			{
+				save_context = true;
+				i = do_insert(i, "push " + reg_context);
+			}
+
+			if (free_regs.size() > 0)
+			{
+				reg_temp = registerToString(FIRSTOF(free_regs));
+				free_regs.erase(FIRSTOF(free_regs));
+			}
+			else
+			{
+				save_temp = true;
+				i = do_insert(i, "push " + reg_temp);
+			}
+
+			// compute new hash chain value
+			i = compute_hash_chain(contextid, i, reg_context, reg_temp);
+
+			if (save_temp)
+				i = do_insert(i, "pop " + reg_temp);
+
+			if (save_context)
+				i = do_insert(i, "pop " + reg_context);
+
+		};
+
+	auto contextid = getContextId();
+	auto entry_block = cfg.getEntry();
+	inserted_before = false;
+	add_hash_context_instrumentation(contextid, entry_block->getInstructions()[0]);
+
+	// find all exit blocks
+	auto find_exits = BasicBlockSet_t();
+	copy_if(ALLOF(cfg.getBlocks()), inserter(find_exits, find_exits.begin()), [entry_block](BasicBlock_t* bb) {
+			if (bb == entry_block) return false; 			
+			if (!bb->getIsExitBlock()) return false; 			
+			// make sure it's a ret
+			const auto last_instruction_index = bb->getInstructions().size() - 1;
+			return (bb->getInstructions()[last_instruction_index]->getDisassembly().find("ret")!=string::npos);
+		});
+
+	for (const auto &bb: find_exits)
+	{
+		const auto last_instruction_index = bb->getInstructions().size()-1;
+		inserted_before = false;
+		add_hash_context_instrumentation(contextid, bb->getInstructions()[last_instruction_index]);
+	}
+}
+
+void ZaxBase_t::addContextSensitivity(const ControlFlowGraph_t& cfg)
+{
+	if (m_entry_point && m_entry_point->getFunction())
+	{
+		cout << "cfg.func: " << cfg.getFunction()->getName() << " ep.func: " << m_entry_point->getFunction()->getName() << endl;
+		if (m_entry_point->getFunction()->getName() == cfg.getFunction()->getName())
+		{
+			cout << "Do not setup calling context in same function as entry point for fork server" << endl;
+			return;
+		}
+	}
+
+	if (getContextSensitivity() == ContextSensitivity_Callsite)
+		addContextSensitivity_Callsite(cfg);
+	else if (getContextSensitivity() == ContextSensitivity_Function)
+		addContextSensitivity_Function(cfg);
+	else if (getContextSensitivity() == ContextSensitivity_None)
+		return;
+	else
+		throw;
+}
+
 /*
  * Execute the transform.
  *
@@ -814,6 +1063,15 @@ Instruction_t* ZaxBase_t::getInstructionToInstrument(const BasicBlock_t *p_bb, c
  */
 int ZaxBase_t::execute()
 {
+	if (m_breakupCriticalEdges)
+	{
+		CriticalEdgeBreaker_t ceb(getFileIR(), m_verbose);
+		cout << "#ATTRIBUTE num_bb_extra_blocks=" << ceb.getNumberExtraNodes() << endl;
+
+		getFileIR()->setBaseIDS();
+		getFileIR()->assembleRegistry();
+	}
+
 	setup();
 
 	// for all functions
@@ -931,6 +1189,16 @@ int ZaxBase_t::execute()
 		m_num_bb_instrumented += keepers.size();
 		m_num_bb_skipped += (num_blocks_in_func - keepers.size());
 
+		if (getContextSensitivity() != ContextSensitivity_None)
+		{
+			// this handles inserting the calling context sensitivity value
+			// at entry and exits of functions (todo: or at call sites a la Angora)
+ 			getFileIR()->assembleRegistry();
+		 	getFileIR()->setBaseIDS();
+			auto cs_cfg=ControlFlowGraph_t::factory(f);	
+			addContextSensitivity(*cs_cfg);
+		}
+
 		if (m_verbose)
 		{
  			getFileIR()->assembleRegistry();
@@ -943,46 +1211,9 @@ int ZaxBase_t::execute()
 		cout << "Function " << f->getName() << ":  " << dec << keepers.size() << "/" << num_blocks_in_func << " basic blocks instrumented." << endl;
 	};
 
+
 	teardown();
 
 	return 1;
 }
 
-void ZaxBase_t::dumpAttributes()
-{
-	cout << "#ATTRIBUTE num_bb=" << dec << m_num_bb << endl;
-	cout << "#ATTRIBUTE num_bb_instrumented=" << m_num_bb_instrumented << endl;
-	cout << "#ATTRIBUTE num_bb_skipped=" << m_num_bb_skipped << endl;
-	cout << "#ATTRIBUTE num_bb_skipped_pushjmp=" << m_num_bb_skipped_pushjmp << endl;
-	cout << "#ATTRIBUTE num_bb_skipped_nop_padding=" << m_num_bb_skipped_nop_padding << endl;
-	cout << "#ATTRIBUTE num_bb_float_instrumentation=" << m_num_bb_float_instrumentation << endl;
-	cout << "#ATTRIBUTE num_bb_float_register_saved=" << m_num_bb_float_regs_saved << endl;
-	cout << "#ATTRIBUTE graph_optimize=" << boolalpha << m_graph_optimize << endl;
-	cout << "#ATTRIBUTE num_bb_skipped_cond_branch=" << m_num_bb_skipped_cbranch << endl;
-	cout << "#ATTRIBUTE num_style_collafl=" << m_num_style_collafl << endl;
-	cout << "#ATTRIBUTE num_domgraph_blocks_elided=" << m_num_domgraph_blocks_elided << endl;
-	cout << "#ATTRIBUTE num_entry_blocks_elided=" << m_num_entry_blocks_elided << endl;
-	cout << "#ATTRIBUTE num_exit_blocks_elided=" << m_num_exit_blocks_elided << endl;
-	cout << "#ATTRIBUTE num_single_block_function_elided=" << m_num_single_block_function_elided << endl;
-}
-
-// file dump of modified basic block info
-void ZaxBase_t::dumpMap()
-{
-	getFileIR()->setBaseIDS();           // make sure instructions have IDs
-	getFileIR()->assembleRegistry();     // make sure to assemble all instructions
-
-	std::ofstream mapfile("zax.map");
-
-	mapfile << "# BLOCK_ID  ID_EP:size  ID_OLDEP:size (ID_INSTRUMENTATION:size)*" << endl;
-	for (auto &mb : m_modifiedBlocks)
-	{
-		const auto blockid = mb.first;
-		mapfile << dec << blockid << " ";
-		for (auto &entry : mb.second)
-		{
-			mapfile << hex << entry->getBaseID() << ":" << dec << entry->getDataBits().size() << " ";
-		}
-		mapfile << endl;
-	}
-}
