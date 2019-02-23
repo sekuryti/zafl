@@ -29,8 +29,9 @@ using namespace std;
 using namespace IRDB_SDK;
 using namespace Zafl;
 
-CriticalEdgeBreaker_t::CriticalEdgeBreaker_t(IRDB_SDK::FileIR_t *p_IR, const bool p_verbose) :
+CriticalEdgeBreaker_t::CriticalEdgeBreaker_t(IRDB_SDK::FileIR_t *p_IR, set<string> p_blacklist, const bool p_verbose) :
 	m_IR(p_IR),
+	m_blacklist(p_blacklist),
 	m_verbose(p_verbose),
 	m_extra_nodes(0)
 {
@@ -45,9 +46,18 @@ unsigned CriticalEdgeBreaker_t::getNumberExtraNodes() const
 // iterate over each function and break critical edges
 void CriticalEdgeBreaker_t::breakCriticalEdges()
 {
+	auto is_blacklisted = [this](const Function_t* f) -> bool
+		{
+		  const auto fname = f->getName();
+		  return (fname[0] == '.' || fname.find("@plt") != string::npos || m_blacklist.find(fname)!=m_blacklist.end());
+		};
+
 	for ( auto &f : m_IR->getFunctions() )
 	{
-		if (f && f->getEntryPoint())
+		if (!f) continue;
+		if (is_blacklisted(f)) continue;
+
+		if (f->getEntryPoint())
 			m_extra_nodes += breakCriticalEdges(f);
 	}
 }
@@ -114,10 +124,10 @@ unsigned CriticalEdgeBreaker_t::breakCriticalEdges(Function_t* p_func)
 
 	if (m_verbose)
 	{
+		m_IR->assembleRegistry();
 		cout << "Number critical edge instrumented: " << num_critical_edges_instrumented << endl;
 		auto post_cfgp = ControlFlowGraph_t::factory(p_func);
 		auto &post_cfg = *post_cfgp;
-		m_IR->assembleRegistry();
 		cout << "Post CFG: " << endl;
 		cout << post_cfg << endl;
 	}

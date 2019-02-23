@@ -1065,7 +1065,7 @@ int ZaxBase_t::execute()
 {
 	if (m_breakupCriticalEdges)
 	{
-		CriticalEdgeBreaker_t ceb(getFileIR(), m_verbose);
+		CriticalEdgeBreaker_t ceb(getFileIR(), m_blacklist, m_verbose);
 		cout << "#ATTRIBUTE num_bb_extra_blocks=" << ceb.getNumberExtraNodes() << endl;
 
 		getFileIR()->setBaseIDS();
