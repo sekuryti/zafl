@@ -311,7 +311,7 @@ ZaflContextId_t ZaxBase_t::getContextId(const unsigned p_max)
                        return contextid;
                }
        }
-       return contextid;
+       return contextid % p_max;
 }
 
 void ZaxBase_t::insertExitPoint(Instruction_t *p_inst)
@@ -938,7 +938,6 @@ void ZaxBase_t::addContextSensitivity_Function(const ControlFlowGraph_t& cfg)
 			}
 		};
 
-	
 	auto compute_hash_chain = [&](ZaflContextId_t contextid, Instruction_t * instr, string reg_context, string reg_temp) -> Instruction_t*
 		{
 			auto labelid = getLabelId();
@@ -956,8 +955,6 @@ void ZaxBase_t::addContextSensitivity_Function(const ControlFlowGraph_t& cfg)
 			const auto store_context = string("mov [") + reg_context + "]" + "," + reg_temp;
 			tmp = do_insert(tmp, store_context);
 
-			//  5ae:   48 8b 05 23 0a 20 00    mov    rax,QWORD PTR [rip+0x200a23]        # 200fd8 <x>
-			//  5b5:   c7 00 d2 04 00 00       mov    DWORD PTR [rax],0x4d2
 			return tmp;
 		};
 

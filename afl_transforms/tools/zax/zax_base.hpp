@@ -56,8 +56,8 @@ namespace Zafl
 
 			virtual void instrumentBasicBlock(BasicBlock_t *p_bb, const bool p_hasLeafAnnotation, const bool p_collafl_optimization=false) = 0;
 
+			virtual ZaflLabelId_t getLabelId(const unsigned p_maxid=0xFFFFFF);
 			virtual ZaflBlockId_t getBlockId(const unsigned p_maxid=0xFFFF);
-			virtual ZaflLabelId_t getLabelId(const unsigned p_maxid=0xFFFF);
 			virtual ZaflContextId_t getContextId(const unsigned p_maxid=0xFFFF);
 			virtual BasicBlockSet_t getBlocksToInstrument (const ControlFlowGraph_t& cfg);
 			virtual Instruction_t* getInstructionToInstrument(const BasicBlock_t *, const unsigned p_num_free_regs_desired = 0);
