@@ -13,7 +13,7 @@ namespace Zafl
 	class CriticalEdgeBreaker_t
 	{
 		public:
-			CriticalEdgeBreaker_t(FileIR_t *p_variantIR, set<string> p_blacklist, const bool p_verbose=false);
+			CriticalEdgeBreaker_t(FileIR_t *p_variantIR, set<string> p_blacklist=set<string>(), const bool p_verbose=false);
 			unsigned getNumberExtraNodes() const;
 
 		protected:
