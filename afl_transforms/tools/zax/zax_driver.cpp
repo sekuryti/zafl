@@ -52,6 +52,7 @@ static void usage(char* name)
 	cerr<<"\t[--disable-floating-instrumentation|-I]        Instrument first instruction in basic blocks"<<endl;
 	cerr<<"\t[--enable-context-sensitivity <style>]         Use calling context sensitivity, style={callsite,function}"<<endl;
 	cerr<<"\t[--disable-context-sensitivity]                Disable calling context sensitivity"<<endl;
+	cerr<<"\t[--random-seed|r <value>]                      Specify random seed"<<endl;
 }
 
 int main(int argc, char **argv)
@@ -77,6 +78,7 @@ int main(int argc, char **argv)
 	auto breakup_critical_edges=false;
 	auto floating_instrumentation=false;
 	auto context_sensitivity=ContextSensitivity_None;
+	auto random_seed = 0U;
 	set<string> exitpoints;
 
 	srand(getpid()+time(NULL));
@@ -104,9 +106,10 @@ int main(int argc, char **argv)
 		{"enable-floating-instrumentation", no_argument, 0, 'i'},
 		{"disable-floating-instrumentation", no_argument, 0, 'I'},
 		{"enable-context-sensitivity", required_argument, 0, 'z'},
+		{"random-seed", required_argument, 0, 'r'},
 		{0,0,0,0}
 	};
-	const char* short_opts="z:e:E:w:sv?hagGdDfFucCiI";
+	const char* short_opts="r:z:e:E:w:sv?hagGdDfFucCiI";
 
 	while(true)
 	{
@@ -183,6 +186,11 @@ int main(int argc, char **argv)
 				context_sensitivity=ContextSensitivity_Function;
 			else
 				context_sensitivity=ContextSensitivity_None;
+			break;
+		case 'r':
+			random_seed = strtoul(optarg, NULL, 0);
+			srand(random_seed);
+			cout << "Setting random seed to: " << random_seed << endl;
 			break;
 		default:
 			break;

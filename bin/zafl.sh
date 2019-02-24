@@ -37,6 +37,7 @@ usage()
 	echo "     -i, --enable-floating-instrumentation   Select best instrumentation point within basic block"
 	echo "     -I, --disable-floating-instrumentation  Use first instruction for instrumentation in basic blocks (default)"
 	echo "     --enable-context-sensitivity <style>    style={callsite,function} only function supported currently (off by default)"
+	echo "     -r, --random-seed <value>               Specify random seed"
 #	echo "     -l, --enable-locality                   Maintain code locality (best effort) when instrumenting binary"
 #	echo "     -L, --disable-locality                  Randomized layout when instrumenting binary"
 	echo "     -v                                      Verbose mode" 
@@ -50,6 +51,8 @@ other_args=""
 float_opt=""
 context_sensitivity_opt=""
 trace_opt=""
+zipr_opt=""
+random_seed=""
 
 
 me=$(whoami)
@@ -197,11 +200,11 @@ parse_args()
 				shift
 				case $1 in
 					function)
-						context_sensitivity_opt=" -o zax:\"--enable-context-sensitivity function\" "
+						zax_opt=" -o zax:\"--enable-context-sensitivity function\" "
 						shift
 					;;
 					callsite)
-						context_sensitivity_opt=" -o zax:--enable-context-sensitivity callsite "
+						zax_opt=" -o zax:\"--enable-context-sensitivity callsite\" "
 						echo "Error: context sensitivity <callsite> currently unsupported"
 						exit 1
 					;;
@@ -210,6 +213,13 @@ parse_args()
 						exit 1
 					;;
 				esac
+				;;
+			-r | --random-seed)
+				shift
+				random_seed="$1"
+				zax_opt=" $zax_opt -o zax:\"--random-seed $random_seed\" "
+				zipr_opt=" $zipr_opt --step-option zipr:\"--zipr:seed $random_seed\" "
+				shift
 				;;
 			-l | --enable-locality)
 				trace_opt=" --step-option zipr:--traceplacement:on --step-option zipr:true "
@@ -324,8 +334,8 @@ fi
 #
 log_msg "Transforming input binary $input_binary into $output_zafl_binary"
 
-zax_opt=" $zax_opt $float_opt $context_sensitivity_opt "
-cmd="$ZAFL_TM_ENV $PSZ $input_binary $output_zafl_binary $ida_or_rida_opt -c move_globals=on -c zax=on -o move_globals:--elftables-only $stars_opt $zax_opt $verbose_opt $options $other_args $trace_opt"
+zax_opt=" $zax_opt $float_opt "
+cmd="$ZAFL_TM_ENV $PSZ $input_binary $output_zafl_binary $ida_or_rida_opt -c move_globals=on -c zax=on -o move_globals:--elftables-only $stars_opt $zax_opt $verbose_opt $options $other_args $trace_opt $zipr_opt"
 
 if [ ! -z "$ZAFL_TM_ENV" ]; then
 	log_msg "Trace map will be expected at fixed address"
