@@ -23,11 +23,11 @@
 
 #include <getopt.h>
 
-#include "constant_decompose.hpp"
+#include "laf.hpp"
 
 using namespace std;
 using namespace IRDB_SDK;
-using namespace ConstantDecompose;
+using namespace Laf;
 
 void usage(char* name)
 {
@@ -102,7 +102,7 @@ int main(int argc, char **argv)
 
 		try
 		{
-			ConstantDecompose_t is(*pqxx_interface, firp.get(), verbose);
+			Laf_t is(*pqxx_interface, firp.get(), verbose);
 			int success=is.execute();
 
 			if (success)

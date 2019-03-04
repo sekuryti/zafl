@@ -19,7 +19,7 @@ cpppath='''
 files=Glob( Dir('.').srcnode().abspath+"/*.cpp")
 
 
-pgm="constant_decompose.exe"
+pgm="laf.exe"
 
 LIBPATH="$SECURITY_TRANSFORMS_HOME/lib"
 LIBS=Split("stars "+ env.subst('$BASE_IRDB_LIBS')+ "  irdb-cfg irdb-util irdb-transform MEDSannotation jsoncpp ") 

@@ -1,5 +1,5 @@
 /***************************************************************************
- * Copyright (c)  2018  Zephyr Software LLC. All rights reserved.
+ * Copyright (c)  2018-2019  Zephyr Software LLC. All rights reserved.
  *
  * This software is furnished under a license and/or other restrictive
  * terms and may be used and copied only in accordance with such terms
@@ -23,15 +23,15 @@
 
 #include <sstream>
 
-#include "constant_decompose.hpp"
+#include "laf.hpp"
 
 #include <irdb-util>
 
 using namespace std;
 using namespace IRDB_SDK;
-using namespace ConstantDecompose;
+using namespace Laf;
 
-ConstantDecompose_t::ConstantDecompose_t(IRDB_SDK::pqxxDB_t &p_dbinterface, IRDB_SDK::FileIR_t *p_variantIR, bool p_verbose)
+Laf_t::Laf_t(IRDB_SDK::pqxxDB_t &p_dbinterface, IRDB_SDK::FileIR_t *p_variantIR, bool p_verbose)
 	:
 	Transform(p_variantIR),
 	m_dbinterface(p_dbinterface),
@@ -47,7 +47,7 @@ ConstantDecompose_t::ConstantDecompose_t(IRDB_SDK::pqxxDB_t &p_dbinterface, IRDB
  * postcondition: instructions added to auto-initialize stack for each specified function
  *
  */
-int ConstantDecompose_t::execute()
+int Laf_t::execute()
 {
 #ifdef COMMENT
 	// look for cmp against constant
