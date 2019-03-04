@@ -1,16 +1,14 @@
 #!/bin/bash
 
-# the bad boys
-
-run_size="ref"
+run_size="test"
 
 all_benchmarks=" 
 600.perlbench_s 602.gcc_s 603.bwaves_s 605.mcf_s 607.cactuBSSN_s 619.lbm_s 620.omnetpp_s 621.wrf_s 623.xalancbmk_s 625.x264_s 627.cam4_s 628.pop2_s 631.deepsjeng_s 638.imagick_s 641.leela_s 644.nab_s 648.exchange2_s 649.fotonik3d_s 654.roms_s 657.xz_s 996.specrand_fs 998.specrand_is 
 "
 
-#all_benchmarks="
-#500.perlbench_r
-#"
+all_benchmarks="
+502.gcc_s 625.x264_s
+"
 
 
 
@@ -21,7 +19,7 @@ setup()
 
 	if [ ! -d spec2017 ]; then
 		#svn co ^/spec2017/trunk spec2017
-		git clone --depth 1 http://git.zephyr-software.com/allzp/spec2017.git spec2017
+		git clone --depth 1 git@git.zephyr-software.com:allzp/spec2017.git spec2017
 	fi
 
 	if [[ ! -f /usr/bin/gfortran ]]; then
@@ -202,14 +200,15 @@ get_raw_fde_results()
 main()
 {
 	local zipr_flags="	--backend zipr --step-option zipr:--add-sections --step-option zipr:true"
+	local rida_flags="	-c rida "
 	local trace_flags="   --step-option zipr:--traceplacement:on --step-option zipr:true"
 	local relax_flags="   --step-option zipr:--relax:on --step-option zipr:true --step-option zipr:--unpin:on --step-option zipr:false"
 	local nounpin_flags=" --step-option zipr:--unpin:on --step-option zipr:false"
 	local split_flags="   --step-option fill_in_indtargs:--split-eh-frame "
 	local icall_flags="   --step-option fix_calls:--no-fix-icalls "
 	local p1flags=" 	-c p1transform=on " 
-	local zafl_flags="    --backend zipr -s meds_static=off -s rida=on -c move_globals=on -c zax=on -o move_globals:--elftables-only "
-	local zafl_opt_flags="--backend zipr -s meds_static=off -s rida=on -c move_globals=on -c zax=on -o move_globals:--elftables-only -o zipr:--traceplacement:on -o zax:--stars "
+	local zafl_flags="     "
+	local zafl_domgraphflags=" -d    "
 
 	# sets $SPEC
 	setup
@@ -221,9 +220,10 @@ main()
 	# baseline 
 	run_test baseline $SPEC/config/ubuntu14.cfg "$all_benchmarks"
 
-	PSOPTS="$zipr_flags "  run_test zipr  $withps_config "$all_benchmarks"
+	PSOPTS="$zipr_flags $rida_flags "  run_test zipr.rida  $withps_config "$all_benchmarks"
 
-	PSOPTS="$zafl_flags "  run_test zafl  $withps_config "$all_benchmarks"
+	PS="zafl.sh" PSOPTS="$zafl_flags "           run_test zafl.vanilla   $withps_config "$all_benchmarks"
+	PS="zafl.sh" PSOPTS="$zafl_domgraph_flags "  run_test zafl.domgraph  $withps_config "$all_benchmarks"
 
 	get_raw_results 
 }
