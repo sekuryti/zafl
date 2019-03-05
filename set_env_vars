@@ -1,4 +1,4 @@
-#export ZAFL_TRACE_MAP_FIXED_ADDRESS=0x10000
+export ZAFL_TRACE_MAP_FIXED_ADDRESS=0x10000
 
 export ZAFL_HOME=$PWD
 if [ -z "$ZAFL_INSTALL" -o -f manifest.txt ]; then
