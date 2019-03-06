@@ -61,7 +61,6 @@ trace_opt=""
 zipr_opt=""
 random_seed=""
 laf_opt=""
-laf_step=""
 
 
 me=$(whoami)
@@ -378,7 +377,7 @@ log_msg "Transforming input binary $input_binary into $output_zafl_binary"
 optional_step=""
 if [ ! -z "$laf_opt" ];
 then
-	optional_step=" -s laf=on $laf_opt "
+	optional_step=" -c laf=on $laf_opt "
 fi
 
 zax_opt=" $zax_opt $float_opt "
