@@ -40,6 +40,8 @@ usage()
 	echo "     -r, --random-seed <value>               Specify random seed"
 #	echo "     -l, --enable-locality                   Maintain code locality (best effort) when instrumenting binary"
 #	echo "     -L, --disable-locality                  Randomized layout when instrumenting binary"
+	echo "     -w, --whitelist <file>                  Specify function whitelist (one function per line)"
+	echo "     -b, --blacklist <file>                  Specify function blacklist (one function per line)"
 	echo "     -v                                      Verbose mode" 
 	echo 
 }
@@ -156,6 +158,16 @@ parse_args()
 				other_args=" --tempdir $1"
 				shift
 				;;
+			-w | --whitelist)
+				shift
+				zax_opt=" $zax_opt -o zax:\"--whitelist $1 \""
+				shift
+				;;
+			-b | --blacklist)
+				shift
+				zax_opt=" $zax_opt -o zax:\"--blacklist $1 \""
+				shift
+				;;
 			-u | --untracer)
 				zax_opt=" $zax_opt -o zax:--untracer "
 				shift
@@ -266,6 +278,12 @@ find_main()
 	tmp_main=$tmp_dir/tmp.main
 
 	objdump -d $input_binary > $tmp_objdump
+
+	grep "libc_start_main" $tmp_objdump | grep ">:" >/dev/null 2>&1
+	if [ $? -eq 0 ]; then
+		log_msg "Detected libc: no main"
+		return
+	fi
 
 	grep "<main>:" $tmp_objdump > $tmp_main
 
