@@ -1,4 +1,4 @@
-make clean test0.decomposed
+make clean test0.laf.zafl
 
 cleanup() {
 	rm test0.*.out
@@ -16,17 +16,25 @@ report_success() {
 
 }
 
-echo "1234567" | ./test0.exe > test0.exe.out
-echo "1234567" | ./test0.decomposed > test0.decomposed.out
-diff test0.exe.out test0.decomposed.out
+echo "1" | ./test0.exe > test0.exe.out
+echo "1" | ./test0.laf.zafl > test0.laf.out
+diff test0.exe.out test0.laf.out
 if [ ! $? -eq 0 ]; then
 	report_failure "equality"
 else
 	report_success "equality"
 fi
 
-echo "111" | ./test0.exe > test0.exe.out
-echo "111" | ./test0.decomposed > test0.decomposed.out
+echo "2" | ./test0.exe > test0.exe.out
+echo "2" | ./test0.laf.zafl > test0.laf.out
+if [ ! $? -eq 0 ]; then
+	report_failure "inequality"
+else
+	report_success "inequality"
+fi
+
+echo "4" | ./test0.exe > test0.exe.out
+echo "4" | ./test0.laf.zafl > test0.laf.out
 if [ ! $? -eq 0 ]; then
 	report_failure "inequality"
 else

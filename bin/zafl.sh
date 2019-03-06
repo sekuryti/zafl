@@ -42,6 +42,10 @@ usage()
 #	echo "     -L, --disable-locality                  Randomized layout when instrumenting binary"
 	echo "     -w, --whitelist <file>                  Specify function whitelist (one function per line)"
 	echo "     -b, --blacklist <file>                  Specify function blacklist (one function per line)"
+	echo "     --enable-split-compare                  enable laf-intel split compare for integer constants"
+	echo "     --disable-split-compare                 disable laf-intel split compare for integer constants"
+	echo "     --enable-split-branch                   enable laf-intel split branch for integer constants"
+	echo "     --disable-split-branch                  disable laf-intel split branch for integer constants"
 	echo "     -v                                      Verbose mode" 
 	echo 
 }
@@ -56,6 +60,8 @@ context_sensitivity_opt=""
 trace_opt=""
 zipr_opt=""
 random_seed=""
+laf_opt=""
+laf_step=""
 
 
 me=$(whoami)
@@ -242,6 +248,22 @@ parse_args()
 				trace_opt=""
 				shift
 				;;
+			--enable-split-compare)
+				laf_opt=" $laf_opt -o laf:--enable-split-compare "
+				shift
+				;;
+			--disable-split-compare)
+				laf_opt=" $laf_opt -o laf:--disable-split-compare "
+				shift
+				;;
+			--enable-split-branch)
+				laf_opt=" $laf_opt -o laf:--enable-split-branch "
+				shift
+				;;
+			--disable-split-branch)
+				laf_opt=" $laf_opt -o laf:--disable-split-branch "
+				shift
+				;;
 			-*|--*=) # unsupported flags
 				echo "Error: Unsupported flag $1" >&2
 				exit 1
@@ -353,8 +375,15 @@ fi
 #
 log_msg "Transforming input binary $input_binary into $output_zafl_binary"
 
+optional_step=""
+if [ ! -z "$laf_opt" ];
+then
+	optional_step=" -s laf=on $laf_opt "
+fi
+
 zax_opt=" $zax_opt $float_opt "
-cmd="$ZAFL_TM_ENV $PSZ $input_binary $output_zafl_binary $ida_or_rida_opt -c move_globals=on -c zax=on -o move_globals:--elftables-only $stars_opt $zax_opt $verbose_opt $options $other_args $trace_opt $zipr_opt"
+cmd="$ZAFL_TM_ENV $PSZ $input_binary $output_zafl_binary $ida_or_rida_opt -c move_globals=on $optional_step -c zax=on -o move_globals:--elftables-only $stars_opt $zax_opt $verbose_opt $options $other_args $trace_opt $zipr_opt"
+
 
 if [ ! -z "$ZAFL_TM_ENV" ]; then
 	log_msg "Trace map will be expected at fixed address"

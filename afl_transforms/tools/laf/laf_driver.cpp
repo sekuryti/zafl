@@ -33,8 +33,11 @@ void usage(char* name)
 {
 	cerr<<"Usage: "<<name<<" <variant_id>\n";
 	cerr<<"\t[--verbose | -v]                       Verbose mode                  "<<endl;
+	cerr<<"\t[--enable-split-compare | -c]          Enable split compare          "<<endl;
+	cerr<<"\t[--disable-split-compare | -c]         Disable split compare          "<<endl;
+	cerr<<"\t[--enable-split-branch | -b]           Enable split branch          "<<endl;
+	cerr<<"\t[--disable-split-branch | -B]          Disable split branch          "<<endl;
 	cerr<<"[--help,--usage,-?,-h]                   Display this message           "<<endl;
-
 }
 
 int main(int argc, char **argv)
@@ -46,15 +49,20 @@ int main(int argc, char **argv)
 	}
 
 	string programName(argv[0]);
-	int variantID = atoi(argv[1]);
-	bool verbose=false;
-
+	auto variantID = atoi(argv[1]);
+	auto verbose=false;
+	auto split_compare = true;
+	auto split_branch = true;
 
 	// Parse some options for the transform
 	static struct option long_options[] = {
 		{"verbose", no_argument, 0, 'v'},
 		{"help", no_argument, 0, 'h'},
 		{"usage", no_argument, 0, '?'},
+		{"enable-split-compare", no_argument, 0, 'c'},
+		{"disable-split-compare", no_argument, 0, 'C'},
+		{"enable-split-branch", no_argument, 0, 'b'},
+		{"disable-split-branch", no_argument, 0, 'B'},
 		{0,0,0,0}
 	};
 
@@ -74,6 +82,18 @@ int main(int argc, char **argv)
 		case 'h':
 			usage(argv[0]);
 			exit(1);
+			break;
+		case 'c':
+			split_compare=true;
+			break;
+		case 'C':
+			split_compare=false;
+			break;
+		case 'b':
+			split_branch=true;
+			break;
+		case 'B':
+			split_branch=false;
 			break;
 		default:
 			break;
@@ -102,8 +122,11 @@ int main(int argc, char **argv)
 
 		try
 		{
-			Laf_t is(*pqxx_interface, firp.get(), verbose);
-			int success=is.execute();
+			Laf_t laf(*pqxx_interface, firp.get(), verbose);
+			laf.setSplitCompare(split_compare);
+			laf.setSplitBranch(split_branch);
+
+			int success=laf.execute();
 
 			if (success)
 			{
