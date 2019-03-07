@@ -319,7 +319,7 @@ find_main()
 					log_error_exit "error finding entry point address"
 				fi
 			else
-				grep "libc_start_main" $tmp_objdump | grep ">:" | grep -e -v "@plt" -v "jmp" >/dev/null 2>&1
+				grep "libc_start_main" $tmp_objdump | grep ">:" | grep -v -e "@plt" -e "jmp" >/dev/null 2>&1
 				if [ $? -eq 0 ]; then
 					log_msg "Detected libc: no main"
 					rm $tmp_objdump
