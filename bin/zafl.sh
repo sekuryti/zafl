@@ -300,12 +300,6 @@ find_main()
 
 	objdump -d $input_binary > $tmp_objdump
 
-	grep "libc_start_main" $tmp_objdump | grep ">:" >/dev/null 2>&1
-	if [ $? -eq 0 ]; then
-		log_msg "Detected libc: no main"
-		return
-	fi
-
 	grep "<main>:" $tmp_objdump > $tmp_main
 
 	if [  $? -eq 0 ]; then
@@ -325,6 +319,13 @@ find_main()
 					log_error_exit "error finding entry point address"
 				fi
 			else
+				grep "libc_start_main" $tmp_objdump | grep ">:" | grep -e -v "@plt" -v "jmp" >/dev/null 2>&1
+				if [ $? -eq 0 ]; then
+					log_msg "Detected libc: no main"
+					rm $tmp_objdump
+					return
+				fi
+
 				main_addr=$(grep -B1 libc_start_main@plt $tmp_objdump | grep mov | grep rdi | cut -d':' -f2 | cut -d'm' -f2 | cut -d',' -f1 | cut -d'x' -f2)
 				if [ "$main_addr" = "" ]; then 
 					log_error_exit "error inferring main"
