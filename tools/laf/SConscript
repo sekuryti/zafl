@@ -26,7 +26,7 @@ LIBS=Split("stars "+ env.subst('$BASE_IRDB_LIBS')+ "  irdb-cfg irdb-util irdb-tr
 myenv=myenv.Clone(CPPPATH=Split(cpppath))
 myenv.Append(CXXFLAGS = " -std=c++11 -Wall -g ")
 pgm=myenv.Program(pgm,  files,  LIBPATH=LIBPATH, LIBS=LIBS)
-install=myenv.Install("$SECURITY_TRANSFORMS_HOME/plugins_install/", pgm)
+install=myenv.Install("$ZAFL_HOME/zafl_plugins/", pgm)
 Default(install)
 
 	

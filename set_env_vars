@@ -23,5 +23,5 @@ export PATH=$PATH:$ZAFL_HOME/bin
 export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$SECURITY_TRANSFORMS_HOME/lib
 
 
-export PSPATH=$PSPATH:$ZAFL_HOME/plugins_install
+export PSPATH=$PSPATH:$ZAFL_HOME/zafl_plugins
 

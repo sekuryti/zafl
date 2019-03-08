@@ -30,10 +30,4 @@ tools=[]
 for i in Split(dirs):
 	tools=tools+SConscript(os.path.join(i,"SConscript"))
 
-pedi = Command( target = "./testoutput",
-                source = "./SConscript",
-                action = "cd "+os.environ['SECURITY_TRANSFORMS_HOME']+" ; " +os.environ['PEDI_HOME']+"/pedi -m manifest.txt ; cd -" )
-
-Depends(pedi,tools)
-Default( pedi )
 Return('tools')

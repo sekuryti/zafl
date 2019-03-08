@@ -6,3 +6,4 @@ file set_env_vars zafl
 file set_env_vars zafl
 file get-packages.sh zafl
 directory bin zafl
+directory zafl_plugins zafl

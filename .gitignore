@@ -7,3 +7,4 @@ manifest.txt.config
 .sconsign.dblite
 *.swp
 *.o
+*.exe
