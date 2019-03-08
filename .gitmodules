@@ -3,5 +3,5 @@
 	url = git@git.zephyr-software.com:allnp/peasoup_umbrella.git
 	branch = master
 [submodule "zfuzz/libzafl"]
-	path = zfuzz/libzafl
+	path = libzafl
 	url = git@git.zephyr-software.com:opensrc/libzafl.git

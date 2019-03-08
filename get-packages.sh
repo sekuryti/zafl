@@ -7,7 +7,16 @@ fi
 
 for arg in $args; do
 	case $arg in
-		all | build | test | deploy)
+		all | deploy | test)
+                        which apt-get 1> /dev/null 2> /dev/null
+                        if [ $? -eq 0 ]; then
+                                sudo apt-get install -y --ignore-missing afl
+                        else
+                                sudo yum install -y --skip-broken afl
+                        fi
+                ;;
+
+		build)
 			;;
 		*)
 		echo "arg not recognized. Recognized args: all, build, test, deploy"
@@ -20,6 +29,3 @@ pushd zipr_umbrella
 sudo -E ./get-peasoup-packages.sh $args
 popd
 
-pushd zfuzz
-sudo -E ./get-packages.sh $args
-popd

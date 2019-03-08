@@ -7,7 +7,7 @@ source set_env_vars
 
 # Test with afl
 
-echo "Setup afl - ZAFL_HOME=$ZAFL_HOME ZFUZZ_HOME=$ZFULL_HOME"
+echo "Setup afl - ZAFL_HOME=$ZAFL_HOME "
 $ZAFL_HOME/zfuzz/util/setup-afl.sh
 sudo $ZAFL_HOME/zfuzz/util/afl_setup_core_pattern.sh
 
@@ -17,9 +17,9 @@ $ZAFL_HOME/zfuzz/test/bc/test_bc.sh
 $ZAFL_HOME/zfuzz/test/od/test_od.sh
 
 echo "Test graph optimizations"
-$ZAFL_HOME/zfuzz/afl_transforms/tools/zax/test/test_graph.sh
-$ZAFL_HOME/zfuzz/afl_transforms/tools/zax/test/test_context.sh
-$ZAFL_HOME/zfuzz/afl_transforms/tools/zax/test/test_context_recursion.sh
+$ZAFL_HOME//tools/zax/test/test_graph.sh
+$ZAFL_HOME//tools/zax/test/test_context.sh
+$ZAFL_HOME//tools/zax/test/test_context_recursion.sh
 
 echo "Test zafl with ZAFL_TRACE_MAP_FIXED_ADDRESS=0x10000"
 export ZAFL_TRACE_MAP_FIXED_ADDRESS=0x10000

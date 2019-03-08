@@ -1,4 +1,5 @@
 export ZAFL_TRACE_MAP_FIXED_ADDRESS=0x10000
+export AFL_SKIP_BIN_CHECK=1
 
 export ZAFL_HOME=$PWD
 if [ -z "$ZAFL_INSTALL" -o -f manifest.txt ]; then
@@ -20,3 +21,7 @@ source ./set_env_vars
 export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$ZAFL_HOME/zest_runtime/lib
 
 cd $ZAFL_HOME
+
+export PATH=$PATH:$ZAFL_HOME/bin
+export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$SECURITY_TRANSFORMS_HOME/lib
+

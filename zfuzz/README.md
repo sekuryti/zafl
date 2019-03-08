@@ -1,1 +1,0 @@
-All things related to fuzzing at Zephyr

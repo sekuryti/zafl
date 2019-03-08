@@ -17,22 +17,26 @@ fi
 
 if [ ! -f manifest.txt.config -o ! -d "$ZAFL_INSTALL" ]; then
 	mkdir -p "$ZAFL_INSTALL"
-        $PEDI_HOME/pedi --setup -m manifest.txt -l zafl -l zfuzz -l ps -l zipr -l stratafier -l stars -i $ZAFL_INSTALL || exit
+        $PEDI_HOME/pedi --setup -m manifest.txt -l zafl -l ps -l zipr -l stratafier -l stars -i $ZAFL_INSTALL || exit
 fi
 
-unset DAFFY_HOME
 cd zipr_umbrella
 ./build-all.sh $build_all_flags  || exit
 
 
 cd $ZAFL_HOME
-if [ -d zfuzz ]; then
-        cd zfuzz
-        ./build-all.sh $build_all_flags || exit
-fi
+cd tools
+scons $SCONSDEBUG -j 3
 
 cd $ZAFL_HOME
 $PEDI_HOME/pedi -m manifest.txt || exit
 
+cd $ZAFL_HOME/libzafl
+scons
+cp lib/* $ZEST_RUNTIME/lib64/
+
 cd $ZAFL_HOME
 echo "ZAFL Overall build complete."
+
+
+

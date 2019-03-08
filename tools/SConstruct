@@ -41,5 +41,5 @@ if sysname == "SunOS":
 
 
 Export('env')
-SConscript("SConscript", variant_dir='build')
+env.SConscript("SConscript", variant_dir='build')
 
