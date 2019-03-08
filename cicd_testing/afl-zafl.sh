@@ -8,24 +8,24 @@ source set_env_vars
 # Test with afl
 
 echo "Setup afl - ZAFL_HOME=$ZAFL_HOME "
-$ZAFL_HOME/zfuzz/util/setup-afl.sh
-sudo $ZAFL_HOME/zfuzz/util/afl_setup_core_pattern.sh
+$ZAFL_HOME/util/setup-afl.sh
+sudo $ZAFL_HOME/util/afl_setup_core_pattern.sh
 
 echo "Test various zafl configurations"
-$ZAFL_HOME/zfuzz/test/strings/test_strings.sh
-$ZAFL_HOME/zfuzz/test/bc/test_bc.sh
-$ZAFL_HOME/zfuzz/test/od/test_od.sh
+$ZAFL_HOME/test/strings/test_strings.sh
+$ZAFL_HOME//test/bc/test_bc.sh
+$ZAFL_HOME//test/od/test_od.sh
 
 echo "Test graph optimizations"
-$ZAFL_HOME//tools/zax/test/test_graph.sh
-$ZAFL_HOME//tools/zax/test/test_context.sh
-$ZAFL_HOME//tools/zax/test/test_context_recursion.sh
+$ZAFL_HOME/tools/zax/test/test_graph.sh
+$ZAFL_HOME/tools/zax/test/test_context.sh
+$ZAFL_HOME/tools/zax/test/test_context_recursion.sh
 
 echo "Test zafl with ZAFL_TRACE_MAP_FIXED_ADDRESS=0x10000"
 export ZAFL_TRACE_MAP_FIXED_ADDRESS=0x10000
-$ZAFL_HOME/zfuzz/test/bc.fixed_map/test_bc.sh
-$ZAFL_HOME/zfuzz/test/sha256sum/test_sha256sum.sh
+$ZAFL_HOME/test/bc.fixed_map/test_bc.sh
+$ZAFL_HOME/test/sha256sum/test_sha256sum.sh
 
 echo "Test zuntracer configurations"
-$ZAFL_HOME/zfuzz/test/ls.zuntracer/test_ls.sh
+$ZAFL_HOME/test/ls.zuntracer/test_ls.sh
 

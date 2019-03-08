@@ -17,7 +17,7 @@ log_error()
 
 sanity_check_bc()
 {
-	$ZAFL_HOME/zfuzz/bin/zafl.sh $(which bc) bc.zafl
+	$ZAFL_HOME/bin/zafl.sh $(which bc) bc.zafl
 	if [ ! $? -eq 0 ]; then
 		log_error "something went wrong trying to transform a binary with zafl instrumentation"
 	fi

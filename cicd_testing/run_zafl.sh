@@ -7,7 +7,7 @@ main()
 	cd /zafl 
 	source ./set_env_vars 
 	cd /tmp 
-	/zafl/zfuzz/bin/zafl.sh "$@" 
+	/zafl/bin/zafl.sh "$@" 
 
 	res=$?
 	if [[ $res  != 0 ]]; then
