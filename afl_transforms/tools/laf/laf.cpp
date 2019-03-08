@@ -73,6 +73,8 @@ Laf_t::Laf_t(IRDB_SDK::pqxxDB_t &p_dbinterface, IRDB_SDK::FileIR_t *p_variantIR,
 	m_blacklist.insert("argp_state_help");
 	m_blacklist.insert("argp_error");
 	m_blacklist.insert("argp_parse");
+
+	m_skip_byte_cmp = 0;
 }
 
 RegisterSet_t Laf_t::getDeadRegs(Instruction_t* insn) const
@@ -119,6 +121,12 @@ bool Laf_t::getSplitBranch() const
 	return m_split_branch;
 }
 
+bool Laf_t::hasLeafAnnotation(Function_t* fn) const
+{
+	auto it = leaf_functions -> find(fn);
+	return (it != leaf_functions->end());
+}
+
 int Laf_t::execute()
 {
 	if (getSplitCompare())
@@ -130,11 +138,12 @@ int Laf_t::execute()
 // handle comparisons of the form: 
 //                c:  cmp [rbp - 4], 0x12345678    or c:  cmp reg, 0x12345678
 //                jcc:  jne foobar
-void Laf_t::doSplitCompare(Instruction_t* p_instr)
+void Laf_t::doSplitCompare(Instruction_t* p_instr, bool p_honor_red_zone)
 {
 	const auto d_cp = DecodedInstruction_t::factory(p_instr);
 	const auto &d_c = *d_cp;
 
+	const auto immediate = d_c.getImmediate();
 	auto jcc = p_instr->getFallthrough();
 	const auto d_cbrp = DecodedInstruction_t::factory(jcc); 
 	const auto &d_cbr = *d_cbrp;
@@ -143,6 +152,8 @@ void Laf_t::doSplitCompare(Instruction_t* p_instr)
 	auto orig_jcc_fallthrough = jcc->getFallthrough();
 	auto orig_jcc_target = jcc->getTarget();
 	auto allowed_regs = RegisterSet_t({rn_RAX, rn_RBX, rn_RCX, rn_RDX, rn_R8, rn_R9, rn_R10, rn_R11, rn_R12, rn_R13, rn_R14, rn_R15});
+
+	cout << "found comparison: " << p_instr->getDisassembly() << " immediate: " << hex << immediate << " " << jcc->getDisassembly() << endl;
 
 	const auto dead_regs = getDeadRegs(p_instr);
 
@@ -172,10 +183,11 @@ void Laf_t::doSplitCompare(Instruction_t* p_instr)
 		return;
 	}
 
+	if (p_honor_red_zone)
+		p_instr = insertAssemblyBefore(p_instr, "lea rsp, [rsp-128]");
+
 	string s;
 
-	const auto immediate = d_c.getImmediate();
-	cout << "found comparison: " << p_instr->getDisassembly() << " immediate: " << hex << immediate << " " << jcc->getDisassembly() << endl;
 	if (is_jne)
 		cout << "is jump not equal" << endl;
 	else
@@ -347,6 +359,9 @@ void Laf_t::doSplitCompare(Instruction_t* p_instr)
 	t = insertAssemblyAfter(t, s);
 	cout << s << endl;
 
+	if (p_honor_red_zone)
+		t = insertAssemblyAfter(t, "lea rsp, [rsp+128]");
+
 	if (is_je)
 		s = "je 0";
 	else
@@ -356,6 +371,7 @@ void Laf_t::doSplitCompare(Instruction_t* p_instr)
 	t->setFallthrough(orig_jcc_fallthrough);
 	cout << "target: original target   fallthrough: original fallthrough ";
 	cout << s << endl;
+
 }
 
 int Laf_t::doSplitCompare()
@@ -412,9 +428,22 @@ int Laf_t::doSplitCompare()
 			const auto &f = *fp;
 			if (f.getMnemonic() != "je" && f.getMnemonic() !="jeq" && f.getMnemonic() !="jne") continue;
 			
+			// these values are easy for fuzzer to guess
 			const auto imm = d.getImmediate();
 			if (imm == 0 || imm == 1 || imm == -1 || imm == 0xff || imm == 0xffff)
 				continue;
+
+			// nothing to split if it's just a 1-byte compare
+			const auto byte0 = imm >> 24;	              // high byte
+			const auto byte1 = (imm&0xff0000) >> 16;	
+			const auto byte2 = (imm&0xff00) >> 8;	
+//			const auto byte3 = imm&0xff;	              // low byte
+			const auto byteCmp = (byte0 == 0x0 && byte1 == 0x0 && byte2 == 0x0);
+			if (byteCmp)
+			{
+				m_skip_byte_cmp++;
+				continue;
+			}
 
 			// we now have a cmp instruction to decompose
 			if (d.getOperand(0)->isRegister() || d.getOperand(0)->isMemory())
@@ -426,7 +455,9 @@ int Laf_t::doSplitCompare()
 	// transform each comparison that needs to be decomposed
 	for(auto c : to_split_compare)
 	{
-		doSplitCompare(c);
+		auto honorRedZone = true;
+		honorRedZone = hasLeafAnnotation(c->getFunction());
+		doSplitCompare(c, honorRedZone);
 	}
 
 	return 1;	 // true means success

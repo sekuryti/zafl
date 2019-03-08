@@ -29,9 +29,10 @@ public:
 private:
 	RegisterSet_t getDeadRegs(IRDB_SDK::Instruction_t* insn) const;
 	RegisterSet_t getFreeRegs(const RegisterSet_t& candidates, const RegisterSet_t& allowed) const;
-	void doSplitCompare(IRDB_SDK::Instruction_t*);
+	void doSplitCompare(IRDB_SDK::Instruction_t*, bool p_honor_red_zone);
 	int doSplitCompare();
 	bool isBlacklisted(IRDB_SDK::Function_t*) const;
+	bool hasLeafAnnotation(IRDB_SDK::Function_t* fn) const;
 
 private:
 	IRDB_SDK::pqxxDB_t &m_dbinterface;
@@ -41,6 +42,7 @@ private:
 	bool m_split_compare;
 	bool m_split_branch;
 	std::set<std::string> m_blacklist;
+	size_t m_skip_byte_cmp;
 };
 
 } 

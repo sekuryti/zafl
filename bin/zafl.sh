@@ -165,12 +165,12 @@ parse_args()
 				;;
 			-w | --whitelist)
 				shift
-				zax_opt=" $zax_opt -o zax:\"--whitelist $1 \""
+				zax_opt=" $zax_opt -o zax:\"--whitelist $(realpath $1) \""
 				shift
 				;;
 			-b | --blacklist)
 				shift
-				zax_opt=" $zax_opt -o zax:\"--blacklist $1 \""
+				zax_opt=" $zax_opt -o zax:\"--blacklist $(realpath $1) \""
 				shift
 				;;
 			-u | --untracer)

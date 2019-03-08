@@ -305,7 +305,7 @@ void ZaxBase_t::setWhitelist(const string& p_whitelist)
 {
 	std::ifstream whitelistFile(p_whitelist);
 	if (!whitelistFile.is_open())
-		throw;
+		throw std::runtime_error("Could not open file " + p_whitelist);
 	std::string line;
 	while(whitelistFile >> line)
 	{
