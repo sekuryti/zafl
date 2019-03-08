@@ -107,29 +107,6 @@ afl-zafl-centos75:
   tags:
     - centos75
 
-#
-# test installer
-#
-.install-zafl: &install-zafl
-  stage: install
-  script:
-    - ./cicd_testing/installer.sh
-
-install-zafl-ubuntu18:
-  <<: *install-zafl
-  tags:
-    - ubuntu18
-
-install-zafl-ubuntu16:
-  <<: *install-zafl
-  tags:
-    - ubuntu16
-
-install-zafl-centos75:
-  <<: *install-zafl
-  tags:
-    - centos75
-
 
 #
 # Deploy a docker image to gitlab.
