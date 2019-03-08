@@ -1,0 +1,45 @@
+import os
+import sys
+
+
+
+(sysname, nodename, release, version, machine)=os.uname()
+
+env=Environment()
+
+
+# default build options
+env.Replace(CFLAGS="-fPIC -Wall  ")
+env.Replace(CXXFLAGS="-fPIC -Wall  ")
+env.Replace(LINKFLAGS="-fPIC -Wall  ")
+
+# parse arguments
+env.Replace(SECURITY_TRANSFORMS_HOME=os.environ['SECURITY_TRANSFORMS_HOME'])
+env.Replace(SMPSA_HOME=os.environ['SMPSA_HOME'])
+env.Replace(IRDB_SDK=os.environ['IRDB_SDK'])
+env.Replace(AFL_TRANSFORMS=os.environ['AFL_TRANSFORMS'])
+env.Replace(debug=ARGUMENTS.get("debug",0))
+
+
+if int(env['debug']) == 1:
+        print "Setting debug mode"
+        env.Append(CFLAGS=" -g ")
+        env.Append(CXXFLAGS=" -g ")
+        env.Append(LINKFLAGS=" -g ")
+else:
+        print "Setting release mode"
+        env.Append(CFLAGS=" -O3 ")
+        env.Append(CXXFLAGS=" -O3 ")
+        env.Append(LINKFLAGS=" -O3 ")
+
+
+# add extra flag for solaris.
+if sysname == "SunOS":
+        env.Append(LINKFLAGS=" -L/opt/csw/lib -DSOLARIS  ")
+        env.Append(CFLAGS=" -I/opt/csw/include -DSOLARIS ")
+        env.Append(CXXFLAGS=" -I/opt/csw/include -DSOLARIS  ")
+
+
+Export('env')
+SConscript("SConscript", variant_dir='build')
+

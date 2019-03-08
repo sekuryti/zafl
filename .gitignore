@@ -1,2 +1,8 @@
 install/
+build/
 manifest.txt.config
+libzafl/src/*.so
+libzafl/src/*.os
+manifest.txt.config
+.sconsign.dblite
+*.swp

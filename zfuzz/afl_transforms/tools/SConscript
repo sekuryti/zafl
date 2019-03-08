@@ -1,0 +1,18 @@
+import os
+
+Import('env')
+
+dirs='''
+	laf
+	zax
+	'''
+
+
+nobuild_dirs='''
+	'''
+
+tools=[]
+for i in Split(dirs):
+	tools=tools+SConscript(os.path.join(i,"SConscript"))
+
+Return('tools')
