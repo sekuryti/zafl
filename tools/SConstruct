@@ -17,7 +17,6 @@ env.Replace(LINKFLAGS="-fPIC -Wall  ")
 env.Replace(SECURITY_TRANSFORMS_HOME=os.environ['SECURITY_TRANSFORMS_HOME'])
 env.Replace(SMPSA_HOME=os.environ['SMPSA_HOME'])
 env.Replace(IRDB_SDK=os.environ['IRDB_SDK'])
-env.Replace(AFL_TRANSFORMS=os.environ['AFL_TRANSFORMS'])
 env.Replace(debug=ARGUMENTS.get("debug",0))
 
 
