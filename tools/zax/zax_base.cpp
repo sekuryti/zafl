@@ -858,7 +858,7 @@ Instruction_t* ZaxBase_t::getInstructionToInstrument(const BasicBlock_t *p_bb, c
 	}
 
 	// scan basic block looking for instruction with requested number of free regs
-	const auto allowed_regs = RegisterSet_t({rn_RAX, rn_RBX, rn_RCX, rn_RDX, rn_R8, rn_R9, rn_R10, rn_R11, rn_R12, rn_R13, rn_R14, rn_R15});
+	const auto allowed_regs = RegisterSet_t({rn_RAX, rn_RBX, rn_RCX, rn_RDX, rn_RSI, rn_RDI, rn_R8, rn_R9, rn_R10, rn_R11, rn_R12, rn_R13, rn_R14, rn_R15});
 	// auto &ap = m_stars_analysis_engine.getAnnotations();
 	auto best_i = first_instruction;
 	auto max_free_regs = 0U;

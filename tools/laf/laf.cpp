@@ -79,6 +79,7 @@ Laf_t::Laf_t(IRDB_SDK::pqxxDB_t &p_dbinterface, IRDB_SDK::FileIR_t *p_variantIR,
 	m_skip_easy_val = 0;
 	m_skip_qword = 0;
 	m_skip_relocs = 0;
+	m_skip_stack_access = 0;
 }
 
 RegisterSet_t Laf_t::getDeadRegs(Instruction_t* insn) const
@@ -141,13 +142,14 @@ int Laf_t::execute()
 	cout << "#ATTRIBUTE num_cmp_jcc_skipped_easyval=" << m_skip_easy_val << endl;
 	cout << "#ATTRIBUTE num_cmp_jcc_skipped_qword=" << m_skip_qword << endl;
 	cout << "#ATTRIBUTE num_cmp_jcc_skipped_relocs=" << m_skip_relocs << endl;
+	cout << "#ATTRIBUTE num_cmp_jcc_skipped_stack_access=" << m_skip_stack_access << endl;
 	return 1;
 }
 
 // handle comparisons of the form: 
 //                c:  cmp [rbp - 4], 0x12345678    or c:  cmp reg, 0x12345678
 //                jcc:  jne foobar
-void Laf_t::doSplitCompare(Instruction_t* p_instr, bool p_honor_red_zone)
+bool Laf_t::doSplitCompare(Instruction_t* p_instr, bool p_honor_red_zone)
 {
 	const auto d_cp = DecodedInstruction_t::factory(p_instr);
 	const auto &d_c = *d_cp;
@@ -160,25 +162,25 @@ void Laf_t::doSplitCompare(Instruction_t* p_instr, bool p_honor_red_zone)
 	const auto is_je = !is_jne;
 	auto orig_jcc_fallthrough = jcc->getFallthrough();
 	auto orig_jcc_target = jcc->getTarget();
-	auto allowed_regs = RegisterSet_t({rn_RAX, rn_RBX, rn_RCX, rn_RDX, rn_R8, rn_R9, rn_R10, rn_R11, rn_R12, rn_R13, rn_R14, rn_R15});
+	auto allowed_regs = RegisterSet_t({rn_RAX, rn_RBX, rn_RCX, rn_RDX, rn_RDI, rn_RSI, rn_R8, rn_R9, rn_R10, rn_R11, rn_R12, rn_R13, rn_R14, rn_R15});
 	auto save_temp = true;
 
-	auto orig_relocs = p_instr->getRelocations();
-	auto do_relocs = orig_relocs.size() > 0; // @todo: find only pcrel relocs, stash it away
+	const auto orig_relocs = p_instr->getRelocations();
+	const auto do_relocs = orig_relocs.size() > 0;
 
-	cout << "found comparison: " << p_instr->getDisassembly() << " immediate: " << hex << immediate << " " << jcc->getDisassembly();
+	const auto byte0 = immediate >> 24;	              // high byte
+	const auto byte1 = (immediate&0xff0000) >> 16;	
+	const auto byte2 = (immediate&0xff00) >> 8;	
+	const auto byte3 = immediate&0xff;	              // low byte
+
+	cout << "found comparison: " << hex << p_instr->getBaseID() << ": " << p_instr->getDisassembly() << " immediate: " << immediate << " " << jcc->getDisassembly() << endl;
 
 	if (do_relocs)
 	{
-		cout << " relocs: has reloc size: " << orig_relocs.size();
+		cout << " relocs: has reloc size: " << orig_relocs.size() << endl;
 		m_skip_relocs++;
-		return;
+		return false;
 	}
-
-
-	cout << endl;
-
-	const auto dead_regs = getDeadRegs(p_instr);
 
 	if (d_c.getOperand(0)->isRegister())
 	{
@@ -187,9 +189,20 @@ void Laf_t::doSplitCompare(Instruction_t* p_instr, bool p_honor_red_zone)
 		allowed_regs.erase(reg);
 	}
 
-//	auto save_temp = true;
-	auto free_regs = getFreeRegs(dead_regs, allowed_regs);
 	auto free_reg = string(); 
+	const auto dead_regs = getDeadRegs(p_instr);
+	auto free_regs = getFreeRegs(dead_regs, allowed_regs);
+
+	cout << "STARS says num dead registers: " << dead_regs.size();
+	cout << "  ";
+	for (auto r : dead_regs)
+		cout << registerToString(r) << " ";
+	cout << endl;
+	cout << "STARS says num free registers: " << free_regs.size();
+	cout << "  ";
+	for (auto r : free_regs)
+		cout << registerToString(r) << " ";
+	cout << endl;
 
 	if (free_regs.size() > 0)
 	{
@@ -197,66 +210,62 @@ void Laf_t::doSplitCompare(Instruction_t* p_instr, bool p_honor_red_zone)
 		free_regs.erase(first_free_register);
 		free_reg = registerToString(convertRegisterTo32bit(first_free_register));
 		save_temp = false;
+		// free register available --> instrumentation doesn't disturb stack --> no need to deal with red zone
+		p_honor_red_zone = false; 
 	}
-	
-	auto get_reg64 = [](string r) -> string { 
-			return registerToString(convertRegisterTo64bit(Register::getRegister(r)));
-		};
-
-	// for now, skip if no free register
-	if (free_regs.size() == 0)
+	else
 	{
 		const auto disasm = p_instr->getDisassembly();
-		if (disasm.find("r15")==string::npos)
-		{
-			free_reg = "r15d";
-		}
-		else if (disasm.find("r14")==string::npos)
-		{
-			free_reg = "r14d";
-		}
-		else if (disasm.find("r13")==string::npos)
-		{
-			free_reg = "r13d";
-		}
-		else if (disasm.find("r12")==string::npos)
-		{
+		if (disasm.find("r12")==string::npos)
 			free_reg = "r12d";
-		}
+		else if (disasm.find("r13")==string::npos)
+			free_reg = "r13d";
+		else if (disasm.find("r14")==string::npos)
+			free_reg = "r14d";
+		else if (disasm.find("r15")==string::npos)
+			free_reg = "r15d";
 		else
 		{
 			cout << "Skip instruction - no free register found: " << disasm << endl;
-			return;
+			return false;
 		}
 		save_temp = true;
 	}
 
-	if (do_relocs)
-		p_instr->setRelocations(RelocationSet_t()); // @todo: clear pcrel reloc only
-
-	if (p_honor_red_zone)
+	// handle the case where instrumentation modifies the stack
+	// but the cmp instruction uses a stack relative address
+	// @todo: adjust the offset in the cmp instruction instead of skipping
+	if ((p_honor_red_zone || save_temp) && !d_c.getOperand(0)->isRegister())
 	{
-		p_instr = insertAssemblyBefore(p_instr, "lea rsp, [rsp-128]");
+		// cmp dword [rbp - 4], 0x12345678 
+		const auto memopp = d_c.getOperand(0);
+		const auto &memop = *memopp;
+		const auto memop_str = memop.getString();
+		if (memop_str.find("rbp")!=string::npos ||
+		    memop_str.find("rsp")!=string::npos ||
+		    memop_str.find("ebp")!=string::npos ||
+		    memop_str.find("esp")!=string::npos)
+		{
+			cout << "comparison accesses the stack -- skip" << endl;
+			m_skip_stack_access++;
+			return false;
+		}
 	}
+	
+	const auto get_reg64 = [](string r) -> string { 
+			return registerToString(convertRegisterTo64bit(Register::getRegister(r)));
+		};
 
-	if (save_temp)
-	{
-		p_instr = insertAssemblyBefore(p_instr, "push " + get_reg64(free_reg));
-	}
-
+	const auto push_reg = "push " + get_reg64(free_reg);
+	const auto pop_reg = "pop " + get_reg64(free_reg);
+	const auto push_redzone = string("lea rsp, [rsp-128]");
+	const auto pop_redzone = string("lea rsp, [rsp+128]");
+	
+	//
+	// Start changing the IR
+	//
+	
 	string s;
-
-	if (is_jne)
-		cout << "is jump not equal" << endl;
-	else
-		cout << "is jump equal" << endl;
-
-	auto byte0 = immediate >> 24;	              // high byte
-	auto byte1 = (immediate&0xff0000) >> 16;	
-	auto byte2 = (immediate&0xff00) >> 8;	
-	auto byte3 = immediate&0xff;	              // low byte
-
-	cout <<"    bytes: 0x" << hex << byte0 << byte1 << byte2 << byte3 << endl;
 
 	auto init_sequence = string();
 
@@ -272,31 +281,35 @@ void Laf_t::doSplitCompare(Instruction_t* p_instr, bool p_honor_red_zone)
 		// cmp dword [rbp - 4], 0x12345678 
 		const auto memopp = d_c.getOperand(0);
 		const auto &memop = *memopp;
-		init_sequence = "mov " + free_reg + ", dword [ " + memop.getString() + " ]";
+		const auto memop_str = memop.getString();
+		init_sequence = "mov " + free_reg + ", dword [ " + memop_str + " ]";
 	}
 
 	cout << "decompose sequence: free register: " << free_reg << endl;
 	cout << "init sequence is: " << init_sequence << endl;
 
-
 /*
+	Handle high-order byte:
 		mov eax, dword [rbp - 4]
 		sar eax, 0x18
 		cmp eax, 0x12
 		jne j
 */
 	stringstream ss;
-	auto t = (Instruction_t*) NULL;
-
 	s = init_sequence;
-	getFileIR()->registerAssembly(p_instr, s); 
-	if (do_relocs)
-		p_instr->setRelocations(orig_relocs); // @todo: add only pcrel reloc
 
+	if (p_honor_red_zone)
+		p_instr = insertAssemblyBefore(p_instr, push_redzone);
+
+	if (save_temp)
+		p_instr = insertAssemblyBefore(p_instr, push_reg);
+
+	// overwrite the original cmp instruction
+	getFileIR()->registerAssembly(p_instr, s); 
 	cout << s << endl;
 
 	s = "sar " + free_reg + ", 0x18";
-	t = insertAssemblyAfter(p_instr, s);
+	auto t = insertAssemblyAfter(p_instr, s);
 	cout << s << endl;
 
 	ss.str("");
@@ -304,6 +317,15 @@ void Laf_t::doSplitCompare(Instruction_t* p_instr, bool p_honor_red_zone)
 	s = ss.str();
 	t = insertAssemblyAfter(t, s);
 	cout << s << endl;
+
+	if (save_temp)
+	{
+		t = insertAssemblyAfter(t, pop_reg);
+		cout << pop_reg << endl;
+	}
+
+	if (p_honor_red_zone)
+		t = insertAssemblyAfter(t, "lea rsp, [rsp+128]");
 
 	s = "jne 0";
 	t = insertAssemblyAfter(t, s);
@@ -319,6 +341,7 @@ void Laf_t::doSplitCompare(Instruction_t* p_instr, bool p_honor_red_zone)
 	cout << s << endl;
 
 /*
+	Handle 2nd high-order byte:
 		mov eax, dword [rbp - 4]
 		and eax, 0xff0000
 		sar eax, 0x10
@@ -326,9 +349,20 @@ void Laf_t::doSplitCompare(Instruction_t* p_instr, bool p_honor_red_zone)
 		jne xxx
 */
 	s = init_sequence;
+
+	if (p_honor_red_zone)
+	{
+		t = insertAssemblyAfter(t, push_redzone);
+		cout << push_redzone << endl;
+	}
+
+	if (save_temp)
+	{
+		t = insertAssemblyAfter(t, push_reg);
+		cout << push_reg << endl;
+	}
+
 	t = insertAssemblyAfter(t, s);
-	if (do_relocs)
-		t->setRelocations(orig_relocs); // @todo: add only pcrel reloc
 	cout << s << endl;
 
 	s = "and " + free_reg + ", 0xff0000";
@@ -345,6 +379,15 @@ void Laf_t::doSplitCompare(Instruction_t* p_instr, bool p_honor_red_zone)
 	t = insertAssemblyAfter(t, s);
 	cout << s << endl;
 
+	if (save_temp)
+	{
+		t = insertAssemblyAfter(t, pop_reg);
+		cout << pop_reg << endl;
+	}
+
+	if (p_honor_red_zone)
+		t = insertAssemblyAfter(t, pop_redzone);
+
 	s = "jne 0";
 	t = insertAssemblyAfter(t, s);
 	if (is_je) {
@@ -358,6 +401,7 @@ void Laf_t::doSplitCompare(Instruction_t* p_instr, bool p_honor_red_zone)
 	cout << s << endl;
 
 /*
+	Handle 3rd high-order byte:
 		mov    eax,DWORD PTR [rbp-0x4]
 		and    eax,0xff00
 		sar    eax,0x8
@@ -365,9 +409,15 @@ void Laf_t::doSplitCompare(Instruction_t* p_instr, bool p_honor_red_zone)
 		jne    xxx
 */
 	s = init_sequence;
+	if (p_honor_red_zone)
+		t = insertAssemblyAfter(t, push_redzone);
+
+	if (save_temp)
+	{
+		t = insertAssemblyAfter(t, push_reg);
+		cout << push_reg << endl;
+	}
 	t = insertAssemblyAfter(t, s);
-	if (do_relocs)
-		t->setRelocations(orig_relocs); // @todo: add only pcrel reloc
 	cout << s << endl;
 
 	s = "and " + free_reg + ", 0xff00";
@@ -384,6 +434,15 @@ void Laf_t::doSplitCompare(Instruction_t* p_instr, bool p_honor_red_zone)
 	t = insertAssemblyAfter(t, s);
 	cout << s << endl;
 
+	if (save_temp)
+	{
+		t = insertAssemblyAfter(t, pop_reg);
+		cout << pop_reg << endl;
+	}
+
+	if (p_honor_red_zone)
+		t = insertAssemblyAfter(t, pop_redzone);
+
 	s = "jne 0";
 	t = insertAssemblyAfter(t, s);
 	if (is_je) {
@@ -397,15 +456,22 @@ void Laf_t::doSplitCompare(Instruction_t* p_instr, bool p_honor_red_zone)
 	cout << s << endl;
 
 /*
-  4005e4:	8b 45 fc             	mov    eax,DWORD PTR [rbp-0x4]
-  4005e7:	0f b6 c0             	movzx  eax,al
-  4005ea:	83 f8 78             	cmp    eax,0x78
-  4005ed:	75 07                	jne    4005f6 <main+0x80>
+	Handle low-order byte:
+            mov      eax,DWORD PTR [rbp-0x4]
+            and      eax,0xff
+            cmp      eax,0x78
+            je,jne   xxx
 */
 	s = init_sequence;
+	if (p_honor_red_zone)
+		t = insertAssemblyAfter(t, push_redzone);
+
+	if (save_temp)
+	{
+		t = insertAssemblyAfter(t, push_reg);
+		cout << push_reg << endl;
+	}
 	t = insertAssemblyAfter(t, s);
-	if (do_relocs)
-		t->setRelocations(orig_relocs); // @todo: add only pcrel reloc
 	cout << s << endl;
 
 	s = "and " + free_reg + ", 0xff";
@@ -419,21 +485,19 @@ void Laf_t::doSplitCompare(Instruction_t* p_instr, bool p_honor_red_zone)
 	cout << s << endl;
 
 	if (save_temp)
-		p_instr = insertAssemblyBefore(p_instr, "pop " + get_reg64(free_reg));
+		t = insertAssemblyAfter(t, pop_reg);
 
 	if (p_honor_red_zone)
-		t = insertAssemblyAfter(t, "lea rsp, [rsp+128]");
+		t = insertAssemblyAfter(t, pop_redzone);
 
-	if (is_je)
-		s = "je 0";
-	else
-		s = "jne 0";
+	s = is_je ? "je 0" : "jne 0";
 	t = insertAssemblyAfter(t, s);
 	t->setTarget(orig_jcc_target);
 	t->setFallthrough(orig_jcc_fallthrough);
-	cout << "target: original target   fallthrough: original fallthrough ";
-	cout << s << endl;
+	cout << s << " ";
+	cout << "target: original target   fallthrough: original fallthrough " << endl;
 
+	return true;
 }
 
 int Laf_t::doSplitCompare()
@@ -496,30 +560,28 @@ int Laf_t::doSplitCompare()
 			if (d.getOperand(0)->getArgumentSizeInBytes()!=4) continue;
 			if (!i->getFallthrough()) continue;
 
-			
-
-			// these values are easy for fuzzer to guess
+			/* these values are easy for fuzzers to guess
 			const auto imm = d.getImmediate();
 			if (imm == 0 || imm == 1 || imm == -1)
 			{
 				m_skip_easy_val++;
 				continue;
 			}
+			*/
 
-			// we now have a cmp instruction to decompose
+			// we now have a cmp instruction to split
 			if (d.getOperand(0)->isRegister() || d.getOperand(0)->isMemory())
 				to_split_compare.push_back(i);
 		};
 
 	};
 
-	// transform each comparison that needs to be decomposed
+	// split comparisons
 	for(auto c : to_split_compare)
 	{
-		auto honorRedZone = true;
-		honorRedZone = hasLeafAnnotation(c->getFunction());
-		doSplitCompare(c, honorRedZone);
-		m_num_cmp_jcc_instrumented++;
+		const auto honorRedZone = hasLeafAnnotation(c->getFunction());
+		if (doSplitCompare(c, honorRedZone))
+			m_num_cmp_jcc_instrumented++;
 	}
 
 	return 1;	 // true means success

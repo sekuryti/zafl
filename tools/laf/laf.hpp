@@ -29,7 +29,7 @@ public:
 private:
 	RegisterSet_t getDeadRegs(IRDB_SDK::Instruction_t* insn) const;
 	RegisterSet_t getFreeRegs(const RegisterSet_t& candidates, const RegisterSet_t& allowed) const;
-	void doSplitCompare(IRDB_SDK::Instruction_t*, bool p_honor_red_zone);
+	bool doSplitCompare(IRDB_SDK::Instruction_t*, bool p_honor_red_zone);
 	int doSplitCompare();
 	bool isBlacklisted(IRDB_SDK::Function_t*) const;
 	bool hasLeafAnnotation(IRDB_SDK::Function_t* fn) const;
@@ -47,6 +47,7 @@ private:
 	size_t m_skip_easy_val;
 	size_t m_skip_qword;
 	size_t m_skip_relocs;
+	size_t m_skip_stack_access;
 };
 
 } 
