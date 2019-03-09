@@ -63,16 +63,16 @@ mkdir $session
 pushd $session
 
 # build ZAFL version of strings executable
-zafl.sh `which strings` strings.zafl.d.g -d -g --tempdir analysis.strings.zafl
+zafl.sh `which strings` strings.zafl.d.g.split --enable-split-compare -d -g --tempdir analysis.strings.zafl.d.g.split
 if [ $? -eq 0 ]; then
-	log_success "build strings.zafl.d.g"
+	log_success "build strings.zafl.d.g.split"
 else
-	log_error "build strings.zafl.d.g"
+	log_error "build strings.zafl.d.g.split"
 fi
-grep ATTR analysis.strings.zafl.d.g/logs/zax.log
+grep ATTR analysis.strings.zafl.d.g.split/logs/zax.log
 
 log_message "Fuzz for $AFL_TIMEOUT secs"
-fuzz_with_zafl $(realpath ./strings.zafl.d.g)
+fuzz_with_zafl $(realpath ./strings.zafl.d.g.split)
 
 cleanup
 popd
