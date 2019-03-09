@@ -45,9 +45,13 @@ private:
 	size_t m_num_cmp_jcc;
 	size_t m_num_cmp_jcc_instrumented;
 	size_t m_skip_easy_val;
+	size_t m_skip_byte;
+	size_t m_skip_word;
 	size_t m_skip_qword;
 	size_t m_skip_relocs;
 	size_t m_skip_stack_access;
+	size_t m_skip_no_free_regs;
+	size_t m_skip_unknown;
 };
 
 } 

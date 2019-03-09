@@ -77,9 +77,13 @@ Laf_t::Laf_t(IRDB_SDK::pqxxDB_t &p_dbinterface, IRDB_SDK::FileIR_t *p_variantIR,
 	m_num_cmp_jcc = 0;
 	m_num_cmp_jcc_instrumented = 0;
 	m_skip_easy_val = 0;
+	m_skip_byte = 0;
+	m_skip_word = 0;
 	m_skip_qword = 0;
 	m_skip_relocs = 0;
 	m_skip_stack_access = 0;
+	m_skip_no_free_regs = 0;
+	m_skip_unknown = 0;
 }
 
 RegisterSet_t Laf_t::getDeadRegs(Instruction_t* insn) const
@@ -140,9 +144,14 @@ int Laf_t::execute()
 	cout << "#ATTRIBUTE num_cmp_jcc_patterns=" << dec << m_num_cmp_jcc << endl;
 	cout << "#ATTRIBUTE num_cmp_jcc_instrumented=" << dec << m_num_cmp_jcc_instrumented << endl;
 	cout << "#ATTRIBUTE num_cmp_jcc_skipped_easyval=" << m_skip_easy_val << endl;
+	cout << "#ATTRIBUTE num_cmp_jcc_skipped_byte=" << m_skip_byte << endl;
+	cout << "#ATTRIBUTE num_cmp_jcc_skipped_word=" << m_skip_word << endl;
 	cout << "#ATTRIBUTE num_cmp_jcc_skipped_qword=" << m_skip_qword << endl;
 	cout << "#ATTRIBUTE num_cmp_jcc_skipped_relocs=" << m_skip_relocs << endl;
 	cout << "#ATTRIBUTE num_cmp_jcc_skipped_stack_access=" << m_skip_stack_access << endl;
+	cout << "#ATTRIBUTE num_cmp_jcc_skipped_no_regs=" << m_skip_no_free_regs << endl;
+	cout << "#ATTRIBUTE num_cmp_jcc_skipped_unknown=" << m_skip_unknown << endl;
+
 	return 1;
 }
 
@@ -227,6 +236,7 @@ bool Laf_t::doSplitCompare(Instruction_t* p_instr, bool p_honor_red_zone)
 		else
 		{
 			cout << "Skip instruction - no free register found: " << disasm << endl;
+			m_skip_no_free_regs++;
 			return false;
 		}
 		save_temp = true;
@@ -548,17 +558,31 @@ int Laf_t::doSplitCompare()
 			if (d.getMnemonic()!="cmp") continue;
 			if (d.getOperands().size()!=2) continue;
 
+			if (!i->getFallthrough()) continue;
+
 			const auto fp = DecodedInstruction_t::factory(i->getFallthrough());
 			const auto &f = *fp;
 			if (f.getMnemonic() != "je" && f.getMnemonic() !="jeq" && f.getMnemonic() !="jne") continue;
 
+			if (!d.getOperand(1)->isConstant()) continue;
+
+			if (d.getOperand(0)->getArgumentSizeInBytes()==1)
+			{
+				m_skip_byte++;
+				continue;
+		 	}
+
+			// we have a cmp followed by a conditial jmp (je, jne)
 			m_num_cmp_jcc++;
 
-			if (!d.getOperand(1)->isConstant()) continue;
-			if (d.getOperand(0)->getArgumentSizeInBytes()==8)
-				m_skip_qword++;
-			if (d.getOperand(0)->getArgumentSizeInBytes()!=4) continue;
-			if (!i->getFallthrough()) continue;
+			if (d.getOperand(0)->getArgumentSizeInBytes()!=4)
+			{	
+				if (d.getOperand(0)->getArgumentSizeInBytes()==2)
+					m_skip_word++;
+				if (d.getOperand(0)->getArgumentSizeInBytes()==8)
+					m_skip_qword++;
+				continue;
+			}
 
 			/* these values are easy for fuzzers to guess
 			const auto imm = d.getImmediate();
@@ -572,10 +596,13 @@ int Laf_t::doSplitCompare()
 			// we now have a cmp instruction to split
 			if (d.getOperand(0)->isRegister() || d.getOperand(0)->isMemory())
 				to_split_compare.push_back(i);
+			else
+				m_skip_unknown++;
 		};
 
 	};
 
+	cout << "Requesting " << to_split_compare.size() << " cmp/jcc to be split" << endl;
 	// split comparisons
 	for(auto c : to_split_compare)
 	{
