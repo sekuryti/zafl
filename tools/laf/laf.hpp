@@ -42,7 +42,11 @@ private:
 	bool m_split_compare;
 	bool m_split_branch;
 	std::set<std::string> m_blacklist;
-	size_t m_skip_byte_cmp;
+	size_t m_num_cmp_jcc;
+	size_t m_num_cmp_jcc_instrumented;
+	size_t m_skip_easy_val;
+	size_t m_skip_qword;
+	size_t m_skip_relocs;
 };
 
 } 
