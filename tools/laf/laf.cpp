@@ -182,7 +182,7 @@ bool Laf_t::doSplitCompare(Instruction_t* p_instr, bool p_honor_red_zone)
 	const auto byte2 = (immediate&0xff00) >> 8;	
 	const auto byte3 = immediate&0xff;	              // low byte
 
-	cout << "found comparison: " << hex << p_instr->getBaseID() << ": " << p_instr->getDisassembly() << " immediate: " << immediate << " " << jcc->getDisassembly() << endl;
+	cout << "found comparison: " << hex << p_instr->getBaseID() << ": " << p_instr->getDisassembly() << " immediate: " << immediate << " " << jcc->getDisassembly() << "  red_zone: " << p_honor_red_zone << endl;
 
 	if (do_relocs)
 	{
@@ -540,8 +540,6 @@ int Laf_t::doSplitCompare()
   4005ed:	75 07                	jne    4005f6 <main+0x80>
   4005ef:	b8 01 00 00 00       	mov    eax,0x1
   4005f4:	eb 05                	jmp    4005fb <main+0x85>
-  4005f6:	b8 00 00 00 00       	mov    eax,0x0
-  4005fb:	c9                   	leave  
   4005fc:	c3                   	ret    
 */
 
