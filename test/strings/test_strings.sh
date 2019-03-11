@@ -63,7 +63,7 @@ mkdir $session
 pushd $session
 
 # build ZAFL version of strings executable
-zafl.sh `which strings` strings.zafl.d.g.split --enable-split-compare -d -g --tempdir analysis.strings.zafl.d.g.split
+zafl.sh `which strings` strings.zafl.d.g.split --enable-laf -d -g --tempdir analysis.strings.zafl.d.g.split
 if [ $? -eq 0 ]; then
 	log_success "build strings.zafl.d.g.split"
 else

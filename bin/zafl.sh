@@ -38,14 +38,10 @@ usage()
 	echo "     -I, --disable-floating-instrumentation  Use first instruction for instrumentation in basic blocks"
 	echo "     --enable-context-sensitivity <style>    style={callsite,function} only function supported currently (off by default)"
 	echo "     -r, --random-seed <value>               Specify random seed"
-#	echo "     -l, --enable-locality                   Maintain code locality (best effort) when instrumenting binary"
-#	echo "     -L, --disable-locality                  Randomized layout when instrumenting binary"
 	echo "     -w, --whitelist <file>                  Specify function whitelist (one function per line)"
 	echo "     -b, --blacklist <file>                  Specify function blacklist (one function per line)"
-	echo "     --enable-split-compare                  enable laf-intel split compare for integer constants"
-	echo "     --disable-split-compare                 disable laf-intel split compare for integer constants"
-	echo "     --enable-split-branch                   enable laf-intel split branch for integer constants"
-	echo "     --disable-split-branch                  disable laf-intel split branch for integer constants"
+	echo "     -l, --enable-laf                        Enable laf-intel split compare for integer constants"
+	echo "     -L, --disable-laf                       Disable laf-intel split compare for integer constants"
 	echo "     -v                                      Verbose mode" 
 	echo 
 }
@@ -239,28 +235,12 @@ parse_args()
 				zipr_opt=" $zipr_opt --step-option zipr:\"--zipr:seed $random_seed\" "
 				shift
 				;;
-			-l | --enable-locality)
-				trace_opt=" --step-option zipr:--traceplacement:on --step-option zipr:true "
-				shift
-				;;
-			-L | --disable-locality)
-				trace_opt=""
-				shift
-				;;
-			--enable-split-compare)
+			-l | --enable-laf)
 				laf_opt=" $laf_opt -o laf:--enable-split-compare "
 				shift
 				;;
-			--disable-split-compare)
-				laf_opt=" $laf_opt -o laf:--disable-split-compare "
-				shift
-				;;
-			--enable-split-branch)
-				laf_opt=" $laf_opt -o laf:--enable-split-branch "
-				shift
-				;;
-			--disable-split-branch)
-				laf_opt=" $laf_opt -o laf:--disable-split-branch "
+			-L | --disable-laf)
+				laf_opt=""
 				shift
 				;;
 			-*|--*=) # unsupported flags

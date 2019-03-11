@@ -19,7 +19,7 @@ main()
 		configs="zafl_nostars zafl_opt_graph zafl_domgraph zafl_untracer_critical_edges zafl_context_sensitive"
 	else
 		benchmarks="readelf touch"
-		configs="zafl_domgraph zafl_context_sensitive"
+		configs="zafl_domgraph zafl_context_sensitive zafl_laf"
 	fi
 
 	# test other zafl configs on various apps
