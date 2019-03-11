@@ -235,8 +235,24 @@ parse_args()
 				zipr_opt=" $zipr_opt --step-option zipr:\"--zipr:seed $random_seed\" "
 				shift
 				;;
-			-l | --enable-laf)
+			--enable-split-compare)
+				shift
 				laf_opt=" $laf_opt -o laf:--enable-split-compare "
+				;;
+			--disable-split-compare)
+				shift
+				laf_opt=" $laf_opt -o laf:--disable-split-compare "
+				;;
+			--enable-trace-div)
+				shift
+				laf_opt=" $laf_opt -o laf:--enable-trace-div "
+				;;
+			--disable-trace-div)
+				shift
+				laf_opt=" $laf_opt -o laf:--disable-trace-div "
+				;;
+			-l | --enable-laf)
+				laf_opt=" $laf_opt -o laf:--enable-split-compare -o laf:--enable-trace-div "
 				shift
 				;;
 			-L | --disable-laf)

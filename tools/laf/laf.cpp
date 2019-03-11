@@ -43,6 +43,7 @@ Laf_t::Laf_t(IRDB_SDK::pqxxDB_t &p_dbinterface, IRDB_SDK::FileIR_t *p_variantIR,
 	m_verbose(p_verbose)
 {
 	m_split_compare = true;
+	m_trace_div = true;
 
 	auto deep_analysis=DeepAnalysis_t::factory(getFileIR());
 	leaf_functions = deep_analysis->getLeafFunctions();
@@ -79,8 +80,11 @@ Laf_t::Laf_t(IRDB_SDK::pqxxDB_t &p_dbinterface, IRDB_SDK::FileIR_t *p_variantIR,
 	m_blacklist.insert("argp_error");
 	m_blacklist.insert("argp_parse");
 
-	m_num_cmp_jcc = 0;
-	m_num_cmp_jcc_instrumented = 0;
+	m_num_cmp = 0;
+	m_num_cmp_instrumented = 0;
+	m_num_div = 0;
+	m_num_div_instrumented = 0;
+
 	m_skip_easy_val = 0;
 	m_skip_byte = 0;
 	m_skip_word = 0;
@@ -89,12 +93,6 @@ Laf_t::Laf_t(IRDB_SDK::pqxxDB_t &p_dbinterface, IRDB_SDK::FileIR_t *p_variantIR,
 	m_skip_stack_access = 0;
 	m_skip_no_free_regs = 0;
 	m_skip_unknown = 0;
-}
-
-void Laf_t::markForAfl(Instruction_t* insn)
-{
-		if (insn)
-			insn->setComment("laf");
 }
 
 RegisterSet_t Laf_t::getDeadRegs(Instruction_t* insn) const
@@ -131,127 +129,22 @@ bool Laf_t::getSplitCompare() const
 	return m_split_compare;
 }
 
+void Laf_t::setTraceDiv(bool p_val)
+{
+	m_trace_div = p_val;
+}
+
+bool Laf_t::getTraceDiv() const
+{
+	return m_trace_div;
+}
+
 bool Laf_t::hasLeafAnnotation(Function_t* fn) const
 {
 	auto it = leaf_functions -> find(fn);
 	return (it != leaf_functions->end());
 }
 
-int Laf_t::execute()
-{
-	if (getSplitCompare())
-		doSplitCompare();
-
-	// @todo
-	// look for div, idiv reg instruction
-	// trace instrument for reg == 0
-
-	cout << "#ATTRIBUTE num_cmp_jcc_patterns=" << dec << m_num_cmp_jcc << endl;
-	cout << "#ATTRIBUTE num_cmp_jcc_instrumented=" << dec << m_num_cmp_jcc_instrumented << endl;
-	cout << "#ATTRIBUTE num_cmp_jcc_skipped_easyval=" << m_skip_easy_val << endl;
-	cout << "#ATTRIBUTE num_cmp_jcc_skipped_byte=" << m_skip_byte << endl;
-	cout << "#ATTRIBUTE num_cmp_jcc_skipped_word=" << m_skip_word << endl;
-	cout << "#ATTRIBUTE num_cmp_jcc_skipped_qword=" << m_skip_qword << endl;
-	cout << "#ATTRIBUTE num_cmp_jcc_skipped_relocs=" << m_skip_relocs << endl;
-	cout << "#ATTRIBUTE num_cmp_jcc_skipped_stack_access=" << m_skip_stack_access << endl;
-	cout << "#ATTRIBUTE num_cmp_jcc_skipped_no_regs=" << m_skip_no_free_regs << endl;
-	cout << "#ATTRIBUTE num_cmp_jcc_skipped_unknown=" << m_skip_unknown << endl;
-
-	return 1;
-}
-
-int Laf_t::doSplitCompare()
-{
-	for(auto func : getFileIR()->getFunctions())
-	{
-		auto to_split_compare = vector<Instruction_t*>(); 
-		if (isBlacklisted(func))
-			continue;
-
-		cout << endl << "Handling function: " << func->getName() << endl;
-		for(auto i : func->getInstructions())
-		{
-			const auto dp = DecodedInstruction_t::factory(i);
-			const auto &d = *dp;
-			if (d.getMnemonic()!="cmp") continue;
-			if (d.getOperands().size()!=2) continue;
-
-			if (!i->getFallthrough()) continue;
-
-			const auto fp = DecodedInstruction_t::factory(i->getFallthrough());
-			const auto &f = *fp;
-			if (f.getMnemonic() != "je" && 
-			    f.getMnemonic() !="jeq" && 
-			    f.getMnemonic() !="jle" && 
-			    f.getMnemonic() !="jbe" && 
-			    f.getMnemonic() !="jge" && 
-			    f.getMnemonic() !="jae" && 
-			    f.getMnemonic() !="jnae" && 
-			    f.getMnemonic() !="jnbe" && 
-			    f.getMnemonic() !="jnge" && 
-			    f.getMnemonic() !="jnle" && 
-			    f.getMnemonic() !="jne") 
-					continue;
-
-			if (!d.getOperand(1)->isConstant()) continue;
-
-			if (d.getOperand(0)->getArgumentSizeInBytes()==1)
-			{
-				m_skip_byte++;
-				continue;
-		 	}
-
-			// we have a cmp followed by a conditial jmp (je, jne)
-			m_num_cmp_jcc++;
-
-			if (d.getOperand(0)->getArgumentSizeInBytes()<4)
-			{	
-				if (d.getOperand(0)->getArgumentSizeInBytes()==2)
-					m_skip_word++;
-				continue;
-			}
-
-			// we now have a cmp instruction to trace
-			if (d.getOperand(0)->isRegister() || d.getOperand(0)->isMemory())
-				to_split_compare.push_back(i);
-			else
-				m_skip_unknown++;
-		};
-
-		cout << "Requesting " << to_split_compare.size() << " cmp/jcc to be split" << endl;
-
-		// split comparisons
-		for(auto c : to_split_compare)
-		{
-			if (getenv("LAF_LIMIT_END"))
-			{
-				auto debug_limit_end = static_cast<unsigned>(atoi(getenv("LAF_LIMIT_END")));
-				if (m_num_cmp_jcc_instrumented >= debug_limit_end)
-					break;
-			}
-			const auto s = c->getDisassembly();
-			const auto f = c->getFallthrough()->getDisassembly();
-			const auto honorRedZone = hasLeafAnnotation(c->getFunction());
-			if (instrumentCompare(c, honorRedZone))
-			{
-				cout << "success for " << s << " " << f << endl;
-				m_num_cmp_jcc_instrumented++;
-				
-		/*
- 		getFileIR()->assembleRegistry();
-		getFileIR()->setBaseIDS();
-		cout << "Post transformation CFG for " << func->getName() << ":" << endl;
-		auto post_cfg=ControlFlowGraph_t::factory(func);	
-		cout << *post_cfg << endl;
-		*/
-		
-			}
-		}
-
-	};
-
-	return 1;	 // true means success
-}
 
 /*
  *  p_instr is the cmp instruction to instrument
@@ -261,8 +154,6 @@ Instruction_t* Laf_t::traceDword(Instruction_t* p_instr, const size_t p_num_byte
 	assert(p_num_bytes > 0 && p_num_bytes <= 4);
 	assert(!p_init_sequence.empty());
 	assert(!p_freereg.empty());
-
-	markForAfl(p_instr);
 
 	/*
                mov    eax,DWORD PTR [rbp-0x4]
@@ -301,7 +192,6 @@ Instruction_t* Laf_t::traceDword(Instruction_t* p_instr, const size_t p_num_byte
 		auto t = addInitSequence(p_instr, p_init_sequence);
 		auto orig = t->getFallthrough();
 		if (!orig_cmp) orig_cmp = orig;
-		markForAfl(orig);
 		// mov eax, dword []     <-- p_instr, t
 		// cmp eax, 0x12345678   <-- orig  
 
@@ -310,7 +200,7 @@ Instruction_t* Laf_t::traceDword(Instruction_t* p_instr, const size_t p_num_byte
 		ss << "and " << p_freereg << ", 0x" << hex << mask[i];
 		auto s=ss.str();
 		t = insertAssemblyAfter(t, s);
-		cout << s << endl;
+		if (m_verbose) cout << s << endl;
 		// mov eax, dword []     <-- p_instr
 		// and eax, 0xmask       <-- t
 		// cmp eax, 0x12345678   <-- orig  
@@ -321,7 +211,7 @@ Instruction_t* Laf_t::traceDword(Instruction_t* p_instr, const size_t p_num_byte
 			ss << "shr " << p_freereg << ", 0x" << hex << sar[i];
 			s=ss.str();
 			t = insertAssemblyAfter(t, s);
-			cout << s << endl;
+			if (m_verbose) cout << s << endl;
 		}
 		// mov eax, dword []     <-- p_instr
 		// and eax, 0xmask 
@@ -332,7 +222,7 @@ Instruction_t* Laf_t::traceDword(Instruction_t* p_instr, const size_t p_num_byte
 		ss << "cmp " << p_freereg << ", 0x" << hex << immediate[i];
 		s = ss.str();
 		t = insertAssemblyAfter(t, s);
-		cout << s << endl;
+		if (m_verbose) cout << s << endl;
 		// mov eax, dword []     <-- p_instr
 		// and eax, 0xmask 
 		// sar eax, 0x...        
@@ -342,7 +232,7 @@ Instruction_t* Laf_t::traceDword(Instruction_t* p_instr, const size_t p_num_byte
 		s="je 0";
 		t = insertAssemblyAfter(t, s);
 		t->setTarget(orig);
-		cout << s << endl;
+		if (m_verbose) cout << s << endl;
 		// mov eax, dword []     <-- p_instr
 		// and eax, 0xmask 
 		// sar eax, 0x...        
@@ -353,9 +243,7 @@ Instruction_t* Laf_t::traceDword(Instruction_t* p_instr, const size_t p_num_byte
 		s="nop";
 		t = insertAssemblyAfter(t, s);
 		t->setFallthrough(orig);
-		// pass info to subsequent instrumentation passes, what's the clean way of doing this?
-		markForAfl(t);
-		cout << s << endl;
+		if (m_verbose) cout << s << endl;
 		// mov eax, dword []     <-- p_instr
 		// and eax, 0xmask       
 		// sar eax, 0x...        
@@ -363,32 +251,14 @@ Instruction_t* Laf_t::traceDword(Instruction_t* p_instr, const size_t p_num_byte
 		// je
 		// nop                   <-- t
 		// cmp eax, 0x12345678   <-- orig  
-		
-		/*
-		auto t = addInitSequence(p_instr, p_init_sequence);
-		*/
-		//
-		// 
-		// mov eax, dword []     <-- p_instr
-		// ...
-		// ...                   <-- t
-		// L1: mov eax, dword [] <-- orig 
-		// and eax, 0xmask           
-		// sar eax, 0x...        
-		// cmp eax, 0x...        
-		// je
-		// nop                   
-		// cmp eax, 0x12345678   <-- orig_cmp  
 	}
-	markForAfl(orig_cmp);
 	return orig_cmp;
 }
 
-bool Laf_t::getFreeRegister(Instruction_t* p_instr, string& p_freereg)
+bool Laf_t::getFreeRegister(Instruction_t* p_instr, string& p_freereg, RegisterSet_t p_allowed_regs)
 {
 	const auto dp = DecodedInstruction_t::factory(p_instr);
 	const auto &d = *dp;
-	auto allowed_regs = RegisterSet_t({rn_RAX, rn_RBX, rn_RCX, rn_RDX, rn_RDI, rn_RSI, rn_R8, rn_R9, rn_R10, rn_R11, rn_R12, rn_R13, rn_R14, rn_R15});
 	auto save_temp = true;
 
 	// register in instruction cannot be used as a free register
@@ -396,23 +266,26 @@ bool Laf_t::getFreeRegister(Instruction_t* p_instr, string& p_freereg)
 	{
 		const auto r = d.getOperand(0)->getString();
 		const auto reg = Register::getRegister(r);
-		allowed_regs.erase(reg);
-		allowed_regs.erase(convertRegisterTo64bit(reg));
+		p_allowed_regs.erase(reg);
+		p_allowed_regs.erase(convertRegisterTo64bit(reg));
 	}
 
 	const auto dead_regs = getDeadRegs(p_instr);
-	auto free_regs = getFreeRegs(dead_regs, allowed_regs);
+	auto free_regs = getFreeRegs(dead_regs, p_allowed_regs);
 
-	cout << "STARS says num dead registers: " << dead_regs.size();
-	cout << "  ";
-	for (auto r : dead_regs)
-		cout << registerToString(r) << " ";
-	cout << endl;
-	cout << "STARS says num free registers: " << free_regs.size();
-	cout << "  ";
-	for (auto r : free_regs)
-		cout << registerToString(r) << " ";
-	cout << endl;
+	if (m_verbose)
+	{
+		cout << "STARS says num dead registers: " << dead_regs.size();
+		cout << "  ";
+		for (auto r : dead_regs)
+			cout << registerToString(r) << " ";
+		cout << endl;
+		cout << "STARS says num free registers: " << free_regs.size();
+		cout << "  ";
+		for (auto r : free_regs)
+			cout << registerToString(r) << " ";
+		cout << endl;
+	}
 
 	if (free_regs.size() > 0)
 	{
@@ -450,12 +323,12 @@ Instruction_t* Laf_t::addInitSequence(Instruction_t* p_instr, const vector<strin
 	//                                             <orig>*
 	auto t = p_instr;
 	insertAssemblyBefore(p_instr, p_sequence[0]);
-	cout << "inserting: " << p_sequence[0] << endl;
+	if (m_verbose) cout << "inserting: " << p_sequence[0] << endl;
 
 	for (auto i = 1u; i < p_sequence.size(); i++)
 	{
 		t = insertAssemblyAfter(t, p_sequence[i]);
-		cout << "inserting: " << p_sequence[i] << endl;
+		if (m_verbose) cout << "inserting: " << p_sequence[i] << endl;
 	}
 	return t;
 }
@@ -532,35 +405,27 @@ bool Laf_t::instrumentCompare(Instruction_t* p_instr, bool p_honor_red_zone)
 
 	// get a temporary register
 	auto free_reg = string("");
-	auto save_temp = getFreeRegister(p_instr, free_reg);
+	auto save_temp = getFreeRegister(p_instr, free_reg, RegisterSet_t({rn_RAX, rn_RBX, rn_RCX, rn_RDX, rn_RDI, rn_RSI, rn_R8, rn_R9, rn_R10, rn_R11, rn_R12, rn_R13, rn_R14, rn_R15}));
 
 	assert(!free_reg.empty());
 	
-	cout << "temporary register needs to be saved: " << boolalpha << save_temp << endl;
-	cout << "temporary register is: " << free_reg << endl;
-
 	if (!save_temp)
 		p_honor_red_zone = false;
 	
-	cout << "honor red zone: " << boolalpha << p_honor_red_zone << endl;
+	if (m_verbose)
+	{
+		cout << "temporary register needs to be saved: " << boolalpha << save_temp << endl;
+		cout << "temporary register is: " << free_reg << endl;
+		cout << "honor red zone: " << boolalpha << p_honor_red_zone << endl;
+	}
 	
 	// if we disturb the stack b/c of saving a register or b/c of the red zone
 	// we need to make sure the instruction doesn't also address the stack, e.g. mov [rbp-8], 0
-	if ((p_honor_red_zone || save_temp) && !d.getOperand(0)->isRegister())
+	if ((p_honor_red_zone || save_temp) && memoryStackAccess(p_instr))
 	{
-		// cmp dword [rbp - 4], 0x12345678 
-		const auto memopp = d.getOperand(0);
-		const auto &memop = *memopp;
-		const auto memop_str = memop.getString();
-		if (memop_str.find("rbp")!=string::npos ||
-		    memop_str.find("rsp")!=string::npos ||
-		    memop_str.find("ebp")!=string::npos ||
-		    memop_str.find("esp")!=string::npos)
-		{
-			cout << "instrumentation disturbs the stack and original instruction accesses the stack -- skip" << endl;
-			m_skip_stack_access++;
-			return false;
-		}
+		cout << "instrumentation disturbs the stack and original instruction accesses the stack -- skip" << endl;
+		m_skip_stack_access++;
+		return false;
 	}
 
 	// utility strings to save temp register and handle the red zone
@@ -598,22 +463,23 @@ bool Laf_t::instrumentCompare(Instruction_t* p_instr, bool p_honor_red_zone)
 		// mov free_reg, dword [rbp - 4]
 	}
 
-	cout << "init sequence is: " << init_sequence[0] << endl;
+	if (m_verbose)
+		cout << "init sequence is: " << init_sequence[0] << endl;
 
 	uint32_t K = d.getImmediate();
-	cout << "handle 4 byte compare against 0x" << hex << K << endl;
 
-	markForAfl(p_instr);
+	if (m_verbose)
+		cout << "handle 4 byte compare against 0x" << hex << K << endl;
 
 	if (p_honor_red_zone) 
 	{
 		p_instr = insertAssemblyBefore(p_instr, push_redzone);
-		cout << push_redzone << endl;
+		if (m_verbose) cout << push_redzone << endl;
 	}
 	if (save_temp)
 	{
 		p_instr = insertAssemblyBefore(p_instr, push_reg);
-		cout << push_reg << endl;
+		if (m_verbose) cout << push_reg << endl;
 	}
 
 	// instrument before the compare (p_instr --> "cmp")
@@ -625,23 +491,23 @@ bool Laf_t::instrumentCompare(Instruction_t* p_instr, bool p_honor_red_zone)
 	// on whether the constant K is positive or negative
 	if (d.getOperand(0)->getArgumentSizeInBytes() == 8)
 	{
-		uint32_t imm = (d.getImmediate() >= 0) ? 0 : 0xffffffff;
+		const uint32_t imm = (d.getImmediate() >= 0) ? 0 : 0xffffffff;
 
 		if (d.getOperand(0)->isRegister())
 		{
 			auto init_sequence2 = vector<string>();
 			const auto source_reg = d.getOperand(0)->getString();
 			const auto free_reg64 = get_reg64(free_reg);
-			auto s = "mov " + free_reg64 + ", " + source_reg;
-			init_sequence2.push_back(s);
+			init_sequence2.push_back("mov " + free_reg64 + ", " + source_reg);
 			init_sequence2.push_back("shr " + free_reg64 + ", 0x20"); 
-			cout << "upper init sequence: " << init_sequence2[0] << endl;
-			cout << "upper init sequence: " << init_sequence2[1] << endl;
+			if (m_verbose)
+			{
+				cout << "upper init sequence: " << init_sequence2[0] << endl;
+				cout << "upper init sequence: " << init_sequence2[1] << endl;
+			}
 
 			// now instrument as if immediate=0 or 0xffffffff
-			markForAfl(cmp);
 			cmp = traceDword(cmp, 4, init_sequence2, imm, free_reg);
-			markForAfl(cmp);
 		}
 		else
 		{
@@ -651,12 +517,12 @@ bool Laf_t::instrumentCompare(Instruction_t* p_instr, bool p_honor_red_zone)
 			const auto memop_str = memop.getString();
 			// add 4 bytes to grab upper 32 bits
 			init_sequence2.push_back("mov " + free_reg + ", dword [ " + memop_str + " + 4 ]"); 
-			cout << "upper init sequence: " << init_sequence2[0] << endl;
+
+			if (m_verbose)
+				cout << "upper init sequence: " << init_sequence2[0] << endl;
 
 			// now instrument as if immediate=0 or 0xffffffff
-			markForAfl(cmp);
 			cmp = traceDword(cmp, 4, init_sequence2, imm, free_reg);
-			markForAfl(cmp);
 		}
 	}
 
@@ -676,3 +542,320 @@ bool Laf_t::instrumentCompare(Instruction_t* p_instr, bool p_honor_red_zone)
 
 	return true;
 }
+
+int Laf_t::doSplitCompare()
+{
+	for(auto func : getFileIR()->getFunctions())
+	{
+		auto to_split_compare = vector<Instruction_t*>(); 
+		if (isBlacklisted(func))
+			continue;
+
+		if (m_verbose) cout << endl << "Handling function: " << func->getName() << endl;
+		for(auto i : func->getInstructions())
+		{
+			if (i->getBaseID() <= 0) continue;
+			const auto dp = DecodedInstruction_t::factory(i);
+			const auto &d = *dp;
+			if (d.getMnemonic()!="cmp") continue;
+			if (d.getOperands().size()!=2) continue;
+			/*
+			if (!i->getFallthrough()) continue;
+
+			const auto fp = DecodedInstruction_t::factory(i->getFallthrough());
+			const auto &f = *fp;
+			const auto jmps = set<string>({"je", "jne", "jb", "jnae", "jnb", "jae", "jbe", "jna", "ja", "jnbe", "jl", "jnge", "jge", "jnl", "jle", "jng", "jg", "jnle", "jg", "jnle"});
+			if (jmps.find(f.getMnemonic())==jmps.end())
+				continue;
+			*/
+
+			if (!d.getOperand(1)->isConstant()) continue;
+
+			if (d.getOperand(0)->getArgumentSizeInBytes()==1)
+			{
+				m_skip_byte++;
+				continue;
+		 	}
+
+			// we have a cmp followed by a conditial jmp (je, jne)
+			m_num_cmp++;
+
+			if (d.getOperand(0)->getArgumentSizeInBytes()<4)
+			{	
+				if (d.getOperand(0)->getArgumentSizeInBytes()==2)
+					m_skip_word++;
+				continue;
+			}
+
+			// we now have a cmp instruction to trace
+			if (d.getOperand(0)->isRegister() || d.getOperand(0)->isMemory())
+				to_split_compare.push_back(i);
+			else
+				m_skip_unknown++;
+		};
+
+		// split comparisons
+		for(auto c : to_split_compare)
+		{
+			if (getenv("LAF_LIMIT_END"))
+			{
+				auto debug_limit_end = static_cast<unsigned>(atoi(getenv("LAF_LIMIT_END")));
+				if (m_num_cmp_instrumented >= debug_limit_end)
+					break;
+			}
+			const auto s = c->getDisassembly();
+			const auto honorRedZone = hasLeafAnnotation(c->getFunction());
+			if (instrumentCompare(c, honorRedZone))
+			{
+				if (m_verbose) cout << "success for " << s << endl;
+				m_num_cmp_instrumented++;
+				
+		/*
+ 		getFileIR()->assembleRegistry();
+		getFileIR()->setBaseIDS();
+		cout << "Post transformation CFG for " << func->getName() << ":" << endl;
+		auto post_cfg=ControlFlowGraph_t::factory(func);	
+		cout << *post_cfg << endl;
+		*/
+		
+			}
+		}
+
+	};
+
+	return 1;	 // true means success
+}
+
+bool Laf_t::memoryStackAccess(Instruction_t* p_instr, unsigned p_operandNumber)
+{
+	const auto dp = DecodedInstruction_t::factory(p_instr);
+	const auto &d = *dp;
+
+	if (d.getOperand(p_operandNumber)->isRegister())
+		return false;
+
+	const auto memopp = d.getOperand(p_operandNumber);
+	const auto &memop = *memopp;
+	const auto memop_str = memop.getString();
+	return (memop_str.find("rbp")!=string::npos ||
+	    memop_str.find("rsp")!=string::npos ||
+	    memop_str.find("ebp")!=string::npos ||
+	    memop_str.find("esp")!=string::npos);
+}
+
+bool Laf_t::instrumentDiv(Instruction_t* p_div, bool p_honor_red_zone)
+{
+	// bail out, there's a reloc here
+	if (p_div->getRelocations().size() > 0)
+	{
+		m_skip_relocs++;
+		return false;
+	}
+
+	const auto dp = DecodedInstruction_t::factory(p_div);
+	const auto &d = *dp;
+
+	// get a temporary register
+	auto free_reg = string("");
+	// leave out rax, rdx 
+	auto save_temp = getFreeRegister(p_div, free_reg, RegisterSet_t({rn_RBX, rn_RCX, rn_RDI, rn_RSI, rn_R8, rn_R9, rn_R10, rn_R11, rn_R12, rn_R13, rn_R14, rn_R15}));
+
+	assert(!free_reg.empty());
+	
+	if (!save_temp)
+		p_honor_red_zone = false;
+	
+	if (m_verbose)
+	{
+		cout << "temporary register needs to be saved: " << boolalpha << save_temp << endl;
+		cout << "temporary register is: " << free_reg << endl;
+		cout << "honor red zone: " << boolalpha << p_honor_red_zone << endl;
+	}
+	
+	// if we disturb the stack b/c of saving a register or b/c of the red zone
+	// we need to make sure the instruction doesn't also address the stack, e.g. mov [rbp-8], 0
+	if ((p_honor_red_zone || save_temp) && memoryStackAccess(p_div))
+	{
+		cout << "instrumentation disturbs the stack and original instruction accesses the stack -- skip" << endl;
+		m_skip_stack_access++;
+		return false;
+	}
+
+	// utility strings to save temp register and handle the red zone
+	const auto get_reg64 = [](string r) -> string { 
+			return registerToString(convertRegisterTo64bit(Register::getRegister(r)));
+		};
+	const auto push_reg = "push " + get_reg64(free_reg);
+	const auto pop_reg = "pop " + get_reg64(free_reg);
+	const auto push_redzone = string("lea rsp, [rsp-128]");
+	const auto pop_redzone = string("lea rsp, [rsp+128]");
+	
+	// setup init sequence...
+	auto init_sequence = vector<string>();
+	if (d.getOperand(0)->isRegister())
+	{
+		// div eax
+		auto source_reg = d.getOperand(0)->getString();
+		if (d.getOperand(0)->getArgumentSizeInBytes() > 4)
+		{
+			source_reg = registerToString(convertRegisterTo32bit(Register::getRegister(source_reg)));
+		}
+
+		init_sequence.push_back("mov " + free_reg + ", " + source_reg);
+		// mov free_reg, eax
+	}
+	else
+	{
+		// div dword [rbp - 4]
+		const auto memopp = d.getOperand(0);
+		const auto &memop = *memopp;
+		const auto memop_str = memop.getString();
+		init_sequence.push_back("mov " + free_reg + ", dword [ " + memop_str + " ]");
+		// mov free_reg
+	}
+
+	if (m_verbose)
+		cout << "init sequence is: " << init_sequence[0] << endl;
+	
+	if (p_honor_red_zone) 
+	{
+		p_div = insertAssemblyBefore(p_div, push_redzone);
+		if (m_verbose) cout << push_redzone << endl;
+	}
+	if (save_temp)
+	{
+		p_div = insertAssemblyBefore(p_div, push_reg);
+		if (m_verbose) cout << push_reg << endl;
+	}
+
+	// guide fuzzer by inducing comparison against 0
+	auto t = traceDword(p_div, 4, init_sequence, 0, free_reg); 
+
+	if (d.getOperand(0)->getArgumentSizeInBytes() == 8)
+	{
+		if (d.getOperand(0)->isRegister())
+		{
+			auto init_sequence2 = vector<string>();
+			const auto source_reg = d.getOperand(0)->getString();
+			const auto free_reg64 = get_reg64(free_reg);
+			init_sequence2.push_back("mov " + free_reg64 + ", " + source_reg);
+			init_sequence2.push_back("shr " + free_reg64 + ", 0x20"); 
+			if (m_verbose)
+			{
+				cout << "upper init sequence: " << init_sequence2[0] << endl;
+				cout << "upper init sequence: " << init_sequence2[1] << endl;
+			}
+
+			t = traceDword(t, 4, init_sequence2, 0, free_reg);
+		}
+		else
+		{
+			auto init_sequence2 = vector<string>();
+			const auto memopp = d.getOperand(0);
+			const auto &memop = *memopp;
+			const auto memop_str = memop.getString();
+			// add 4 bytes to grab upper 32 bits
+			init_sequence2.push_back("mov " + free_reg + ", dword [ " + memop_str + " + 4 ]"); 
+			if (m_verbose)
+				cout << "upper init sequence: " << init_sequence2[0] << endl;
+			t = traceDword(t, 4, init_sequence2, 0, free_reg);
+		}
+	}
+
+	if (save_temp)
+	{
+		t = insertAssemblyBefore(t, pop_reg);
+		if (m_verbose) cout << pop_reg << endl;
+	}
+	
+	if (p_honor_red_zone)
+	{
+		t = insertAssemblyBefore(t, pop_redzone);
+		if (m_verbose) cout << pop_redzone << endl;
+	}
+
+	return true;
+}
+
+int Laf_t::doTraceDiv()
+{
+	for(auto func : getFileIR()->getFunctions())
+	{
+		auto to_trace_div = vector<Instruction_t*>(); 
+		if (isBlacklisted(func))
+			continue;
+
+		if (m_verbose)
+			cout << endl << "Handling function: " << func->getName() << endl;
+		for(auto i : func->getInstructions())
+		{
+			if (i->getBaseID() <= 0) continue;
+			const auto dp = DecodedInstruction_t::factory(i);
+			const auto &d = *dp;
+			if (d.getMnemonic() != "div" && d.getMnemonic() !="idiv") continue;
+			if (d.getOperands().size()!=1) continue;
+			if (d.getOperand(0)->getArgumentSizeInBytes()<4) continue;
+
+			m_num_div++;
+
+			if (d.getOperand(0)->isRegister() || d.getOperand(0)->isMemory())
+				to_trace_div.push_back(i);
+		};
+
+		// Trace the div instruction
+		for(auto c : to_trace_div)
+		{
+			if (getenv("LAF_LIMIT_END"))
+			{
+				auto debug_limit_end = static_cast<unsigned>(atoi(getenv("LAF_LIMIT_END")));
+				if (m_num_div_instrumented >= debug_limit_end)
+					break;
+			}
+			const auto s = c->getDisassembly();
+			const auto honorRedZone = hasLeafAnnotation(c->getFunction());
+			if (instrumentDiv(c, honorRedZone))
+			{
+				if (m_verbose)
+					cout << "success for " << s << endl;
+				m_num_div_instrumented++;
+				
+		/*
+ 		getFileIR()->assembleRegistry();
+		getFileIR()->setBaseIDS();
+		cout << "Post transformation CFG for " << func->getName() << ":" << endl;
+		auto post_cfg=ControlFlowGraph_t::factory(func);	
+		cout << *post_cfg << endl;
+		*/
+		
+			}
+		}
+
+	};
+
+	return 1;	 // true means success
+}
+
+int Laf_t::execute()
+{
+	if (getSplitCompare())
+		doSplitCompare();
+
+	if (getTraceDiv())
+		doTraceDiv();
+
+	cout << "#ATTRIBUTE num_cmp_patterns=" << dec << m_num_cmp << endl;
+	cout << "#ATTRIBUTE num_cmp_instrumented=" << dec << m_num_cmp_instrumented << endl;
+	cout << "#ATTRIBUTE num_cmp_skipped_easyval=" << m_skip_easy_val << endl;
+	cout << "#ATTRIBUTE num_cmp_skipped_byte=" << m_skip_byte << endl;
+	cout << "#ATTRIBUTE num_cmp_skipped_word=" << m_skip_word << endl;
+	cout << "#ATTRIBUTE num_cmp_skipped_qword=" << m_skip_qword << endl;
+	cout << "#ATTRIBUTE num_cmp_skipped_relocs=" << m_skip_relocs << endl;
+	cout << "#ATTRIBUTE num_cmp_skipped_stack_access=" << m_skip_stack_access << endl;
+	cout << "#ATTRIBUTE num_cmp_skipped_no_regs=" << m_skip_no_free_regs << endl;
+	cout << "#ATTRIBUTE num_cmp_skipped_unknown=" << m_skip_unknown << endl;
+	cout << "#ATTRIBUTE num_div=" << dec << m_num_div << endl;
+	cout << "#ATTRIBUTE num_div_instrumented=" << dec << m_num_div_instrumented << endl;
+
+	return 1;
+}
+

@@ -50,6 +50,7 @@ int main(int argc, char **argv)
 	auto variantID = atoi(argv[1]);
 	auto verbose=false;
 	auto split_compare = true;
+	auto trace_div = true;
 
 	// Parse some options for the transform
 	static struct option long_options[] = {
@@ -58,10 +59,12 @@ int main(int argc, char **argv)
 		{"usage", no_argument, 0, '?'},
 		{"enable-split-compare", no_argument, 0, 'c'},
 		{"disable-split-compare", no_argument, 0, 'C'},
+		{"enable-trace-div", no_argument, 0, 'd'},
+		{"disable-trace-div", no_argument, 0, 'D'},
 		{0,0,0,0}
 	};
 
-	const char* short_opts="v?h";
+	const char* short_opts="v?hcCdD";
 	while(true)
 	{
 		int index = 0;
@@ -83,6 +86,12 @@ int main(int argc, char **argv)
 			break;
 		case 'C':
 			split_compare=false;
+			break;
+		case 'd':
+			trace_div=true;
+			break;
+		case 'D':
+			trace_div=false;
 			break;
 		default:
 			break;
@@ -113,6 +122,7 @@ int main(int argc, char **argv)
 		{
 			Laf_t laf(*pqxx_interface, firp.get(), verbose);
 			laf.setSplitCompare(split_compare);
+			laf.setTraceDiv(trace_div);
 
 			int success=laf.execute();
 
