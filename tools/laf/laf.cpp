@@ -515,7 +515,7 @@ bool Laf_t::instrumentCompare(Instruction_t* p_instr, bool p_honor_red_zone)
 	// either 4-byte or 8-byte compare
 	/* 
 		cmp    DWORD PTR [rbp-0x4],0x12345678
-		cmp    QWORD PTR [rbp-0x4],0x12345678
+		cmp    QWORD PTR [...],0x12345678
 		cmp    reg, 0x12345678
 		jne,je,jle,jge,jae,jbe
 	*/
@@ -621,9 +621,12 @@ bool Laf_t::instrumentCompare(Instruction_t* p_instr, bool p_honor_red_zone)
 	// post: cmp is the "cmp" instruction
 
 	// handle quad word (8 byte compares)
-	// compare the upper 32-bit against 0
+	// by comparing the upper 32-bit against 0 or 0xffffffff depending
+	// on whether the constant K is positive or negative
 	if (d.getOperand(0)->getArgumentSizeInBytes() == 8)
 	{
+		uint32_t imm = (d.getImmediate() >= 0) ? 0 : 0xffffffff;
+
 		if (d.getOperand(0)->isRegister())
 		{
 			auto init_sequence2 = vector<string>();
@@ -635,9 +638,9 @@ bool Laf_t::instrumentCompare(Instruction_t* p_instr, bool p_honor_red_zone)
 			cout << "upper init sequence: " << init_sequence2[0] << endl;
 			cout << "upper init sequence: " << init_sequence2[1] << endl;
 
-			// now instrument as if immediate=0
+			// now instrument as if immediate=0 or 0xffffffff
 			markForAfl(cmp);
-			cmp = traceDword(cmp, 4, init_sequence2, 0, free_reg);
+			cmp = traceDword(cmp, 4, init_sequence2, imm, free_reg);
 			markForAfl(cmp);
 		}
 		else
@@ -646,12 +649,13 @@ bool Laf_t::instrumentCompare(Instruction_t* p_instr, bool p_honor_red_zone)
 			const auto memopp = d.getOperand(0);
 			const auto &memop = *memopp;
 			const auto memop_str = memop.getString();
-			init_sequence2.push_back("mov " + free_reg + ", dword [ " + memop_str + " + 4 ]");
+			// add 4 bytes to grab upper 32 bits
+			init_sequence2.push_back("mov " + free_reg + ", dword [ " + memop_str + " + 4 ]"); 
 			cout << "upper init sequence: " << init_sequence2[0] << endl;
 
-			// now instrument as if immediate=0
+			// now instrument as if immediate=0 or 0xffffffff
 			markForAfl(cmp);
-			cmp = traceDword(cmp, 4, init_sequence2, 0, free_reg);
+			cmp = traceDword(cmp, 4, init_sequence2, imm, free_reg);
 			markForAfl(cmp);
 		}
 	}
