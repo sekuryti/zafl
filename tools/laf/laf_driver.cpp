@@ -1,5 +1,5 @@
 /***************************************************************************
- * Copyright (c)  2018  Zephyr Software LLC. All rights reserved.
+ * Copyright (c)  2018-2019  Zephyr Software LLC. All rights reserved.
  *
  * This software is furnished under a license and/or other restrictive
  * terms and may be used and copied only in accordance with such terms
@@ -35,8 +35,6 @@ void usage(char* name)
 	cerr<<"\t[--verbose | -v]                       Verbose mode                  "<<endl;
 	cerr<<"\t[--enable-split-compare | -c]          Enable split compare          "<<endl;
 	cerr<<"\t[--disable-split-compare | -c]         Disable split compare          "<<endl;
-	cerr<<"\t[--enable-split-branch | -b]           Enable split branch          "<<endl;
-	cerr<<"\t[--disable-split-branch | -B]          Disable split branch          "<<endl;
 	cerr<<"[--help,--usage,-?,-h]                   Display this message           "<<endl;
 }
 
@@ -52,7 +50,6 @@ int main(int argc, char **argv)
 	auto variantID = atoi(argv[1]);
 	auto verbose=false;
 	auto split_compare = true;
-	auto split_branch = true;
 
 	// Parse some options for the transform
 	static struct option long_options[] = {
@@ -61,8 +58,6 @@ int main(int argc, char **argv)
 		{"usage", no_argument, 0, '?'},
 		{"enable-split-compare", no_argument, 0, 'c'},
 		{"disable-split-compare", no_argument, 0, 'C'},
-		{"enable-split-branch", no_argument, 0, 'b'},
-		{"disable-split-branch", no_argument, 0, 'B'},
 		{0,0,0,0}
 	};
 
@@ -88,12 +83,6 @@ int main(int argc, char **argv)
 			break;
 		case 'C':
 			split_compare=false;
-			break;
-		case 'b':
-			split_branch=true;
-			break;
-		case 'B':
-			split_branch=false;
 			break;
 		default:
 			break;
@@ -124,7 +113,6 @@ int main(int argc, char **argv)
 		{
 			Laf_t laf(*pqxx_interface, firp.get(), verbose);
 			laf.setSplitCompare(split_compare);
-			laf.setSplitBranch(split_branch);
 
 			int success=laf.execute();
 

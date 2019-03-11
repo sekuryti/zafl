@@ -21,7 +21,12 @@
  * E-mail: jwd@zephyr-software.com
  **************************************************************************/
 
+#include <iostream>
+#include <iomanip>
+#include <irdb-cfg>
+
 #include "laf.hpp"
+
 
 using namespace std;
 using namespace IRDB_SDK;
@@ -38,12 +43,12 @@ Laf_t::Laf_t(IRDB_SDK::pqxxDB_t &p_dbinterface, IRDB_SDK::FileIR_t *p_variantIR,
 	m_verbose(p_verbose)
 {
 	m_split_compare = true;
-	m_split_branch = true;
 
 	auto deep_analysis=DeepAnalysis_t::factory(getFileIR());
 	leaf_functions = deep_analysis->getLeafFunctions();
 	dead_registers = deep_analysis->getDeadRegisters();
 
+	m_blacklist.insert(".init");
 	m_blacklist.insert("init");
 	m_blacklist.insert("_init");
 	m_blacklist.insert("start");
@@ -86,6 +91,12 @@ Laf_t::Laf_t(IRDB_SDK::pqxxDB_t &p_dbinterface, IRDB_SDK::FileIR_t *p_variantIR,
 	m_skip_unknown = 0;
 }
 
+void Laf_t::markForAfl(Instruction_t* insn)
+{
+		if (insn)
+			insn->setComment("laf");
+}
+
 RegisterSet_t Laf_t::getDeadRegs(Instruction_t* insn) const
 {
 	auto it = dead_registers -> find(insn);
@@ -115,19 +126,9 @@ void Laf_t::setSplitCompare(bool p_val)
 	m_split_compare = p_val;
 }
 
-void Laf_t::setSplitBranch(bool p_val)
-{
-	m_split_branch = p_val;
-}
-
 bool Laf_t::getSplitCompare() const
 {
 	return m_split_compare;
-}
-
-bool Laf_t::getSplitBranch() const
-{
-	return m_split_branch;
 }
 
 bool Laf_t::hasLeafAnnotation(Function_t* fn) const
@@ -140,6 +141,10 @@ int Laf_t::execute()
 {
 	if (getSplitCompare())
 		doSplitCompare();
+
+	// @todo
+	// look for div, idiv reg instruction
+	// trace instrument for reg == 0
 
 	cout << "#ATTRIBUTE num_cmp_jcc_patterns=" << dec << m_num_cmp_jcc << endl;
 	cout << "#ATTRIBUTE num_cmp_jcc_instrumented=" << dec << m_num_cmp_jcc_instrumented << endl;
@@ -155,50 +160,246 @@ int Laf_t::execute()
 	return 1;
 }
 
-// handle comparisons of the form: 
-//                c:  cmp [rbp - 4], 0x12345678    or c:  cmp reg, 0x12345678
-//                jcc:  jne foobar
-bool Laf_t::doSplitCompare(Instruction_t* p_instr, bool p_honor_red_zone)
+int Laf_t::doSplitCompare()
 {
-	const auto d_cp = DecodedInstruction_t::factory(p_instr);
-	const auto &d_c = *d_cp;
+	for(auto func : getFileIR()->getFunctions())
+	{
+		auto to_split_compare = vector<Instruction_t*>(); 
+		if (isBlacklisted(func))
+			continue;
 
-	const auto immediate = d_c.getImmediate();
-	auto jcc = p_instr->getFallthrough();
-	const auto d_cbrp = DecodedInstruction_t::factory(jcc); 
-	const auto &d_cbr = *d_cbrp;
-	const auto is_jne = (d_cbr.getMnemonic() == "jne");
-	const auto is_je = !is_jne;
-	auto orig_jcc_fallthrough = jcc->getFallthrough();
-	auto orig_jcc_target = jcc->getTarget();
+		cout << endl << "Handling function: " << func->getName() << endl;
+		for(auto i : func->getInstructions())
+		{
+			const auto dp = DecodedInstruction_t::factory(i);
+			const auto &d = *dp;
+			if (d.getMnemonic()!="cmp") continue;
+			if (d.getOperands().size()!=2) continue;
+
+			if (!i->getFallthrough()) continue;
+
+			const auto fp = DecodedInstruction_t::factory(i->getFallthrough());
+			const auto &f = *fp;
+			if (f.getMnemonic() != "je" && 
+			    f.getMnemonic() !="jeq" && 
+			    f.getMnemonic() !="jle" && 
+			    f.getMnemonic() !="jbe" && 
+			    f.getMnemonic() !="jge" && 
+			    f.getMnemonic() !="jae" && 
+			    f.getMnemonic() !="jnae" && 
+			    f.getMnemonic() !="jnbe" && 
+			    f.getMnemonic() !="jnge" && 
+			    f.getMnemonic() !="jnle" && 
+			    f.getMnemonic() !="jne") 
+					continue;
+
+			if (!d.getOperand(1)->isConstant()) continue;
+
+			if (d.getOperand(0)->getArgumentSizeInBytes()==1)
+			{
+				m_skip_byte++;
+				continue;
+		 	}
+
+			// we have a cmp followed by a conditial jmp (je, jne)
+			m_num_cmp_jcc++;
+
+			if (d.getOperand(0)->getArgumentSizeInBytes()<4)
+			{	
+				if (d.getOperand(0)->getArgumentSizeInBytes()==2)
+					m_skip_word++;
+				continue;
+			}
+
+			// we now have a cmp instruction to trace
+			if (d.getOperand(0)->isRegister() || d.getOperand(0)->isMemory())
+				to_split_compare.push_back(i);
+			else
+				m_skip_unknown++;
+		};
+
+		cout << "Requesting " << to_split_compare.size() << " cmp/jcc to be split" << endl;
+
+		// split comparisons
+		for(auto c : to_split_compare)
+		{
+			if (getenv("LAF_LIMIT_END"))
+			{
+				auto debug_limit_end = static_cast<unsigned>(atoi(getenv("LAF_LIMIT_END")));
+				if (m_num_cmp_jcc_instrumented >= debug_limit_end)
+					break;
+			}
+			const auto s = c->getDisassembly();
+			const auto f = c->getFallthrough()->getDisassembly();
+			const auto honorRedZone = hasLeafAnnotation(c->getFunction());
+			if (instrumentCompare(c, honorRedZone))
+			{
+				cout << "success for " << s << " " << f << endl;
+				m_num_cmp_jcc_instrumented++;
+				
+		/*
+ 		getFileIR()->assembleRegistry();
+		getFileIR()->setBaseIDS();
+		cout << "Post transformation CFG for " << func->getName() << ":" << endl;
+		auto post_cfg=ControlFlowGraph_t::factory(func);	
+		cout << *post_cfg << endl;
+		*/
+		
+			}
+		}
+
+	};
+
+	return 1;	 // true means success
+}
+
+/*
+ *  p_instr is the cmp instruction to instrument
+ */
+Instruction_t* Laf_t::traceDword(Instruction_t* p_instr, const size_t p_num_bytes, const vector<string> p_init_sequence, const uint32_t p_immediate, const string p_freereg)
+{
+	assert(p_num_bytes > 0 && p_num_bytes <= 4);
+	assert(!p_init_sequence.empty());
+	assert(!p_freereg.empty());
+
+	markForAfl(p_instr);
+
+	/*
+               mov    eax,DWORD PTR [rbp-0x4]
+               and    eax,0xff0000
+               sar    eax,0x10
+               cmp    eax,0x34
+               je     next
+               nop               
+        next:  ...
+	*/
+	const uint32_t immediate[] = { 
+		p_immediate&0xff,                // low byte
+		(p_immediate&0xff00) >> 8,	
+		(p_immediate&0xff0000) >> 16,	
+		p_immediate >> 24 };             // high byte
+
+	const uint32_t mask[] = { 
+		0x000000ff, 
+		0x0000ff00,
+		0x00ff0000,
+		0xff000000 };
+
+	const uint32_t sar[] = { 
+		0x0, 
+		0x8,
+		0x10,
+		0x18 };
+
+
+	// p_instr == cmp r13d, 0x1     mov rdi, r13d  <- t
+	//                              cmp r13d, 0x1  <- orig
+	//
+	auto orig_cmp = (Instruction_t*) nullptr;
+	for (size_t i = 0; i < p_num_bytes; ++i)
+	{
+		auto t = addInitSequence(p_instr, p_init_sequence);
+		auto orig = t->getFallthrough();
+		if (!orig_cmp) orig_cmp = orig;
+		markForAfl(orig);
+		// mov eax, dword []     <-- p_instr, t
+		// cmp eax, 0x12345678   <-- orig  
+
+		stringstream ss;
+		ss.str("");
+		ss << "and " << p_freereg << ", 0x" << hex << mask[i];
+		auto s=ss.str();
+		t = insertAssemblyAfter(t, s);
+		cout << s << endl;
+		// mov eax, dword []     <-- p_instr
+		// and eax, 0xmask       <-- t
+		// cmp eax, 0x12345678   <-- orig  
+
+		if (sar[i] != 0)
+		{
+			ss.str("");
+			ss << "shr " << p_freereg << ", 0x" << hex << sar[i];
+			s=ss.str();
+			t = insertAssemblyAfter(t, s);
+			cout << s << endl;
+		}
+		// mov eax, dword []     <-- p_instr
+		// and eax, 0xmask 
+		// sar eax, 0x...        <-- t
+		// cmp eax, 0x12345678   <-- orig  
+
+		ss.str("");
+		ss << "cmp " << p_freereg << ", 0x" << hex << immediate[i];
+		s = ss.str();
+		t = insertAssemblyAfter(t, s);
+		cout << s << endl;
+		// mov eax, dword []     <-- p_instr
+		// and eax, 0xmask 
+		// sar eax, 0x...        
+		// cmp eax, 0x...        <-- t
+		// cmp eax, 0x12345678   <-- orig  
+
+		s="je 0";
+		t = insertAssemblyAfter(t, s);
+		t->setTarget(orig);
+		cout << s << endl;
+		// mov eax, dword []     <-- p_instr
+		// and eax, 0xmask 
+		// sar eax, 0x...        
+		// cmp eax, 0x...        
+		// je 0                  <-- t
+		// cmp eax, 0x12345678   <-- orig  
+
+		s="nop";
+		t = insertAssemblyAfter(t, s);
+		t->setFallthrough(orig);
+		// pass info to subsequent instrumentation passes, what's the clean way of doing this?
+		markForAfl(t);
+		cout << s << endl;
+		// mov eax, dword []     <-- p_instr
+		// and eax, 0xmask       
+		// sar eax, 0x...        
+		// cmp eax, 0x...        
+		// je
+		// nop                   <-- t
+		// cmp eax, 0x12345678   <-- orig  
+		
+		/*
+		auto t = addInitSequence(p_instr, p_init_sequence);
+		*/
+		//
+		// 
+		// mov eax, dword []     <-- p_instr
+		// ...
+		// ...                   <-- t
+		// L1: mov eax, dword [] <-- orig 
+		// and eax, 0xmask           
+		// sar eax, 0x...        
+		// cmp eax, 0x...        
+		// je
+		// nop                   
+		// cmp eax, 0x12345678   <-- orig_cmp  
+	}
+	markForAfl(orig_cmp);
+	return orig_cmp;
+}
+
+bool Laf_t::getFreeRegister(Instruction_t* p_instr, string& p_freereg)
+{
+	const auto dp = DecodedInstruction_t::factory(p_instr);
+	const auto &d = *dp;
 	auto allowed_regs = RegisterSet_t({rn_RAX, rn_RBX, rn_RCX, rn_RDX, rn_RDI, rn_RSI, rn_R8, rn_R9, rn_R10, rn_R11, rn_R12, rn_R13, rn_R14, rn_R15});
 	auto save_temp = true;
 
-	const auto orig_relocs = p_instr->getRelocations();
-	const auto do_relocs = orig_relocs.size() > 0;
-
-	const auto byte0 = immediate >> 24;	              // high byte
-	const auto byte1 = (immediate&0xff0000) >> 16;	
-	const auto byte2 = (immediate&0xff00) >> 8;	
-	const auto byte3 = immediate&0xff;	              // low byte
-
-	cout << "found comparison: " << hex << p_instr->getBaseID() << ": " << p_instr->getDisassembly() << " immediate: " << immediate << " " << jcc->getDisassembly() << "  red_zone: " << p_honor_red_zone << endl;
-
-	if (do_relocs)
+	// register in instruction cannot be used as a free register
+	if (d.getOperand(0)->isRegister())
 	{
-		cout << " relocs: has reloc size: " << orig_relocs.size() << endl;
-		m_skip_relocs++;
-		return false;
-	}
-
-	if (d_c.getOperand(0)->isRegister())
-	{
-		const auto r = d_c.getOperand(0)->getString();
+		const auto r = d.getOperand(0)->getString();
 		const auto reg = Register::getRegister(r);
 		allowed_regs.erase(reg);
+		allowed_regs.erase(convertRegisterTo64bit(reg));
 	}
 
-	auto free_reg = string(); 
 	const auto dead_regs = getDeadRegs(p_instr);
 	auto free_regs = getFreeRegs(dead_regs, allowed_regs);
 
@@ -217,38 +418,138 @@ bool Laf_t::doSplitCompare(Instruction_t* p_instr, bool p_honor_red_zone)
 	{
 		const auto first_free_register = FIRSTOF(free_regs);
 		free_regs.erase(first_free_register);
-		free_reg = registerToString(convertRegisterTo32bit(first_free_register));
+		p_freereg = registerToString(convertRegisterTo32bit(first_free_register));
 		save_temp = false;
-		// free register available --> instrumentation doesn't disturb stack --> no need to deal with red zone
-		p_honor_red_zone = false; 
 	}
 	else
 	{
 		const auto disasm = p_instr->getDisassembly();
-		if (disasm.find("r12")==string::npos)
-			free_reg = "r12d";
+		if (disasm.find("r11")==string::npos)
+			p_freereg = "r11d";
+		else if (disasm.find("r12")==string::npos)
+			p_freereg = "r12d";
 		else if (disasm.find("r13")==string::npos)
-			free_reg = "r13d";
+			p_freereg = "r13d";
 		else if (disasm.find("r14")==string::npos)
-			free_reg = "r14d";
+			p_freereg = "r14d";
 		else if (disasm.find("r15")==string::npos)
-			free_reg = "r15d";
-		else
-		{
-			cout << "Skip instruction - no free register found: " << disasm << endl;
-			m_skip_no_free_regs++;
-			return false;
-		}
+			p_freereg = "r15d";
 		save_temp = true;
 	}
 
-	// handle the case where instrumentation modifies the stack
-	// but the cmp instruction uses a stack relative address
-	// @todo: adjust the offset in the cmp instruction instead of skipping
-	if ((p_honor_red_zone || save_temp) && !d_c.getOperand(0)->isRegister())
+	return save_temp;
+}
+
+
+Instruction_t* Laf_t::addInitSequence(Instruction_t* p_instr, const vector<string> p_sequence)
+{
+	assert(p_sequence.size() > 0);
+
+	//   p_instr -> <orig>     s1       <-- t      s1         
+	//                         <orig>*  <--        s2   <-- t        
+	//                                             <orig>*
+	auto t = p_instr;
+	insertAssemblyBefore(p_instr, p_sequence[0]);
+	cout << "inserting: " << p_sequence[0] << endl;
+
+	for (auto i = 1u; i < p_sequence.size(); i++)
+	{
+		t = insertAssemblyAfter(t, p_sequence[i]);
+		cout << "inserting: " << p_sequence[i] << endl;
+	}
+	return t;
+}
+
+/*
+ *  p_instr: cmp instruction to instrument
+ *
+ *  Decompose cmp into 4 individual byte comparison blocks.
+ *  Note that the 4 blocks do not really do anything.
+ *  They will be used to guide AFL.
+ *
+ *  The original cmp followed by a condition branch will be executed
+ *  after our instrumentation.
+ *
+ *  Note: @todo: we need to make sure that we don't optimize away AFL instrumentation
+ *               in subsequent passes
+ *
+ *  Example:
+ *      cmp reg, 0x12345678
+ *      je  target
+ *
+ *  Post instrumentation (assuming eax is a free register):
+ *      mov eax, ebx
+ *      and eax, 0xff000000
+ *      sar eax, 0x18
+ *      cmp eax, 0x12
+ *		je L1
+ *		nop
+ *  L1: 
+ *      mov eax, ebx
+ *      and eax, 0x00ff0000
+ *      sar eax, 0x10
+ *      cmp eax, 0x34
+ *		je L2
+ *		nop
+ *  L2: 
+ *      mov eax, ebx
+ *      and eax, 0x0000ff00
+ *      sar eax, 0x08
+ *      cmp eax, 0x56
+ *		je L3
+ *		nop
+ *  L3: 
+ *      mov eax, ebx
+ *      and eax, 0x000000ff
+ *      cmp eax, 0x78
+ *		je L4
+ *		nop
+ *
+ *  L4:
+ *      cmp ebx, 0x12345678
+ *      je  target
+ *
+ */
+bool Laf_t::instrumentCompare(Instruction_t* p_instr, bool p_honor_red_zone)
+{
+	// either 4-byte or 8-byte compare
+	/* 
+		cmp    DWORD PTR [rbp-0x4],0x12345678
+		cmp    QWORD PTR [rbp-0x4],0x12345678
+		cmp    reg, 0x12345678
+		jne,je,jle,jge,jae,jbe
+	*/
+	
+	// bail out, there's a reloc here
+	if (p_instr->getRelocations().size() > 0)
+	{
+		m_skip_relocs++;
+		return false;
+	}
+
+	const auto dp = DecodedInstruction_t::factory(p_instr);
+	const auto &d = *dp;
+
+	// get a temporary register
+	auto free_reg = string("");
+	auto save_temp = getFreeRegister(p_instr, free_reg);
+
+	assert(!free_reg.empty());
+	
+	cout << "temporary register needs to be saved: " << boolalpha << save_temp << endl;
+	cout << "temporary register is: " << free_reg << endl;
+
+	if (!save_temp)
+		p_honor_red_zone = false;
+	
+	cout << "honor red zone: " << boolalpha << p_honor_red_zone << endl;
+	
+	// if we disturb the stack b/c of saving a register or b/c of the red zone
+	// we need to make sure the instruction doesn't also address the stack, e.g. mov [rbp-8], 0
+	if ((p_honor_red_zone || save_temp) && !d.getOperand(0)->isRegister())
 	{
 		// cmp dword [rbp - 4], 0x12345678 
-		const auto memopp = d_c.getOperand(0);
+		const auto memopp = d.getOperand(0);
 		const auto &memop = *memopp;
 		const auto memop_str = memop.getString();
 		if (memop_str.find("rbp")!=string::npos ||
@@ -256,358 +557,118 @@ bool Laf_t::doSplitCompare(Instruction_t* p_instr, bool p_honor_red_zone)
 		    memop_str.find("ebp")!=string::npos ||
 		    memop_str.find("esp")!=string::npos)
 		{
-			cout << "comparison accesses the stack -- skip" << endl;
+			cout << "instrumentation disturbs the stack and original instruction accesses the stack -- skip" << endl;
 			m_skip_stack_access++;
 			return false;
 		}
 	}
-	
+
+	// utility strings to save temp register and handle the red zone
 	const auto get_reg64 = [](string r) -> string { 
 			return registerToString(convertRegisterTo64bit(Register::getRegister(r)));
 		};
-
 	const auto push_reg = "push " + get_reg64(free_reg);
 	const auto pop_reg = "pop " + get_reg64(free_reg);
 	const auto push_redzone = string("lea rsp, [rsp-128]");
 	const auto pop_redzone = string("lea rsp, [rsp+128]");
 	
-	//
-	// Start changing the IR
-	//
-	
-	string s;
-
-	auto init_sequence = string();
-
-	if (d_c.getOperand(0)->isRegister())
+	// setup init sequence...
+	auto init_sequence = vector<string>();
+	if (d.getOperand(0)->isRegister())
 	{
 		// cmp eax, 0x12345678
 		stringstream ss;
-		ss << "mov " << free_reg << ", " << d_c.getOperand(0)->getString();
-		init_sequence = ss.str();
+		auto source_reg = d.getOperand(0)->getString();
+		if (d.getOperand(0)->getArgumentSizeInBytes() > 4)
+		{
+			source_reg = registerToString(convertRegisterTo32bit(Register::getRegister(source_reg)));
+		}
+
+		ss << "mov " << free_reg << ", " << source_reg;
+		init_sequence.push_back(ss.str());
+		// mov free_reg, eax
 	}
 	else
 	{
 		// cmp dword [rbp - 4], 0x12345678 
-		const auto memopp = d_c.getOperand(0);
+		const auto memopp = d.getOperand(0);
 		const auto &memop = *memopp;
 		const auto memop_str = memop.getString();
-		init_sequence = "mov " + free_reg + ", dword [ " + memop_str + " ]";
+		init_sequence.push_back("mov " + free_reg + ", dword [ " + memop_str + " ]");
+		// mov free_reg, dword [rbp - 4]
 	}
 
-	cout << "decompose sequence: free register: " << free_reg << endl;
-	cout << "init sequence is: " << init_sequence << endl;
+	cout << "init sequence is: " << init_sequence[0] << endl;
 
-/*
-	Handle high-order byte:
-		mov eax, dword [rbp - 4]
-		sar eax, 0x18
-		cmp eax, 0x12
-		jne j
-*/
-	stringstream ss;
-	s = init_sequence;
+	uint32_t K = d.getImmediate();
+	cout << "handle 4 byte compare against 0x" << hex << K << endl;
 
-	if (p_honor_red_zone)
+	markForAfl(p_instr);
+
+	if (p_honor_red_zone) 
+	{
 		p_instr = insertAssemblyBefore(p_instr, push_redzone);
-
-	if (save_temp)
-		p_instr = insertAssemblyBefore(p_instr, push_reg);
-
-	// overwrite the original cmp instruction
-	getFileIR()->registerAssembly(p_instr, s); 
-	cout << s << endl;
-
-	s = "sar " + free_reg + ", 0x18";
-	auto t = insertAssemblyAfter(p_instr, s);
-	cout << s << endl;
-
-	ss.str("");
-	ss << "cmp " << free_reg << ", 0x" << hex << byte0;
-	s = ss.str();
-	t = insertAssemblyAfter(t, s);
-	cout << s << endl;
-
-	if (save_temp)
-	{
-		t = insertAssemblyAfter(t, pop_reg);
-		cout << pop_reg << endl;
-	}
-
-	if (p_honor_red_zone)
-		t = insertAssemblyAfter(t, "lea rsp, [rsp+128]");
-
-	s = "jne 0";
-	t = insertAssemblyAfter(t, s);
-	if (is_je) {
-		t->setTarget(orig_jcc_fallthrough);
-		cout << "target: original fallthrough ";
-	}
-	else {
-		t->setTarget(orig_jcc_target);
-		cout << "target: original target ";
-	}
-
-	cout << s << endl;
-
-/*
-	Handle 2nd high-order byte:
-		mov eax, dword [rbp - 4]
-		and eax, 0xff0000
-		sar eax, 0x10
-		cmp eax, 0x34
-		jne xxx
-*/
-	s = init_sequence;
-
-	if (p_honor_red_zone)
-	{
-		t = insertAssemblyAfter(t, push_redzone);
 		cout << push_redzone << endl;
 	}
-
 	if (save_temp)
 	{
-		t = insertAssemblyAfter(t, push_reg);
+		p_instr = insertAssemblyBefore(p_instr, push_reg);
 		cout << push_reg << endl;
 	}
 
-	t = insertAssemblyAfter(t, s);
-	cout << s << endl;
+	// instrument before the compare (p_instr --> "cmp")
+	auto cmp = traceDword(p_instr, 4, init_sequence, K, free_reg);
+	// post: cmp is the "cmp" instruction
 
-	s = "and " + free_reg + ", 0xff0000";
-	t = insertAssemblyAfter(t, s);
-	cout << s << endl;
+	// handle quad word (8 byte compares)
+	// compare the upper 32-bit against 0
+	if (d.getOperand(0)->getArgumentSizeInBytes() == 8)
+	{
+		if (d.getOperand(0)->isRegister())
+		{
+			auto init_sequence2 = vector<string>();
+			const auto source_reg = d.getOperand(0)->getString();
+			const auto free_reg64 = get_reg64(free_reg);
+			auto s = "mov " + free_reg64 + ", " + source_reg;
+			init_sequence2.push_back(s);
+			init_sequence2.push_back("shr " + free_reg64 + ", 0x20"); 
+			cout << "upper init sequence: " << init_sequence2[0] << endl;
+			cout << "upper init sequence: " << init_sequence2[1] << endl;
 
-	s = "sar " + free_reg + ", 0x10";
-	t = insertAssemblyAfter(t, s);
-	cout << s << endl;
+			// now instrument as if immediate=0
+			markForAfl(cmp);
+			cmp = traceDword(cmp, 4, init_sequence2, 0, free_reg);
+			markForAfl(cmp);
+		}
+		else
+		{
+			auto init_sequence2 = vector<string>();
+			const auto memopp = d.getOperand(0);
+			const auto &memop = *memopp;
+			const auto memop_str = memop.getString();
+			init_sequence2.push_back("mov " + free_reg + ", dword [ " + memop_str + " + 4 ]");
+			cout << "upper init sequence: " << init_sequence2[0] << endl;
 
-	ss.str("");
-	ss << "cmp " << free_reg << ", 0x" << hex << byte1;
-	s = ss.str();
-	t = insertAssemblyAfter(t, s);
-	cout << s << endl;
+			// now instrument as if immediate=0
+			markForAfl(cmp);
+			cmp = traceDword(cmp, 4, init_sequence2, 0, free_reg);
+			markForAfl(cmp);
+		}
+	}
+
+	auto t = cmp;
 
 	if (save_temp)
 	{
-		t = insertAssemblyAfter(t, pop_reg);
+		t = insertAssemblyBefore(t, pop_reg);
 		cout << pop_reg << endl;
 	}
-
+	
 	if (p_honor_red_zone)
-		t = insertAssemblyAfter(t, pop_redzone);
-
-	s = "jne 0";
-	t = insertAssemblyAfter(t, s);
-	if (is_je) {
-		t->setTarget(orig_jcc_fallthrough);
-		cout << "target: original fallthrough ";
-	}
-	else {
-		t->setTarget(orig_jcc_target);
-		cout << "target: original target ";
-	}
-	cout << s << endl;
-
-/*
-	Handle 3rd high-order byte:
-		mov    eax,DWORD PTR [rbp-0x4]
-		and    eax,0xff00
-		sar    eax,0x8
-		cmp    eax,0x56
-		jne    xxx
-*/
-	s = init_sequence;
-	if (p_honor_red_zone)
-		t = insertAssemblyAfter(t, push_redzone);
-
-	if (save_temp)
 	{
-		t = insertAssemblyAfter(t, push_reg);
-		cout << push_reg << endl;
+		t = insertAssemblyBefore(t, pop_redzone);
+		cout << pop_redzone << endl;
 	}
-	t = insertAssemblyAfter(t, s);
-	cout << s << endl;
-
-	s = "and " + free_reg + ", 0xff00";
-	t = insertAssemblyAfter(t, s);
-	cout << s << endl;
-
-	s = "sar " + free_reg + ", 0x8";
-	t = insertAssemblyAfter(t, s);
-	cout << s << endl;
-
-	ss.str("");
-	ss << "cmp " << free_reg << ", 0x" << hex << byte2;
-	s = ss.str();
-	t = insertAssemblyAfter(t, s);
-	cout << s << endl;
-
-	if (save_temp)
-	{
-		t = insertAssemblyAfter(t, pop_reg);
-		cout << pop_reg << endl;
-	}
-
-	if (p_honor_red_zone)
-		t = insertAssemblyAfter(t, pop_redzone);
-
-	s = "jne 0";
-	t = insertAssemblyAfter(t, s);
-	if (is_je) {
-		t->setTarget(orig_jcc_fallthrough);
-		cout << "target: original fallthrough ";
-	}
-	else {
-		t->setTarget(orig_jcc_target);
-		cout << "target: original target ";
-	}
-	cout << s << endl;
-
-/*
-	Handle low-order byte:
-            mov      eax,DWORD PTR [rbp-0x4]
-            and      eax,0xff
-            cmp      eax,0x78
-            je,jne   xxx
-*/
-	s = init_sequence;
-	if (p_honor_red_zone)
-		t = insertAssemblyAfter(t, push_redzone);
-
-	if (save_temp)
-	{
-		t = insertAssemblyAfter(t, push_reg);
-		cout << push_reg << endl;
-	}
-	t = insertAssemblyAfter(t, s);
-	cout << s << endl;
-
-	s = "and " + free_reg + ", 0xff";
-	t = insertAssemblyAfter(t, s);
-	cout << s << endl;
-
-	ss.str("");
-	ss << "cmp " << free_reg << ", 0x" << hex << byte3;
-	s = ss.str();
-	t = insertAssemblyAfter(t, s);
-	cout << s << endl;
-
-	if (save_temp)
-		t = insertAssemblyAfter(t, pop_reg);
-
-	if (p_honor_red_zone)
-		t = insertAssemblyAfter(t, pop_redzone);
-
-	s = is_je ? "je 0" : "jne 0";
-	t = insertAssemblyAfter(t, s);
-	t->setTarget(orig_jcc_target);
-	t->setFallthrough(orig_jcc_fallthrough);
-	cout << s << " ";
-	cout << "target: original target   fallthrough: original fallthrough " << endl;
 
 	return true;
-}
-
-int Laf_t::doSplitCompare()
-{
-/*
-	// look for cmp against constant
-0000000000400526 <main>:
-  400535:	81 7d fc 78 56 34 12 	cmp    DWORD PTR [rbp-0x4],0x12345678
-  40053c:	75 0a                	jne    400548 <main+0x22>
-  40054e:	c3                   	ret    
-
-	// decompose into series of 1-byte comparisons
-  4005b9:	8b 45 fc             	mov    eax,DWORD PTR [rbp-0x4]
-  4005bc:	c1 f8 18             	sar    eax,0x18
-  4005bf:	83 f8 12             	cmp    eax,0x12
-  4005c2:	75 32                	jne    4005f6 <main+0x80>
-  4005c4:	8b 45 fc             	mov    eax,DWORD PTR [rbp-0x4]
-  4005c7:	25 00 00 ff 00       	and    eax,0xff0000
-  4005cc:	c1 f8 10             	sar    eax,0x10
-  4005cf:	83 f8 34             	cmp    eax,0x34
-  4005d2:	75 22                	jne    4005f6 <main+0x80>
-  4005d4:	8b 45 fc             	mov    eax,DWORD PTR [rbp-0x4]
-  4005d7:	25 00 ff 00 00       	and    eax,0xff00
-  4005dc:	c1 f8 08             	sar    eax,0x8
-  4005df:	83 f8 56             	cmp    eax,0x56
-  4005e2:	75 12                	jne    4005f6 <main+0x80>
-  4005e4:	8b 45 fc             	mov    eax,DWORD PTR [rbp-0x4]
-  4005e7:	0f b6 c0             	movzx  eax,al
-  4005ea:	83 f8 78             	cmp    eax,0x78
-  4005ed:	75 07                	jne    4005f6 <main+0x80>
-  4005ef:	b8 01 00 00 00       	mov    eax,0x1
-  4005f4:	eb 05                	jmp    4005fb <main+0x85>
-  4005fc:	c3                   	ret    
-*/
-
-	auto to_split_compare = vector<Instruction_t*>(); 
-	for(auto func : getFileIR()->getFunctions())
-	{
-		if (isBlacklisted(func))
-			continue;
-
-		 for(auto i : func->getInstructions())
-		 {
-			const auto dp = DecodedInstruction_t::factory(i);
-			const auto &d = *dp;
-			if (d.getMnemonic()!="cmp") continue;
-			if (d.getOperands().size()!=2) continue;
-
-			if (!i->getFallthrough()) continue;
-
-			const auto fp = DecodedInstruction_t::factory(i->getFallthrough());
-			const auto &f = *fp;
-			if (f.getMnemonic() != "je" && f.getMnemonic() !="jeq" && f.getMnemonic() !="jne") continue;
-
-			if (!d.getOperand(1)->isConstant()) continue;
-
-			if (d.getOperand(0)->getArgumentSizeInBytes()==1)
-			{
-				m_skip_byte++;
-				continue;
-		 	}
-
-			// we have a cmp followed by a conditial jmp (je, jne)
-			m_num_cmp_jcc++;
-
-			if (d.getOperand(0)->getArgumentSizeInBytes()!=4)
-			{	
-				if (d.getOperand(0)->getArgumentSizeInBytes()==2)
-					m_skip_word++;
-				if (d.getOperand(0)->getArgumentSizeInBytes()==8)
-					m_skip_qword++;
-				continue;
-			}
-
-			/* these values are easy for fuzzers to guess
-			const auto imm = d.getImmediate();
-			if (imm == 0 || imm == 1 || imm == -1)
-			{
-				m_skip_easy_val++;
-				continue;
-			}
-			*/
-
-			// we now have a cmp instruction to split
-			if (d.getOperand(0)->isRegister() || d.getOperand(0)->isMemory())
-				to_split_compare.push_back(i);
-			else
-				m_skip_unknown++;
-		};
-
-	};
-
-	cout << "Requesting " << to_split_compare.size() << " cmp/jcc to be split" << endl;
-	// split comparisons
-	for(auto c : to_split_compare)
-	{
-		const auto honorRedZone = hasLeafAnnotation(c->getFunction());
-		if (doSplitCompare(c, honorRedZone))
-			m_num_cmp_jcc_instrumented++;
-	}
-
-	return 1;	 // true means success
 }
