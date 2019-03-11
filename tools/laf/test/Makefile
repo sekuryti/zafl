@@ -13,7 +13,7 @@ test0.laf: test0.exe
 	$(PSZ) test0.exe $@ --critical-step laf=on -s meds_static=off -s rida=on
 
 test0.laf.zafl: test0.exe
-	zafl.sh $< $@ --enable-split-compare
+	zafl.sh $< $@ --enable-laf
 
 clean:
 	rm -fr peasoup_exec* *.o test_afl test_afl.laf test0.exe test0.laf a.out a.exe

@@ -21,6 +21,9 @@ $ZAFL_HOME/tools/zax/test/test_graph.sh
 $ZAFL_HOME/tools/zax/test/test_context.sh
 $ZAFL_HOME/tools/zax/test/test_context_recursion.sh
 
+echo "Test laf"
+$ZAFL_HOME/tools/laf/test/run_tests.sh
+
 echo "Test zafl with ZAFL_TRACE_MAP_FIXED_ADDRESS=0x10000"
 export ZAFL_TRACE_MAP_FIXED_ADDRESS=0x10000
 $ZAFL_HOME/test/bc.fixed_map/test_bc.sh
