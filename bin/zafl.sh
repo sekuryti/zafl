@@ -40,8 +40,8 @@ usage()
 	echo "     -r, --random-seed <value>               Specify random seed"
 	echo "     -w, --whitelist <file>                  Specify function whitelist (one function per line)"
 	echo "     -b, --blacklist <file>                  Specify function blacklist (one function per line)"
-	echo "     -l, --enable-laf                        Enable laf-intel split compare for integer constants"
-	echo "     -L, --disable-laf                       Disable laf-intel split compare for integer constants"
+	echo "     -l, --enable-laf                        Enable laf-intel style instrumentation"
+	echo "     -L, --disable-laf                       Disable laf-intel style instrumentation"
 	echo "     -v                                      Verbose mode" 
 	echo 
 }
