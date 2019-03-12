@@ -39,6 +39,7 @@ namespace Laf
 			IRDB_SDK::Instruction_t* traceDword(IRDB_SDK::Instruction_t* p_instr, const size_t p_num_bytes, const std::vector<std::string> p_init_sequence, const uint32_t p_immediate, const std::string p_freereg);
 			IRDB_SDK::Instruction_t* addInitSequence(IRDB_SDK::Instruction_t* p_instr, const std::vector<std::string> sequence);
 			bool memoryStackAccess(IRDB_SDK::Instruction_t* p_instr, unsigned p_operandNumber=0);
+			std::vector<std::string> getInitSequence(IRDB_SDK::Instruction_t *p_instr, std::string p_free_reg);
 
 		private:
 			IRDB_SDK::pqxxDB_t &m_dbinterface;

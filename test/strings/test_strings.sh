@@ -1,4 +1,5 @@
 export AFL_TIMEOUT=15
+export AFL_TIMEOUT=15000
 export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$SECURITY_TRANSFORMS_HOME/lib/:. 
 
 session=/tmp/tmp.$(whoami).zafl.strings.$$
@@ -63,16 +64,16 @@ mkdir $session
 pushd $session
 
 # build ZAFL version of strings executable
-zafl.sh `which strings` strings.zafl.d.g.split --enable-laf -d -g --tempdir analysis.strings.zafl.d.g.split
+zafl.sh `which strings` strings.zafl.d.g.laf --enable-laf -d -g --tempdir analysis.strings.zafl.d.g.laf
 if [ $? -eq 0 ]; then
-	log_success "build strings.zafl.d.g.split"
+	log_success "build strings.zafl.d.g.laf"
 else
-	log_error "build strings.zafl.d.g.split"
+	log_error "build strings.zafl.d.g.laf"
 fi
-grep ATTR analysis.strings.zafl.d.g.split/logs/zax.log
+grep ATTR analysis.strings.zafl.d.g.laf/logs/zax.log
 
 log_message "Fuzz for $AFL_TIMEOUT secs"
-fuzz_with_zafl $(realpath ./strings.zafl.d.g.split)
+fuzz_with_zafl $(realpath ./strings.zafl.d.g.laf)
 
 cleanup
 popd

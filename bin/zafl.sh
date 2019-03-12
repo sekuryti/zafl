@@ -374,6 +374,9 @@ log_msg "Transforming input binary $input_binary into $output_zafl_binary"
 optional_step=""
 if [ ! -z "$laf_opt" ];
 then
+	if [ ! -z "$verbose_opt" ]; then
+		laf_opt=" $laf_opt -o laf:-v"
+	fi
 	optional_step=" -c laf=on $laf_opt "
 fi
 

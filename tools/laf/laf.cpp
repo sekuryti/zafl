@@ -333,6 +333,59 @@ Instruction_t* Laf_t::addInitSequence(Instruction_t* p_instr, const vector<strin
 	return t;
 }
 
+vector<string> Laf_t::getInitSequence(Instruction_t *p_instr, string p_free_reg)
+{
+	const auto dp = DecodedInstruction_t::factory(p_instr);
+	const auto &d = *dp;
+	
+	auto init_sequence = vector<string>();
+
+	if (d.getOperand(0)->getArgumentSizeInBytes() == 1)
+		throw std::domain_error("operand has unhandled size");
+	
+	if (d.getOperand(0)->isRegister())
+	{
+		// cmp eax, 0x12345678
+		stringstream ss;
+		auto source_reg = d.getOperand(0)->getString();
+		switch(d.getOperand(0)->getArgumentSizeInBytes())
+		{
+			case 2:
+				p_free_reg = registerToString(convertRegisterTo16bit(Register::getRegister(p_free_reg)));
+				break;
+			case 4: // do nothing, p_free_reg is already 32-bit
+				break;
+			case 8:
+				source_reg = registerToString(convertRegisterTo32bit(Register::getRegister(source_reg)));
+				break;
+			case 1:
+			default:
+				throw std::domain_error("operand has unhandled size");
+		}
+
+		ss << "mov " << p_free_reg << ", " << source_reg;
+		init_sequence.push_back(ss.str());
+		// mov p_free_reg, eax
+	}
+	else
+	{
+		// cmp dword [rbp - 4], 0x12345678 
+		const auto memopp = d.getOperand(0);
+		const auto &memop = *memopp;
+		const auto memop_str = memop.getString();
+		if (d.getOperand(0)->getArgumentSizeInBytes()==2)
+		{
+			p_free_reg = registerToString(convertRegisterTo16bit(Register::getRegister(p_free_reg)));
+			init_sequence.push_back("mov " + p_free_reg + ", word [ " + memop_str + " ]");
+		}
+		else
+			init_sequence.push_back("mov " + p_free_reg + ", dword [ " + memop_str + " ]");
+		// mov p_free_reg, dword [rbp - 4]
+	}
+
+	return init_sequence;
+}
+
 /*
  *  p_instr: cmp instruction to instrument
  *
@@ -438,38 +491,9 @@ bool Laf_t::instrumentCompare(Instruction_t* p_instr, bool p_honor_red_zone)
 	const auto pop_redzone = string("lea rsp, [rsp+128]");
 	
 	// setup init sequence...
-	auto init_sequence = vector<string>();
-	if (d.getOperand(0)->isRegister())
-	{
-		// cmp eax, 0x12345678
-		stringstream ss;
-		auto source_reg = d.getOperand(0)->getString();
-		if (d.getOperand(0)->getArgumentSizeInBytes() > 4)
-		{
-			source_reg = registerToString(convertRegisterTo32bit(Register::getRegister(source_reg)));
-		}
-
-		ss << "mov " << free_reg << ", " << source_reg;
-		init_sequence.push_back(ss.str());
-		// mov free_reg, eax
-	}
-	else
-	{
-		// cmp dword [rbp - 4], 0x12345678 
-		const auto memopp = d.getOperand(0);
-		const auto &memop = *memopp;
-		const auto memop_str = memop.getString();
-		init_sequence.push_back("mov " + free_reg + ", dword [ " + memop_str + " ]");
-		// mov free_reg, dword [rbp - 4]
-	}
-
+	auto init_sequence = getInitSequence(p_instr, free_reg);
 	if (m_verbose)
 		cout << "init sequence is: " << init_sequence[0] << endl;
-
-	uint32_t K = d.getImmediate();
-
-	if (m_verbose)
-		cout << "handle 4 byte compare against 0x" << hex << K << endl;
 
 	if (p_honor_red_zone) 
 	{
@@ -483,7 +507,12 @@ bool Laf_t::instrumentCompare(Instruction_t* p_instr, bool p_honor_red_zone)
 	}
 
 	// instrument before the compare (p_instr --> "cmp")
-	auto cmp = traceDword(p_instr, 4, init_sequence, K, free_reg);
+	const auto num_bytes_to_compare = (d.getOperand(0)->getArgumentSizeInBytes() == 2) ? 2 : 4; // max is 4
+	uint32_t K = d.getImmediate();
+	if (m_verbose)
+		cout << "handle 4 byte compare against 0x" << hex << K << endl;
+
+	auto cmp = traceDword(p_instr, num_bytes_to_compare, init_sequence, K, free_reg);
 	// post: cmp is the "cmp" instruction
 
 	// handle quad word (8 byte compares)
@@ -531,13 +560,13 @@ bool Laf_t::instrumentCompare(Instruction_t* p_instr, bool p_honor_red_zone)
 	if (save_temp)
 	{
 		t = insertAssemblyBefore(t, pop_reg);
-		cout << pop_reg << endl;
+		if (m_verbose) cout << pop_reg << endl;
 	}
 	
 	if (p_honor_red_zone)
 	{
 		t = insertAssemblyBefore(t, pop_redzone);
-		cout << pop_redzone << endl;
+		if (m_verbose) cout << pop_redzone << endl;
 	}
 
 	return true;
@@ -580,14 +609,8 @@ int Laf_t::doSplitCompare()
 			// we have a cmp followed by a conditial jmp (je, jne)
 			m_num_cmp++;
 
-			if (d.getOperand(0)->getArgumentSizeInBytes()<4)
-			{	
-				if (d.getOperand(0)->getArgumentSizeInBytes()==2)
-					m_skip_word++;
-				continue;
-			}
-
 			// we now have a cmp instruction to trace
+			// we handle 2, 4, 8 byte compares
 			if (d.getOperand(0)->isRegister() || d.getOperand(0)->isMemory())
 				to_split_compare.push_back(i);
 			else
@@ -691,29 +714,7 @@ bool Laf_t::instrumentDiv(Instruction_t* p_div, bool p_honor_red_zone)
 	const auto pop_redzone = string("lea rsp, [rsp+128]");
 	
 	// setup init sequence...
-	auto init_sequence = vector<string>();
-	if (d.getOperand(0)->isRegister())
-	{
-		// div eax
-		auto source_reg = d.getOperand(0)->getString();
-		if (d.getOperand(0)->getArgumentSizeInBytes() > 4)
-		{
-			source_reg = registerToString(convertRegisterTo32bit(Register::getRegister(source_reg)));
-		}
-
-		init_sequence.push_back("mov " + free_reg + ", " + source_reg);
-		// mov free_reg, eax
-	}
-	else
-	{
-		// div dword [rbp - 4]
-		const auto memopp = d.getOperand(0);
-		const auto &memop = *memopp;
-		const auto memop_str = memop.getString();
-		init_sequence.push_back("mov " + free_reg + ", dword [ " + memop_str + " ]");
-		// mov free_reg
-	}
-
+	auto init_sequence = getInitSequence(p_div, free_reg);
 	if (m_verbose)
 		cout << "init sequence is: " << init_sequence[0] << endl;
 	
@@ -729,7 +730,8 @@ bool Laf_t::instrumentDiv(Instruction_t* p_div, bool p_honor_red_zone)
 	}
 
 	// guide fuzzer by inducing comparison against 0
-	auto t = traceDword(p_div, 4, init_sequence, 0, free_reg); 
+	const auto num_bytes_to_compare = (d.getOperand(0)->getArgumentSizeInBytes() == 2) ? 2 : 4; // max is 4
+	auto t = traceDword(p_div, num_bytes_to_compare, init_sequence, 0, free_reg); 
 
 	if (d.getOperand(0)->getArgumentSizeInBytes() == 8)
 	{
@@ -787,6 +789,7 @@ int Laf_t::doTraceDiv()
 
 		if (m_verbose)
 			cout << endl << "Handling function: " << func->getName() << endl;
+
 		for(auto i : func->getInstructions())
 		{
 			if (i->getBaseID() <= 0) continue;
@@ -794,10 +797,11 @@ int Laf_t::doTraceDiv()
 			const auto &d = *dp;
 			if (d.getMnemonic() != "div" && d.getMnemonic() !="idiv") continue;
 			if (d.getOperands().size()!=1) continue;
-			if (d.getOperand(0)->getArgumentSizeInBytes()<4) continue;
+			if (d.getOperand(0)->getArgumentSizeInBytes()<2) continue;
 
 			m_num_div++;
 
+			// we handle 2, 4, 8 byte div
 			if (d.getOperand(0)->isRegister() || d.getOperand(0)->isMemory())
 				to_trace_div.push_back(i);
 		};
