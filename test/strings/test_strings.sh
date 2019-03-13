@@ -1,5 +1,4 @@
 export AFL_TIMEOUT=15
-export AFL_TIMEOUT=15000
 export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$SECURITY_TRANSFORMS_HOME/lib/:. 
 
 session=/tmp/tmp.$(whoami).zafl.strings.$$
