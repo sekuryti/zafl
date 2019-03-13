@@ -26,14 +26,14 @@ cd zipr_umbrella
 
 cd $ZAFL_HOME
 cd tools
-scons $SCONSDEBUG -j 3
+scons $SCONSDEBUG -j 3 || exit
 
 cd $ZAFL_HOME
 $PEDI_HOME/pedi -m manifest.txt || exit
 
 cd $ZAFL_HOME/libzafl
-scons
-cp lib/* $ZEST_RUNTIME/lib64/
+scons || exit
+cp lib/* $ZEST_RUNTIME/lib64/ || exit
 
 cd $ZAFL_HOME
 echo "ZAFL Overall build complete."

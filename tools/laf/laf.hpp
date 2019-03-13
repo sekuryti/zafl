@@ -13,7 +13,7 @@ namespace Laf
 {
 	using RegisterSet_t = IRDB_SDK::RegisterIDSet_t;
 
-	class Laf_t : public IRDB_SDK::Transform
+	class Laf_t : public IRDB_SDK::Transform_t
 	{
 		public:
 			// explicitly disable default and copy constructors

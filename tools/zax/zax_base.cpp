@@ -86,7 +86,7 @@ bool ZaxBase_t::BB_isPushJmp(const BasicBlock_t *p_bb) const
 
 ZaxBase_t::ZaxBase_t(IRDB_SDK::pqxxDB_t &p_dbinterface, IRDB_SDK::FileIR_t *p_variantIR, string p_forkServerEntryPoint, set<string> p_exitPoints, bool p_use_stars, bool p_autozafl)
 	:
-	Transform(p_variantIR),
+	Transform_t(p_variantIR),
 	m_dbinterface(p_dbinterface),
 	m_use_stars(p_use_stars),
 	m_autozafl(p_autozafl),

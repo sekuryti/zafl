@@ -38,7 +38,7 @@ using namespace MEDS_Annotation;
 
 Laf_t::Laf_t(IRDB_SDK::pqxxDB_t &p_dbinterface, IRDB_SDK::FileIR_t *p_variantIR, bool p_verbose)
 	:
-	Transform(p_variantIR),
+	Transform_t(p_variantIR),
 	m_dbinterface(p_dbinterface),
 	m_verbose(p_verbose)
 {

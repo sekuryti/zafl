@@ -28,7 +28,7 @@ namespace Zafl
 	 *   - fork server
 	 *   - trace map 
 	 */
-	class ZaxBase_t : public Transform
+	class ZaxBase_t : public Transform_t
 	{
 		public:
 			ZaxBase_t() = delete;
