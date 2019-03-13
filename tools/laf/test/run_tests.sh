@@ -1,3 +1,6 @@
+
+cd "$(dirname $(readlink -f "$0"))"
+
 make clean test0.laf.zafl
 
 cleanup() {
