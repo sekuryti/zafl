@@ -291,22 +291,23 @@ bool Laf_t::getFreeRegister(Instruction_t* p_instr, string& p_freereg, RegisterS
 	{
 		const auto first_free_register = FIRSTOF(free_regs);
 		free_regs.erase(first_free_register);
-		p_freereg = registerToString(convertRegisterTo32bit(first_free_register));
+//		p_freereg = registerToString(convertRegisterTo32bit(first_free_register));
+		p_freereg = registerToString(first_free_register);
 		save_temp = false;
 	}
 	else
 	{
 		const auto disasm = p_instr->getDisassembly();
 		if (disasm.find("r11")==string::npos)
-			p_freereg = "r11d";
+			p_freereg = "r11";
 		else if (disasm.find("r12")==string::npos)
-			p_freereg = "r12d";
+			p_freereg = "r12";
 		else if (disasm.find("r13")==string::npos)
-			p_freereg = "r13d";
+			p_freereg = "r13";
 		else if (disasm.find("r14")==string::npos)
-			p_freereg = "r14d";
+			p_freereg = "r14";
 		else if (disasm.find("r15")==string::npos)
-			p_freereg = "r15d";
+			p_freereg = "r15";
 		save_temp = true;
 	}
 
@@ -606,11 +607,19 @@ int Laf_t::doSplitCompare()
 				continue;
 		 	}
 
+			// XXX DEBUG @todo
+			if (d.getOperand(0)->getArgumentSizeInBytes()<4)
+			{
+				m_skip_word++;
+				continue;
+			}
+
 			// we have a cmp followed by a conditial jmp (je, jne)
 			m_num_cmp++;
 
 			// we now have a cmp instruction to trace
-			// we handle 2, 4, 8 byte compares
+			// we handle 4, 8 byte compares
+			// XXX: @todo: handle 2 byte compares
 			if (d.getOperand(0)->isRegister() || d.getOperand(0)->isMemory())
 				to_split_compare.push_back(i);
 			else
@@ -627,8 +636,16 @@ int Laf_t::doSplitCompare()
 					break;
 			}
 			const auto s = c->getDisassembly();
-			const auto honorRedZone = hasLeafAnnotation(c->getFunction());
-			if (instrumentCompare(c, honorRedZone))
+//			const auto honorRedZone = hasLeafAnnotation(c->getFunction());
+//			if (instrumentCompare(c, honorRedZone))
+			const auto dp = DecodedInstruction_t::factory(c);
+			const auto &d = *dp;
+			/*
+			auto num_bytes_to_compare = d.getOperand(0)->getArgumentSizeInBytes();
+			if ((d.getImmediate() & 0xFFFFFFFF00000000) == 0)
+				num_bytes_to_compare = 4;
+			*/
+			if (traceBytes48(c, d.getOperand(0)->getArgumentSizeInBytes(), d.getImmediate()))
 			{
 				if (m_verbose) cout << "success for " << s << endl;
 				m_num_cmp_instrumented++;
@@ -797,11 +814,11 @@ int Laf_t::doTraceDiv()
 			const auto &d = *dp;
 			if (d.getMnemonic() != "div" && d.getMnemonic() !="idiv") continue;
 			if (d.getOperands().size()!=1) continue;
-			if (d.getOperand(0)->getArgumentSizeInBytes()<2) continue;
+			if (d.getOperand(0)->getArgumentSizeInBytes()<4) continue;
 
 			m_num_div++;
 
-			// we handle 2, 4, 8 byte div
+			// we handle 4, 8 byte div
 			if (d.getOperand(0)->isRegister() || d.getOperand(0)->isMemory())
 				to_trace_div.push_back(i);
 		};
@@ -816,8 +833,9 @@ int Laf_t::doTraceDiv()
 					break;
 			}
 			const auto s = c->getDisassembly();
-			const auto honorRedZone = hasLeafAnnotation(c->getFunction());
-			if (instrumentDiv(c, honorRedZone))
+			const auto dp = DecodedInstruction_t::factory(c);
+			const auto &d = *dp;
+			if (traceBytes48(c, d.getOperand(0)->getArgumentSizeInBytes(), 0))
 			{
 				if (m_verbose)
 					cout << "success for " << s << endl;
@@ -837,6 +855,229 @@ int Laf_t::doTraceDiv()
 	};
 
 	return 1;	 // true means success
+}
+
+
+//
+// trace <p_num_bytes> before instruction <p_instr> using bytes in <p_constant> starting at memory location <p_mem>
+// p_reg is a free register
+// p_num_bytes has value 4 or 8
+// 
+//     t = reg[lodword]           ; t is a register
+//     m = k[lodword]             ; m is memory where we stashed the constant
+//     cmp t, dword [m]          ; elide if 4 byte compare
+//  +- je check_upper            ; elide if 4 byte compare
+//  |  cmp t, dword [m]  <--+    ; loop_back
+//  |  je orig              |
+//  |  t >> 8               |
+//  |  m >> 8               |
+//  |  jmp -----------------+
+//  |
+//  check_upper:                ; only if 8 byte compare
+//     t1 = reg[hidword]
+//     m = k[hidword]
+//     cmp t, dword [m]  <--+
+//     je orig              |
+//     t >> 8               |
+//     m >> 8               |
+//     jmp -----------------+
+//
+// orig:
+//     cmp reg, K or cmp [], K
+// 
+bool Laf_t::traceBytes48(Instruction_t *p_instr, size_t p_num_bytes, uint64_t p_immediate)
+{
+	assert(p_num_bytes==4 || p_num_bytes==8);
+
+	// bail out, there's a reloc here
+	if (p_instr->getRelocations().size() > 0)
+	{
+		m_skip_relocs++;
+		return false;
+	}
+
+	const auto dp = DecodedInstruction_t::factory(p_instr);
+	const auto &d = *dp;
+
+	//
+	// start instrumenting below
+	//
+	
+	// [rsp-128] contains the constant
+	// [rsp-128+16] used to save register (if we can't find a free register)
+	auto s = string();
+	auto t = p_instr;
+	auto traced_instr = p_instr;
+
+	// copy constant into bottom of red zone
+	const auto mem = string("rsp-128"); // use last 4 or 8 byte of red zone
+	if (p_num_bytes == 4)
+	{
+		s = "mov dword[" + mem + "], " + to_string(p_immediate);
+		traced_instr = insertAssemblyBefore(t, s);
+		cout << s << endl;
+	}
+	else				
+	{
+		s = "mov qword[" + mem + "], " + to_string(p_immediate);
+		traced_instr = insertAssemblyBefore(t, s);
+		cout << s << endl;
+	}
+
+	// copy value to compare into free register
+	auto save_tmp = true;
+	auto free_reg8 = string("");
+	if (d.getMnemonic()== "div" && d.getMnemonic()=="idiv") 
+		save_tmp = getFreeRegister(p_instr, free_reg8, RegisterSet_t({rn_RBX, rn_RCX, rn_RDI, rn_RSI, rn_R8, rn_R9, rn_R10, rn_R11, rn_R12, rn_R13, rn_R14, rn_R15}));
+	else
+		save_tmp = getFreeRegister(p_instr, free_reg8, RegisterSet_t({rn_RAX, rn_RBX, rn_RCX, rn_RDX, rn_RDI, rn_RSI, rn_R8, rn_R9, rn_R10, rn_R11, rn_R12, rn_R13, rn_R14, rn_R15}));
+	const auto free_reg4 = registerToString(convertRegisterTo32bit(Register::getRegister(free_reg8)));
+	assert(!free_reg8.empty());
+	
+	if (m_verbose)
+	{
+		cout << "temporary register needs to be saved: " << boolalpha << save_tmp << endl;
+		cout << "temporary register is: " << free_reg8 << endl;
+	}
+
+	// stash away original register value (if needed)
+	const auto red_zone_reg = string(" qword [rsp-128+16] ");
+	if (save_tmp)
+	{
+		s = "mov " + red_zone_reg + ", " + free_reg8;
+		t = insertAssemblyAfter(t, s);
+		cout << "save tmp: " << s << endl;
+	}
+
+	if (d.getOperand(0)->isRegister())
+	{
+		auto source_reg = d.getOperand(0)->getString();
+		source_reg = registerToString(convertRegisterTo32bit(Register::getRegister(source_reg)));
+		s = "mov " + free_reg4 + ", " + source_reg;
+		t = insertAssemblyAfter(t, s);
+		cout << "mov val: " << s << endl;
+	}
+	else
+	{
+		const auto memopp = d.getOperand(0);
+		const auto &memop = *memopp;
+		const auto memop_str = memop.getString();
+		s = "mov " + free_reg4 + ", dword [ " + memop_str + "]"; 
+		t = insertAssemblyAfter(t, s);
+		cout << s << endl;
+	}
+
+	auto patch_check_upper = (Instruction_t*) nullptr;
+	if (p_num_bytes == 8)
+	{
+		s = "cmp " + free_reg4 + ", dword [" + mem + "]";
+		t = insertAssemblyAfter(t, s);
+		cout << s << endl;
+
+		s = "je 0"; // check_upper
+		patch_check_upper = t = insertAssemblyAfter(t, s); // target will need to be set
+		cout << s << endl;
+	}
+
+	// loop_back
+	s = "cmp " + free_reg4 + ", dword [" + mem + "]";
+	const auto loop_back = t = insertAssemblyAfter(t, s);
+	cout << s << endl;
+
+	s = "je 0"; // orig
+	t = insertAssemblyAfter(t, s);
+	t->setTarget(traced_instr);
+	cout << s << endl;
+	
+	s = "shr " + free_reg4 + ", 8";
+	t = insertAssemblyAfter(t, s);
+	cout << s << endl;
+
+	s = "shr dword [" + mem + "], 8";
+	t = insertAssemblyAfter(t, s);
+	cout << s << endl;
+
+	s = "jmp 0"; // loop_back
+	t = insertAssemblyAfter(t, "jmp 0"); // loop_back
+	t->setTarget(loop_back);
+	t->setFallthrough(nullptr);
+	cout << s << endl;
+
+	if (save_tmp)
+	{
+		s = "mov " + free_reg8 + ", " + red_zone_reg;
+		insertAssemblyBefore(traced_instr, s);
+		cout << "restore tmp:" << s << endl;
+	}
+
+	if (p_num_bytes == 4)
+	{
+		return true;
+	}
+
+	// check_upper
+	//
+	// mem is memory location representing constant (hidword)
+	// p_reg is register representing the value to be checked (hidword)
+	//
+//  check_upper: 
+//     t1 = reg[hidword]
+//     m = k[hidword]
+//     cmp t, dword [m]  <--+
+//     je orig              |
+//     t >> 8               |
+//     m >> 8               |
+//     jmp -----------------+
+//
+
+	if (d.getOperand(0)->isRegister())
+	{
+		s = "mov " + free_reg8 + ", " + d.getOperand(0)->getString();
+		t = insertAssemblyAfter(t, s);
+		patch_check_upper->setTarget(t);
+		cout << "mov val(2): " << s << endl;
+
+		// we want the upper 32-bit of the register
+		s = "shr " + free_reg8 + ", 32";
+		t = insertAssemblyAfter(t, s);
+		cout << s << endl;
+	}
+	else
+	{
+		// we want the upper 32 bits of the memory access
+		const auto memopp = d.getOperand(0);
+		const auto &memop = *memopp;
+		const auto memop_str = memop.getString();
+		s = "mov " + free_reg4 + ", dword [ " + memop_str + "+4]"; 
+		t = insertAssemblyAfter(t, s);
+		patch_check_upper->setTarget(t);
+		cout << s << endl;
+	}
+
+
+	s = "cmp " + free_reg4 + ", dword [" + mem + "+4]"; // loop_back2
+	auto loop_back2 = t = insertAssemblyAfter(t, s);
+	cout << s << endl;
+
+	s = "je 0"; // orig
+	t = insertAssemblyAfter(t, s);
+	t->setTarget(traced_instr);
+	cout << s << endl;
+
+	s = "shr " + free_reg4 + ", 8";
+	t = insertAssemblyAfter(t, s);
+	cout << s << endl;
+
+	s = "shr dword [" + mem + "+4], 8";
+	t = insertAssemblyAfter(t, s);
+	cout << s << endl;
+
+	s = "jmp 0"; // loop_back2
+	t = insertAssemblyAfter(t, s);
+	t->setTarget(loop_back2);
+	cout << s << endl;
+
+	return true;
 }
 
 int Laf_t::execute()

@@ -11,15 +11,16 @@
 
 namespace Laf
 {
+	using namespace IRDB_SDK;
 	using RegisterSet_t = IRDB_SDK::RegisterIDSet_t;
 
-	class Laf_t : public IRDB_SDK::Transform_t
+	class Laf_t : public Transform_t
 	{
 		public:
 			// explicitly disable default and copy constructors
 			Laf_t() = delete;
 			Laf_t(const Laf::Laf_t&) = delete;
-			Laf_t(IRDB_SDK::pqxxDB_t &p_dbinterface, IRDB_SDK::FileIR_t *p_variantIR, bool p_verbose=false);
+			Laf_t(pqxxDB_t &p_dbinterface, FileIR_t *p_variantIR, bool p_verbose=false);
 			int execute();
 			void setSplitCompare(bool);
 			bool getSplitCompare() const;
@@ -27,24 +28,25 @@ namespace Laf
 			bool getTraceDiv() const;
 
 		private:
-			RegisterSet_t getDeadRegs(IRDB_SDK::Instruction_t* insn) const;
+			RegisterSet_t getDeadRegs(Instruction_t* insn) const;
 			RegisterSet_t getFreeRegs(const RegisterSet_t& candidates, const RegisterSet_t& allowed) const;
 			int doSplitCompare();
 			int doTraceDiv();
-			bool isBlacklisted(IRDB_SDK::Function_t*) const;
-			bool hasLeafAnnotation(IRDB_SDK::Function_t* fn) const;
-			bool instrumentCompare(IRDB_SDK::Instruction_t* p_instr, bool p_honor_red_zone);
-			bool instrumentDiv(IRDB_SDK::Instruction_t* p_instr, bool p_honor_red_zone);
-			bool getFreeRegister(IRDB_SDK::Instruction_t* p_instr, std::string& p_freereg, RegisterSet_t);
-			IRDB_SDK::Instruction_t* traceDword(IRDB_SDK::Instruction_t* p_instr, const size_t p_num_bytes, const std::vector<std::string> p_init_sequence, const uint32_t p_immediate, const std::string p_freereg);
-			IRDB_SDK::Instruction_t* addInitSequence(IRDB_SDK::Instruction_t* p_instr, const std::vector<std::string> sequence);
-			bool memoryStackAccess(IRDB_SDK::Instruction_t* p_instr, unsigned p_operandNumber=0);
-			std::vector<std::string> getInitSequence(IRDB_SDK::Instruction_t *p_instr, std::string p_free_reg);
+			bool isBlacklisted(Function_t*) const;
+			bool hasLeafAnnotation(Function_t* fn) const;
+			bool instrumentCompare(Instruction_t* p_instr, bool p_honor_red_zone);
+			bool instrumentDiv(Instruction_t* p_instr, bool p_honor_red_zone);
+			bool getFreeRegister(Instruction_t* p_instr, std::string& p_freereg, RegisterSet_t);
+			Instruction_t* traceDword(Instruction_t* p_instr, const size_t p_num_bytes, const std::vector<std::string> p_init_sequence, const uint32_t p_immediate, const std::string p_freereg);
+			Instruction_t* addInitSequence(Instruction_t* p_instr, const std::vector<std::string> sequence);
+			bool memoryStackAccess(Instruction_t* p_instr, unsigned p_operandNumber=0);
+			std::vector<std::string> getInitSequence(Instruction_t *p_instr, std::string p_free_reg);
+			bool traceBytes48(Instruction_t *p_instr, size_t p_num_bytes, uint64_t p_immediate);
 
 		private:
-			IRDB_SDK::pqxxDB_t &m_dbinterface;
-			std::unique_ptr<IRDB_SDK::FunctionSet_t>      leaf_functions;
-			std::unique_ptr<IRDB_SDK::DeadRegisterMap_t>  dead_registers;
+			pqxxDB_t &m_dbinterface;
+			std::unique_ptr<FunctionSet_t>      leaf_functions;
+			std::unique_ptr<DeadRegisterMap_t>  dead_registers;
 			bool m_verbose;
 			bool m_split_compare;
 			bool m_trace_div;
