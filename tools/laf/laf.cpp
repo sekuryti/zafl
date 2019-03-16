@@ -228,10 +228,6 @@ int Laf_t::doTraceCompare()
 				continue;
 		 	}
 
-			// XXX DEBUG
-			if (d.getOperand(0)->getArgumentSizeInBytes()>=4)
-				continue;
-
 			m_num_cmp++;
 
 			// we now have a cmp instruction to trace
@@ -383,7 +379,7 @@ bool Laf_t::traceBytes2(Instruction_t *p_instr, const uint32_t p_immediate)
 	else
 		save_tmp = getFreeRegister(p_instr, free_reg8, RegisterSet_t({rn_RAX, rn_RBX, rn_RCX, rn_RDX, rn_RDI, rn_RSI, rn_R8, rn_R9, rn_R10, rn_R11, rn_R12, rn_R13, rn_R14, rn_R15}));
 	const auto free_reg1 = registerToString(convertRegisterTo8bit(Register::getRegister(free_reg8)));
-	const auto free_reg4 = registerToString(convertRegisterTo16bit(Register::getRegister(free_reg8)));
+	const auto free_reg4 = registerToString(convertRegisterTo32bit(Register::getRegister(free_reg8)));
 	if(free_reg1.empty()) throw;
 	
 	if (m_verbose)
