@@ -22,25 +22,20 @@ namespace Laf
 			Laf_t(const Laf::Laf_t&) = delete;
 			Laf_t(pqxxDB_t &p_dbinterface, FileIR_t *p_variantIR, bool p_verbose=false);
 			int execute();
-			void setSplitCompare(bool);
-			bool getSplitCompare() const;
+			void setTraceCompare(bool);
+			bool getTraceCompare() const;
 			void setTraceDiv(bool);
 			bool getTraceDiv() const;
 
 		private:
 			RegisterSet_t getDeadRegs(Instruction_t* insn) const;
 			RegisterSet_t getFreeRegs(const RegisterSet_t& candidates, const RegisterSet_t& allowed) const;
-			int doSplitCompare();
+			int doTraceCompare();
 			int doTraceDiv();
 			bool isBlacklisted(Function_t*) const;
 			bool hasLeafAnnotation(Function_t* fn) const;
-			bool instrumentCompare(Instruction_t* p_instr, bool p_honor_red_zone);
-			bool instrumentDiv(Instruction_t* p_instr, bool p_honor_red_zone);
 			bool getFreeRegister(Instruction_t* p_instr, std::string& p_freereg, RegisterSet_t);
-			Instruction_t* traceDword(Instruction_t* p_instr, const size_t p_num_bytes, const std::vector<std::string> p_init_sequence, const uint32_t p_immediate, const std::string p_freereg);
-			Instruction_t* addInitSequence(Instruction_t* p_instr, const std::vector<std::string> sequence);
-			bool memoryStackAccess(Instruction_t* p_instr, unsigned p_operandNumber=0);
-			std::vector<std::string> getInitSequence(Instruction_t *p_instr, std::string p_free_reg);
+			bool traceBytes2(Instruction_t *p_instr, uint32_t p_immediate);
 			bool traceBytes48(Instruction_t *p_instr, size_t p_num_bytes, uint64_t p_immediate);
 
 		private:
@@ -48,7 +43,7 @@ namespace Laf
 			std::unique_ptr<FunctionSet_t>      leaf_functions;
 			std::unique_ptr<DeadRegisterMap_t>  dead_registers;
 			bool m_verbose;
-			bool m_split_compare;
+			bool m_trace_compare;
 			bool m_trace_div;
 			std::set<std::string> m_blacklist;
 			size_t m_num_cmp;

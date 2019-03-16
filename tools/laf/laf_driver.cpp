@@ -33,8 +33,10 @@ void usage(char* name)
 {
 	cerr<<"Usage: "<<name<<" <variant_id>\n";
 	cerr<<"\t[--verbose | -v]                       Verbose mode                  "<<endl;
-	cerr<<"\t[--enable-split-compare | -c]          Enable split compare          "<<endl;
-	cerr<<"\t[--disable-split-compare | -c]         Disable split compare          "<<endl;
+	cerr<<"\t[--enable-trace-compare | -c]          Enable trace compare          "<<endl;
+	cerr<<"\t[--disable-trace-compare | -c]         Disable trace compare          "<<endl;
+	cerr<<"\t[--enable-trace-div | -d]              Enable trace div          "<<endl;
+	cerr<<"\t[--disable-trace-div | -D]             Disable trace div          "<<endl;
 	cerr<<"[--help,--usage,-?,-h]                   Display this message           "<<endl;
 }
 
@@ -49,7 +51,7 @@ int main(int argc, char **argv)
 	string programName(argv[0]);
 	auto variantID = atoi(argv[1]);
 	auto verbose=false;
-	auto split_compare = true;
+	auto trace_compare = true;
 	auto trace_div = true;
 
 	// Parse some options for the transform
@@ -57,8 +59,8 @@ int main(int argc, char **argv)
 		{"verbose", no_argument, 0, 'v'},
 		{"help", no_argument, 0, 'h'},
 		{"usage", no_argument, 0, '?'},
-		{"enable-split-compare", no_argument, 0, 'c'},
-		{"disable-split-compare", no_argument, 0, 'C'},
+		{"enable-trace-compare", no_argument, 0, 'c'},
+		{"disable-trace-compare", no_argument, 0, 'C'},
 		{"enable-trace-div", no_argument, 0, 'd'},
 		{"disable-trace-div", no_argument, 0, 'D'},
 		{0,0,0,0}
@@ -82,10 +84,10 @@ int main(int argc, char **argv)
 			exit(1);
 			break;
 		case 'c':
-			split_compare=true;
+			trace_compare=true;
 			break;
 		case 'C':
-			split_compare=false;
+			trace_compare=false;
 			break;
 		case 'd':
 			trace_div=true;
@@ -121,7 +123,7 @@ int main(int argc, char **argv)
 		try
 		{
 			Laf_t laf(*pqxx_interface, firp.get(), verbose);
-			laf.setSplitCompare(split_compare);
+			laf.setTraceCompare(trace_compare);
 			laf.setTraceDiv(trace_div);
 
 			int success=laf.execute();
