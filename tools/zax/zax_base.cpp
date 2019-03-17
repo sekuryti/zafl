@@ -108,12 +108,12 @@ ZaxBase_t::ZaxBase_t(IRDB_SDK::pqxxDB_t &p_dbinterface, IRDB_SDK::FileIR_t *p_va
 	if (p_autozafl)
 	{
 		cout << "autozafl library is on" << endl;
-		(void)ed->prependLibraryDepedencies("libautozafl.so");
+		(void)ed->appendLibraryDepedencies("libautozafl.so");
 	}
 	else
 	{
 		cout << "autozafl library is off" << endl;
-		(void)ed->prependLibraryDepedencies("libzafl.so");
+		(void)ed->appendLibraryDepedencies("libzafl.so");
 	}
 
 	// bind to external symbols declared in libzafl.so
@@ -1171,7 +1171,7 @@ int ZaxBase_t::execute()
 			return lhs->getBaseID() < rhs->getBaseID();
 		}
 	};
-	auto sortedFuncs=set<Function_t*, BaseIDSorter>( ALLOF(getFileIR()->getFunctions()));
+	const auto sortedFuncs=set<Function_t*, BaseIDSorter>( ALLOF(getFileIR()->getFunctions()));
 	for(auto f :  sortedFuncs)
 	{
 		if (f == nullptr )       continue;

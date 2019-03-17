@@ -9,7 +9,6 @@ myenv=env.Clone()
 
 cpppath=''' 
 	 $IRDB_SDK/include 
-	 $SECURITY_TRANSFORMS_HOME/include
 	 $SMPSA_HOME/include
 	'''
 
