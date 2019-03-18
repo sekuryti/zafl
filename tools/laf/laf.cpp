@@ -255,20 +255,35 @@ int Laf_t::doTraceCompare()
 			{
 				if (traceBytes2(c, d.getImmediate()))
 				{
-					if (m_verbose) cout << "success for " << s << endl;
+					if (m_verbose) 
+					{
+						cout << "success for " << s << endl;
+					}
 					m_num_cmp_instrumented++;
 				}
 			}
 			else if (traceBytes48(c, d.getOperand(0)->getArgumentSizeInBytes(), d.getImmediate()))
 			{
-				if (m_verbose) cout << "success for " << s << endl;
+				if (m_verbose)
+				{
+					cout << "success for " << s << endl;
+				}
 				m_num_cmp_instrumented++;
 			}
 		}
 
+		if (m_verbose) 
+		{
+ 			getFileIR()->assembleRegistry();
+		 	getFileIR()->setBaseIDS();
+			cout << "Post transformation CFG for " << func->getName() << ":" << endl;
+			auto post_cfg=ControlFlowGraph_t::factory(func);	
+			cout << *post_cfg << endl;
+		}
 	};
 
 	return 1;	 // true means success
+
 }
 
 int Laf_t::doTraceDiv()
@@ -445,24 +460,27 @@ bool Laf_t::traceBytes2(Instruction_t *p_instr, const uint32_t p_immediate)
 // p_reg is a free register
 // p_num_bytes has value 4 or 8
 // 
-//     t = reg[lodword]           ; t is a register
-//     m = k[lodword]             ; m is memory where we stashed the constant
+//     t = reg[0..3]          ; t is a register
+//     m = k[0..3]            ; m is memory where we stashed the constant
 //     cmp t, dword [m]          ; elide if 4 byte compare
 //  +- je check_upper            ; elide if 4 byte compare
-//  |  cmp t, dword [m]  <--+    ; loop_back
-//  |  je orig              |
-//  |  t >> 8               |
-//  |  m >> 8               |
-//  |  jmp -----------------+
-//  |
+//  |  
+//  |  cmp t, byte [m]   <---+    ; loop_back
+//  |  jne orig              |
+//  |  t >> 8                |
+//  |  m >> 8                |
+//  |  jmp ------------------+
+//  |  and t, 0x00ffffff        ; clear 4th byte
+//  |  mov m[3], 0xff           ; clear 4th byte
 //  check_upper:                ; only if 8 byte compare
-//     t1 = reg[hidword]
-//     m = k[hidword]
-//     cmp t, dword [m]  <--+
-//     je orig              |
-//     t >> 8               |
-//     m >> 8               |
-//     jmp -----------------+
+//     t = reg[4..7]
+//     and t, 0x00ffffff        ; clear 7th byte
+//     mov m[7], 0xff           ; clear 7th byte
+//     cmp t, dword [m+4] <--+
+//     jne orig              |
+//     t >> 8                |
+//     m >> 8                |
+//     jmp ------------------+
 //
 // orig:
 //     cmp reg, K or cmp [], K
@@ -518,6 +536,7 @@ bool Laf_t::traceBytes48(Instruction_t *p_instr, size_t p_num_bytes, uint64_t p_
 		save_tmp = getFreeRegister(p_instr, free_reg8, RegisterSet_t({rn_RBX, rn_RCX, rn_RDI, rn_RSI, rn_R8, rn_R9, rn_R10, rn_R11, rn_R12, rn_R13, rn_R14, rn_R15}));
 	else
 		save_tmp = getFreeRegister(p_instr, free_reg8, RegisterSet_t({rn_RAX, rn_RBX, rn_RCX, rn_RDX, rn_RDI, rn_RSI, rn_R8, rn_R9, rn_R10, rn_R11, rn_R12, rn_R13, rn_R14, rn_R15}));
+	const auto free_reg1 = registerToString(convertRegisterTo8bit(Register::getRegister(free_reg8)));
 	const auto free_reg4 = registerToString(convertRegisterTo32bit(Register::getRegister(free_reg8)));
 	if(free_reg8.empty()) throw;
 	
@@ -536,6 +555,7 @@ bool Laf_t::traceBytes48(Instruction_t *p_instr, size_t p_num_bytes, uint64_t p_
 		cout << "save tmp: " << s << endl;
 	}
 
+	// copy value into free register
 	if (d.getOperand(0)->isRegister())
 	{
 		auto source_reg = d.getOperand(0)->getString();
@@ -566,12 +586,24 @@ bool Laf_t::traceBytes48(Instruction_t *p_instr, size_t p_num_bytes, uint64_t p_
 		cout << s << endl;
 	}
 
+	// make sure to terminate by using 0x00 and 0xFF in upper byte
+	//
+	// clear 4th byte of value
+	s = "and " + free_reg4 + ", 0x00FFFFFF";
+	t = insertAssemblyAfter(t, s);
+	cout << "clear byte4 of val: " << s << endl;
+	
+	// set 4th byte of constant
+	s = "mov byte ["  + mem + "+3], 0xFF";
+	t = insertAssemblyAfter(t, s);
+	cout << "clear byte4 of K  : " << s << endl;
+
 	// loop_back
-	s = "cmp " + free_reg4 + ", dword [" + mem + "]";
+	s = "cmp " + free_reg1 + ", byte [" + mem + "]";
 	const auto loop_back = t = insertAssemblyAfter(t, s);
 	cout << s << endl;
 
-	s = "je 0"; // orig
+	s = "jne 0"; // orig
 	t = insertAssemblyAfter(t, s);
 	t->setTarget(traced_instr);
 	cout << s << endl;
@@ -584,8 +616,8 @@ bool Laf_t::traceBytes48(Instruction_t *p_instr, size_t p_num_bytes, uint64_t p_
 	t = insertAssemblyAfter(t, s);
 	cout << s << endl;
 
-	s = "jmp 0"; // loop_back
-	t = insertAssemblyAfter(t, "jmp 0"); // loop_back
+	s = "jmp 0"; // jump to loop_back
+	t = insertAssemblyAfter(t, s); 
 	t->setTarget(loop_back);
 	t->setFallthrough(nullptr);
 	cout << s << endl;
@@ -606,16 +638,17 @@ bool Laf_t::traceBytes48(Instruction_t *p_instr, size_t p_num_bytes, uint64_t p_
 	//
 	// mem is memory location representing constant (hidword)
 	// p_reg is register representing the value to be checked (hidword)
+	// 
+	//  check_upper:                ; only if 8 byte compare
+	//     t = reg[4..7]
+	//     and t, 0x00ffffff        ; clear 7th byte
+	//     mov m[7], 0xff           ; clear 7th byte
+	//     cmp t, dword [m+4] <--+
+	//     jne orig              |
+	//     t >> 8                |
+	//     m >> 8                |
+	//     jmp ------------------+
 	//
-//  check_upper: 
-//     t1 = reg[hidword]
-//     m = k[hidword]
-//     cmp t, dword [m]  <--+
-//     je orig              |
-//     t >> 8               |
-//     m >> 8               |
-//     jmp -----------------+
-//
 
 	if (d.getOperand(0)->isRegister())
 	{
@@ -641,12 +674,24 @@ bool Laf_t::traceBytes48(Instruction_t *p_instr, size_t p_num_bytes, uint64_t p_
 		cout << s << endl;
 	}
 
+	// make sure to terminate by using 0x00 and 0xFF in upper byte
+	//
+	// clear 4th byte of value (7th byte of original)
+	s = "and " + free_reg4 + ", 0x00FFFFFF";
+	t = insertAssemblyAfter(t, s);
+	cout << "clear byte7 of orig val: " << s << endl;
+	
+	// set 7th byte of constant
+	s = "mov byte ["  + mem + "+7], 0xFF";
+	t = insertAssemblyAfter(t, s);
+	cout << "clear byte7 of K  : " << s << endl;
 
-	s = "cmp " + free_reg4 + ", dword [" + mem + "+4]"; // loop_back2
+	// loop_back2
+	s = "cmp " + free_reg4 + ", dword [" + mem + "+4]"; 
 	auto loop_back2 = t = insertAssemblyAfter(t, s);
 	cout << s << endl;
 
-	s = "je 0"; // orig
+	s = "jne 0"; // orig
 	t = insertAssemblyAfter(t, s);
 	t->setTarget(traced_instr);
 	cout << s << endl;
@@ -659,9 +704,10 @@ bool Laf_t::traceBytes48(Instruction_t *p_instr, size_t p_num_bytes, uint64_t p_
 	t = insertAssemblyAfter(t, s);
 	cout << s << endl;
 
-	s = "jmp 0"; // loop_back2
+	s = "jmp 0"; // jmp to loop_back2
 	t = insertAssemblyAfter(t, s);
 	t->setTarget(loop_back2);
+	t->setFallthrough(nullptr);
 	cout << s << endl;
 
 	return true;

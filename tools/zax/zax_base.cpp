@@ -1189,7 +1189,8 @@ int ZaxBase_t::execute()
 		const auto num_blocks_in_func = cfg.getBlocks().size();
 		m_num_bb += num_blocks_in_func;
 
-		if (m_graph_optimize && num_blocks_in_func == 1)
+		// skip single-block functions that are not indirectly called
+		if (num_blocks_in_func == 1 && !f->getEntryPoint()->getIndirectBranchTargetAddress())
 		{
 			m_num_single_block_function_elided++;
 			m_num_bb_skipped++;
