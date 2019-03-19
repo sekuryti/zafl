@@ -464,14 +464,13 @@ bool Laf_t::traceBytes2(Instruction_t *p_instr, const uint32_t p_immediate)
 //     m = k[0..3]            ; m is memory where we stashed the constant
 //     cmp t, dword [m]          ; elide if 4 byte compare
 //  +- je check_upper            ; elide if 4 byte compare
-//  |  
+//  |  and t, 0x00ffffff        ; clear 4th byte
+//  |  mov m[3], 0xff           ; clear 4th byte
 //  |  cmp t, byte [m]   <---+    ; loop_back
 //  |  jne orig              |
 //  |  t >> 8                |
 //  |  m >> 8                |
 //  |  jmp ------------------+
-//  |  and t, 0x00ffffff        ; clear 4th byte
-//  |  mov m[3], 0xff           ; clear 4th byte
 //  check_upper:                ; only if 8 byte compare
 //     t = reg[4..7]
 //     and t, 0x00ffffff        ; clear 7th byte
