@@ -1222,9 +1222,12 @@ int ZaxBase_t::execute()
 
 		if (m_graph_optimize)
 		{
+		/*
+			supplanted by Tikir's algorithm: turn on dominator graph  option
 			filterConditionalBranches(keepers);
 			if (m_verbose)
 				cout << "num blocks to keep (after filter conditional branches): " << keepers.size() << endl;
+		*/
 			filterEntryBlock(keepers, entry_block);
 			if (m_verbose)
 				cout << "num blocks to keep (after filter entry): " << keepers.size() << endl;
