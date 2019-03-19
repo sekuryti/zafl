@@ -214,11 +214,11 @@ parse_args()
 				shift
 				case $1 in
 					function)
-						zax_opt=" -o zax:\"--enable-context-sensitivity function\" "
+						zax_opt=" $zax_opt -o zax:\"--enable-context-sensitivity function\" "
 						shift
 					;;
 					callsite)
-						zax_opt=" -o zax:\"--enable-context-sensitivity callsite\" "
+						zax_opt=" $zax_opt -o zax:\"--enable-context-sensitivity callsite\" "
 						echo "Error: context sensitivity <callsite> currently unsupported"
 						exit 1
 					;;

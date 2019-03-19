@@ -1276,7 +1276,7 @@ int ZaxBase_t::execute()
 		if (getContextSensitivity() != ContextSensitivity_None)
 		{
 			// this handles inserting the calling context sensitivity value
-			// at entry and exits of functions (todo: or at call sites a la Angora)
+			// at entry and exits of functions
  			getFileIR()->assembleRegistry();
 		 	getFileIR()->setBaseIDS();
 			auto cs_cfg=ControlFlowGraph_t::factory(f);	
