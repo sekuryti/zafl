@@ -37,5 +37,28 @@ int main(int argc, char **argv)
 	if (y != K) {
 		fprintf(stdout, "y(%d) is not equal to K(%d)\n", y, K);
 	}
+
+	y += y + K;
+
+	int z = 233353 / (y);
+	int m = 233353 % y;
+	fprintf(stdout, "z=%d m=%d\n", z, m);
+	z = -3444 / y;
+	fprintf(stdout, "z=%d\n", z);
+
+	long xx = x;
+	if (xx == 12345)
+		printf("xx == 12345\n");
+	else
+		printf("xx != 12345\n");
+	if (xx == (z+5)/12345)
+		printf("xx == z/12345\n");
+	else
+		printf("xx != z/12345\n");
+
+	if (xx >= -5)
+		printf("xx >= -5\n");
+	else
+		printf("xx < -5\n");
 	return 0;
 }

@@ -1,16 +1,15 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-volatile int compare_me(long x)
+volatile int compare_me(int x)
 {
-	if (x == 0x12345678L)
+	if (x == -0x12345678)
             abort();
 }
 
 int main(int argc, char **argv)
 {
-	long x;
-	int y;
+	int x;
 	FILE *fp = fopen(argv[1],"r");
 
 	if (!fp) {
@@ -18,9 +17,7 @@ int main(int argc, char **argv)
 		return 1;
 	}
 
-	printf("sizeof(x)=%lu\n", sizeof(x));
-
-	fread(&x, 8, 1, fp);
+	fread(&x, 4, 1, fp);
 
 	compare_me(x);
 

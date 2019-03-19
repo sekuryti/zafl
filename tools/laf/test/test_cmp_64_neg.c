@@ -3,7 +3,7 @@
 
 volatile int compare_me(long x)
 {
-	if (x == 0x12345678L)
+	if (x == -0x12345678L)
             abort();
 }
 

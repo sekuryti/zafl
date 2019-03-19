@@ -35,8 +35,7 @@ namespace Laf
 			bool isBlacklisted(Function_t*) const;
 			bool hasLeafAnnotation(Function_t* fn) const;
 			bool getFreeRegister(Instruction_t* p_instr, std::string& p_freereg, RegisterSet_t);
-			bool traceBytes2(Instruction_t *p_instr, uint32_t p_immediate);
-			bool traceBytes48(Instruction_t *p_instr, size_t p_num_bytes, uint64_t p_immediate);
+			bool traceBytesNested(Instruction_t *p_instr, int64_t p_immediate);
 
 		private:
 			pqxxDB_t &m_dbinterface;
