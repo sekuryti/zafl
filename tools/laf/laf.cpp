@@ -44,7 +44,6 @@ Laf_t::Laf_t(pqxxDB_t &p_dbinterface, FileIR_t *p_variantIR, bool p_verbose)
 	m_trace_div = true;
 
 	auto deep_analysis=DeepAnalysis_t::factory(getFileIR());
-	leaf_functions = deep_analysis->getLeafFunctions();
 	dead_registers = deep_analysis->getDeadRegisters();
 
 	m_blacklist.insert(".init");
@@ -137,12 +136,6 @@ void Laf_t::setTraceDiv(bool p_val)
 bool Laf_t::getTraceDiv() const
 {
 	return m_trace_div;
-}
-
-bool Laf_t::hasLeafAnnotation(Function_t* p_fn) const
-{
-	auto it = leaf_functions -> find(p_fn);
-	return (it != leaf_functions->end());
 }
 
 bool Laf_t::getFreeRegister(Instruction_t* p_instr, string& p_freereg, RegisterSet_t p_allowed_regs)

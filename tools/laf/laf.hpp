@@ -33,13 +33,11 @@ namespace Laf
 			int doTraceCompare();
 			int doTraceDiv();
 			bool isBlacklisted(Function_t*) const;
-			bool hasLeafAnnotation(Function_t* fn) const;
 			bool getFreeRegister(Instruction_t* p_instr, std::string& p_freereg, RegisterSet_t);
 			bool traceBytesNested(Instruction_t *p_instr, int64_t p_immediate);
 
 		private:
 			pqxxDB_t &m_dbinterface;
-			std::unique_ptr<FunctionSet_t>      leaf_functions;
 			std::unique_ptr<DeadRegisterMap_t>  dead_registers;
 			bool m_verbose;
 			bool m_trace_compare;
