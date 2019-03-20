@@ -9,20 +9,14 @@ myenv=env.Clone()
 
 cpppath=''' 
 	 $IRDB_SDK/include 
-	 $SECURITY_TRANSFORMS_HOME/libtransform/include 
-	 $SECURITY_TRANSFORMS_HOME/libMEDSannotation/include 
-	 $SECURITY_TRANSFORMS_HOME/libIRDB/include 
-	 $SMPSA_HOME/include
 	'''
 
-
 files=Glob( Dir('.').srcnode().abspath+"/*.cpp")
-
 
 pgm="laf.exe"
 
 LIBPATH="$SECURITY_TRANSFORMS_HOME/lib"
-LIBS=Split("stars "+ env.subst('$BASE_IRDB_LIBS')+ " irdb-cfg irdb-util irdb-transform irdb-deep MEDSannotation ") 
+LIBS=Split(" irdb-core irdb-cfg irdb-util irdb-transform irdb-deep ") 
 myenv=myenv.Clone(CPPPATH=Split(cpppath))
 myenv.Append(CXXFLAGS = " -std=c++11 -Wall -g ")
 pgm=myenv.Program(pgm,  files,  LIBPATH=LIBPATH, LIBS=LIBS)

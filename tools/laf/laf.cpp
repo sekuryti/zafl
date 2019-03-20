@@ -22,6 +22,7 @@
  **************************************************************************/
 
 #include <iostream>
+#include <algorithm>
 #include <irdb-cfg>
 
 #include "laf.hpp"
@@ -29,7 +30,6 @@
 using namespace std;
 using namespace IRDB_SDK;
 using namespace Laf;
-using namespace MEDS_Annotation;
 
 #define ALLOF(a) begin(a),end(a)
 #define FIRSTOF(a) (*(begin(a)))
@@ -148,7 +148,7 @@ bool Laf_t::getFreeRegister(Instruction_t* p_instr, string& p_freereg, RegisterS
 	if (d.getOperand(0)->isRegister())
 	{
 		const auto r = d.getOperand(0)->getString();
-		const auto reg = Register::getRegister(r);
+		const auto reg = strToRegister(r);
 		p_allowed_regs.erase(reg);
 		p_allowed_regs.erase(convertRegisterTo64bit(reg));
 	}
@@ -378,9 +378,9 @@ bool Laf_t::traceBytesNested(Instruction_t *p_instr, int64_t p_immediate)
 		save_tmp = getFreeRegister(p_instr, free_reg8, RegisterSet_t({rn_RBX, rn_RCX, rn_RDI, rn_RSI, rn_R8, rn_R9, rn_R10, rn_R11, rn_R12, rn_R13, rn_R14, rn_R15}));
 	else
 		save_tmp = getFreeRegister(p_instr, free_reg8, RegisterSet_t({rn_RAX, rn_RBX, rn_RCX, rn_RDX, rn_RDI, rn_RSI, rn_R8, rn_R9, rn_R10, rn_R11, rn_R12, rn_R13, rn_R14, rn_R15}));
-	const auto free_reg1 = registerToString(convertRegisterTo8bit(Register::getRegister(free_reg8)));
-	const auto free_reg2 = registerToString(convertRegisterTo16bit(Register::getRegister(free_reg8)));
-	const auto free_reg4 = registerToString(convertRegisterTo32bit(Register::getRegister(free_reg8)));
+	const auto free_reg1 = registerToString(convertRegisterTo8bit(strToRegister(free_reg8)));
+	const auto free_reg2 = registerToString(convertRegisterTo16bit(strToRegister(free_reg8)));
+	const auto free_reg4 = registerToString(convertRegisterTo32bit(strToRegister(free_reg8)));
 	if(free_reg8.empty()) throw;
 	
 	if (m_verbose)
@@ -404,17 +404,17 @@ bool Laf_t::traceBytesNested(Instruction_t *p_instr, int64_t p_immediate)
 		auto source_reg = d.getOperand(0)->getString();
 		if (num_bytes == 8)
 		{
-			source_reg = registerToString(convertRegisterTo64bit(Register::getRegister(source_reg)));
+			source_reg = registerToString(convertRegisterTo64bit(strToRegister(source_reg)));
 			s = "mov " + free_reg8 + ", " + source_reg;
 		}
 		else if (num_bytes == 4)
 		{
-			source_reg = registerToString(convertRegisterTo32bit(Register::getRegister(source_reg)));
+			source_reg = registerToString(convertRegisterTo32bit(strToRegister(source_reg)));
 			s = "mov " + free_reg4 + ", " + source_reg;
 		}
 		else
 		{
-			source_reg = registerToString(convertRegisterTo16bit(Register::getRegister(source_reg)));
+			source_reg = registerToString(convertRegisterTo16bit(strToRegister(source_reg)));
 			s = "mov " + free_reg2 + ", " + source_reg;
 		}
 	}

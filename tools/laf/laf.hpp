@@ -7,7 +7,6 @@
 #include <irdb-transform>
 #include <irdb-util>
 #include <irdb-deep>
-#include <libMEDSAnnotation.h>
 
 namespace Laf
 {
