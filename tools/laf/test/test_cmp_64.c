@@ -1,10 +1,19 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+
+volatile void compare_me_2(long x)
+{
+	if (x == 0x12345678L)
+            abort();
+}
+
 volatile int compare_me(long x)
 {
 	if (x == 0x12345678L)
             abort();
+
+	return x;
 }
 
 int main(int argc, char **argv)
@@ -22,7 +31,8 @@ int main(int argc, char **argv)
 
 	fread(&x, 8, 1, fp);
 
-	compare_me(x);
+	x = compare_me(x);
+	printf("x = %ld\n", x);
 
 	fclose(fp);
 	return 0;
