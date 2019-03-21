@@ -55,14 +55,14 @@ ZaflBlockId_t Zax_t::getBlockId(const unsigned p_max)
  
 /*
 	Original afl instrumentation:
-	        block_id = <random>;
-	        zafl_trace_bits[zafl_prev_id ^ block_id]++;
-		zafl_prev_id = block_id >> 1;     
+	     block_id = <random>;
+	     zafl_trace_bits[zafl_prev_id ^ block_id]++;
+	     zafl_prev_id = block_id >> 1;     
 
-	CollAfl optimization when (#predecessors==1) (goal of CollAfl is to reduce collisions):
-	        block_id = <some unique value for this block>
-	        zafl_trace_bits[block_id]++;
-		zafl_prev_id = block_id >> 1;     
+	CollAfl optimization when (#predecessors==1) (goal of CollAfl is to reduce collisions)
+	    block_id = <some unique value for this block>
+	    zafl_trace_bits[block_id]++;
+	    zafl_prev_id = block_id >> 1;     
 */
 void Zax_t::instrumentBasicBlock(BasicBlock_t *p_bb, const bool p_honorRedZone, const bool p_collafl_optimization)
 {
@@ -85,18 +85,22 @@ void Zax_t::instrumentBasicBlock(BasicBlock_t *p_bb, const bool p_honorRedZone, 
 	// if not, need up to 4 registers
 	auto num_free_regs_desired = save_context ? 4 : 3;
 	if (useFixedAddresses())
-		num_free_regs_desired = 1; 
-
-	auto instr = getInstructionToInstrument(p_bb, num_free_regs_desired);
-	if (!instr) throw;
-
-	// don't try to reserve the trace_map reg if we aren't using it.
-	if(useFixedAddresses())  
 	{
 		save_trace_map=false;
 		save_prev_id=false;
 		save_context=false;
+
+		if (p_collafl_optimization)
+		{
+			num_free_regs_desired = 0; 
+			save_temp=false;
+		}
+		else
+			num_free_regs_desired = 1; 
 	}
+
+	auto instr = getInstructionToInstrument(p_bb, num_free_regs_desired);
+	if (!instr) throw;
 
 	block_record.push_back(instr);
 
@@ -112,7 +116,7 @@ void Zax_t::instrumentBasicBlock(BasicBlock_t *p_bb, const bool p_honorRedZone, 
 
 		for (auto r : regset)
 		{
-			if (r == rn_RAX)
+			if (r == rn_RAX && save_temp)
 			{
 				reg_temp = strdup("rax"); reg_temp32 = strdup("eax"); reg_temp16 = strdup("ax");
 				save_temp = false;
@@ -340,9 +344,11 @@ void Zax_t::instrumentBasicBlock(BasicBlock_t *p_bb, const bool p_honorRedZone, 
 	}
 	else
 	{
-		// <noaddr> mov    rax, <blockid>
-		sprintf(buf,"mov   %s,0x%x", reg_temp, blockid);
-		do_insert(buf);
+		if(!useFixedAddresses()) {
+			// <noaddr> mov    rax, <blockid>
+			sprintf(buf,"mov   %s,0x%x", reg_temp, blockid);
+			do_insert(buf);
+		}
 	}
 
 	// write into the trace map.
@@ -350,8 +356,17 @@ void Zax_t::instrumentBasicBlock(BasicBlock_t *p_bb, const bool p_honorRedZone, 
 	{
 		// do it the fast way with the fixed-adresss trace map
 		//  1b:   80 00 01                add    BYTE PTR [rax],0x1                  
-		sprintf(buf,"add    BYTE [%s + 0x%lx],0x1", reg_temp, getFixedAddressMap());
-		do_insert(buf);
+		if (!p_collafl_optimization)
+		{
+			sprintf(buf,"add    BYTE [%s + 0x%lx],0x1", reg_temp, getFixedAddressMap());
+			do_insert(buf);
+		}
+		else
+		{
+			// with fixed address and collafl, we can compute the index into the tracemap directly
+			sprintf(buf,"add    BYTE [0x%lx],0x1", getFixedAddressMap() + blockid);
+			do_insert(buf);
+		}
 	}
 	else
 	{
@@ -367,6 +382,7 @@ void Zax_t::instrumentBasicBlock(BasicBlock_t *p_bb, const bool p_honorRedZone, 
 
 	// write out block id into zafl_prev_id for the next instrumentation.
 	//  1e:   mov    eax,0x91a                          
+	// with collafl, we don't need to update the previous id
 	if (!p_collafl_optimization)
 	{
 		if (useFixedAddresses())

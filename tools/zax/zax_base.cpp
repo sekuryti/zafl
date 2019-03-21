@@ -843,6 +843,9 @@ Instruction_t* ZaxBase_t::getInstructionToInstrument(const BasicBlock_t *p_bb, c
 
 	const auto first_instruction = p_bb->getInstructions()[0];
 
+	if (p_num_free_regs_desired == 0)
+		return first_instruction;
+
 	// no STARS (i.e., no dead reg annotations)
 	// or floating instrumentation turned off
 	if (!getBasicBlockFloatingInstrumentation() || !m_use_stars)
