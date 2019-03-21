@@ -130,6 +130,8 @@ namespace Zafl
 			size_t m_num_exit_blocks_elided;
 			size_t m_num_single_block_function_elided;
 			size_t m_num_contexts;
+			size_t m_num_contexts_entry;
+			size_t m_num_contexts_exit;
 
 		private:
 			string          m_fork_server_entry;  // string to specify fork server entry point

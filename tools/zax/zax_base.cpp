@@ -179,6 +179,8 @@ ZaxBase_t::ZaxBase_t(IRDB_SDK::pqxxDB_t &p_dbinterface, IRDB_SDK::FileIR_t *p_va
 	m_num_entry_blocks_elided = 0;
 	m_num_single_block_function_elided = 0;
 	m_num_contexts = 0;
+	m_num_contexts_entry = 0;
+	m_num_contexts_exit = 0;
 
 	// fixed addresses (must match libzafl)
 	const auto trace_map_fixed_addr_s = getenv("ZAFL_TRACE_MAP_FIXED_ADDRESS");
@@ -920,6 +922,8 @@ void ZaxBase_t::dumpAttributes()
 	cout << "#ATTRIBUTE num_exit_blocks_elided=" << m_num_exit_blocks_elided << endl;
 	cout << "#ATTRIBUTE num_single_block_function_elided=" << m_num_single_block_function_elided << endl;
 	cout << "#ATTRIBUTE num_contexts=" << m_num_contexts << endl;
+	cout << "#ATTRIBUTE num_contexts_entry=" << m_num_contexts_entry << endl;
+	cout << "#ATTRIBUTE num_contexts_exit=" << m_num_contexts_exit << endl;
 }
 
 // file dump of modified basic block info
@@ -959,6 +963,7 @@ void ZaxBase_t::addContextSensitivity_Function(const ControlFlowGraph_t& cfg)
 		return;
 
 	m_num_contexts++;
+	m_num_contexts_entry++;
 
 	//
 	// entry_point
@@ -1107,6 +1112,7 @@ void ZaxBase_t::addContextSensitivity_Function(const ControlFlowGraph_t& cfg)
 		const auto last_instruction_index = bb->getInstructions().size()-1;
 		inserted_before = false;
 		add_hash_context_instrumentation(contextid, bb->getInstructions()[last_instruction_index], honor_red_zone);
+		m_num_contexts_exit++;
 	}
 }
 
