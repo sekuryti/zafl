@@ -677,10 +677,6 @@ void ZaxBase_t::filterPaddingNOP(BasicBlockSet_t& p_in_out)
 
 void ZaxBase_t::filterEntryBlock(BasicBlockSet_t& p_in_out, BasicBlock_t* p_entry)
 {
-
-	if (!m_graph_optimize)
-		return;
-
 	if (p_entry->getSuccessors().size() != 1)
 		return;
 
@@ -701,9 +697,6 @@ void ZaxBase_t::filterEntryBlock(BasicBlockSet_t& p_in_out, BasicBlock_t* p_entr
 
 void ZaxBase_t::filterExitBlocks(BasicBlockSet_t& p_in_out)
 {
-	if (!m_graph_optimize)
-		return;
-	
 	auto copy=p_in_out;
 	for(auto block : copy)
 	{
@@ -1225,12 +1218,6 @@ int ZaxBase_t::execute()
 
 		if (m_graph_optimize)
 		{
-		/*
-			supplanted by Tikir's algorithm: turn on dominator graph  option
-			filterConditionalBranches(keepers);
-			if (m_verbose)
-				cout << "num blocks to keep (after filter conditional branches): " << keepers.size() << endl;
-		*/
 			filterEntryBlock(keepers, entry_block);
 			if (m_verbose)
 				cout << "num blocks to keep (after filter entry): " << keepers.size() << endl;

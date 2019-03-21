@@ -36,7 +36,7 @@ usage()
 	echo "     -M, --disable-fixed-map                 Disable fixed address tracing map"
 	echo "     -i, --enable-floating-instrumentation   Select best instrumentation point within basic block (default)"
 	echo "     -I, --disable-floating-instrumentation  Use first instruction for instrumentation in basic blocks"
-	echo "     --enable-context-sensitivity <style>    style={callsite,function} only function supported currently (off by default)"
+	echo "     --enable-context-sensitivity            Enable context sensitivity (function)"
 	echo "     -r, --random-seed <value>               Specify random seed"
 	echo "     -w, --whitelist <file>                  Specify function whitelist (one function per line)"
 	echo "     -b, --blacklist <file>                  Specify function blacklist (one function per line)"
@@ -211,22 +211,8 @@ parse_args()
 				shift
 				;;
 			--enable-context-sensitivity)
+				zax_opt=" $zax_opt -o zax:\"--enable-context-sensitivity function\" "
 				shift
-				case $1 in
-					function)
-						zax_opt=" $zax_opt -o zax:\"--enable-context-sensitivity function\" "
-						shift
-					;;
-					callsite)
-						zax_opt=" $zax_opt -o zax:\"--enable-context-sensitivity callsite\" "
-						echo "Error: context sensitivity <callsite> currently unsupported"
-						exit 1
-					;;
-					*)
-						echo "Error: must specify function or callsite for context sensitivity"
-						exit 1
-					;;
-				esac
 				;;
 			-r | --random-seed)
 				shift

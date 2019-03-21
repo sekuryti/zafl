@@ -64,7 +64,7 @@ ZaflBlockId_t Zax_t::getBlockId(const unsigned p_max)
 	    zafl_trace_bits[block_id]++;
 	    zafl_prev_id = block_id >> 1;     
 */
-void Zax_t::instrumentBasicBlock(BasicBlock_t *p_bb, const bool p_honorRedZone, const bool p_collafl_optimization)
+void Zax_t::instrumentBasicBlock(BasicBlock_t *p_bb, bool p_honorRedZone, const bool p_collafl_optimization)
 {
 	char buf[8192];
 	auto live_flags = true;
@@ -206,6 +206,10 @@ void Zax_t::instrumentBasicBlock(BasicBlock_t *p_bb, const bool p_honorRedZone, 
 			<< " reg_context: " << reg_context << endl;
 	}
 
+	// if we don't muck with the stack, then no need to handle the red zone
+	if (!save_temp && !save_trace_map && !save_prev_id && !save_context && !live_flags)
+		p_honorRedZone = false;
+
 	// warning: first instrumentation must use insertAssemblyBefore
 	// others use insertAssemblyAfter.
 	// we declare a macro-like lambda function to do the lifting for us.
@@ -310,11 +314,11 @@ void Zax_t::instrumentBasicBlock(BasicBlock_t *p_bb, const bool p_honorRedZone, 
 		//   e:   movzx  eax,WORD PTR [rdx]                      
 		if (useFixedAddresses())
 		{
-			sprintf(buf,"movzx  %s,WORD [0x%lx]", reg_temp32, getFixedAddressPrevId());
+			sprintf(buf,"movzx  %s,WORD [0x%lx]", reg_temp, getFixedAddressPrevId());
 		}
 		else
 		{
-			sprintf(buf,"movzx  %s,WORD [%s]", reg_temp32, reg_prev_id);
+			sprintf(buf,"movzx  %s,WORD [%s]", reg_temp, reg_prev_id);
 		}
 		do_insert(buf);
 
@@ -339,8 +343,12 @@ void Zax_t::instrumentBasicBlock(BasicBlock_t *p_bb, const bool p_honorRedZone, 
 		}
 
 		//  15:   movzx  eax,ax                                
+		/*
+		 * NOT NEEDED since xor value will not exceed 16 bit currently
+		 * and there's already been a movzx up above
 		sprintf(buf,"movzx  %s,%s", reg_temp32, reg_temp16);
 		do_insert(buf);
+		*/
 	}
 	else
 	{

@@ -19,7 +19,7 @@ namespace Zafl
 
 	protected:
 		virtual ZaflBlockId_t getBlockId(const unsigned p_maxid=0xFFFF);
-		virtual void instrumentBasicBlock(BasicBlock_t *p_bb, const bool p_hasLeafAnnotation, const bool p_collafl_optimization=false);
+		virtual void instrumentBasicBlock(BasicBlock_t *p_bb, bool p_honor_red_zone, const bool p_collafl_optimization=false);
 
 	private:
 		set<ZaflBlockId_t>   m_used_blockid;  // internal bookkeeping to keep track of used block ids
