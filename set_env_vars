@@ -2,12 +2,10 @@ export ZAFL_TRACE_MAP_FIXED_ADDRESS=0x10000
 export AFL_SKIP_BIN_CHECK=1
 
 export ZAFL_HOME=$PWD
-if [ -z "$ZAFL_INSTALL" -o -f manifest.txt ]; then
-	if [ -z "$ZAFL_INSTALL" ]; then
-		export ZAFL_INSTALL=$PWD/install
-	fi
-	export PS_INSTALL=$ZAFL_INSTALL/zipr_umbrella
+if [ -z "$ZAFL_INSTALL" ]; then
+	export ZAFL_INSTALL=$PWD/install
 fi
+export PS_INSTALL=$ZAFL_INSTALL/zipr_umbrella
 
 cd $ZAFL_HOME/zipr_umbrella
 source ./set_env_vars
