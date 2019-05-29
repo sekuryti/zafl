@@ -32,6 +32,7 @@ usage()
 	echo "     -c, --enable-breakup-critical-edges     Breakup critical edges"
 	echo "     -C, --disable-breakup-critical-edges    Do not breakup critical edges (default)"
 	echo "     -f, --fork-server-only                  Fork server only"
+	echo "     -F, --disable-fork-server               No fork server"
 	echo "     -m, --enable-fixed-map [<address>]      Use fixed address for tracing map (<address> must be hex and page-aligned, e.g., 0x10000)"
 	echo "     -M, --disable-fixed-map                 Disable fixed address tracing map"
 	echo "     -i, --enable-floating-instrumentation   Select best instrumentation point within basic block (default)"
@@ -185,6 +186,10 @@ parse_args()
 				ZAFL_LIMIT_END=0
 				export ZAFL_LIMIT_END
 				log_warning "Fork Server Only mode: no block-level instrumentation will be performed"
+				shift
+				;;
+			-F | --disable-fork-server)
+				zax_opt=" $zax_opt -o zax:\"-F\" "
 				shift
 				;;
 			-m | --enable-fixed-map)
