@@ -109,11 +109,11 @@ parse_args()
 				exit 0
 				;;
 			--ida)
-				ida_or_rida_opt=" -c meds_static=on -s rida=off "
+				ida_or_rida_opt=" -s meds_static "
 				shift
 				;;
 			--rida)
-				ida_or_rida_opt=" -s meds_static=off -c rida=on "
+				ida_or_rida_opt=" -s rida "
 				shift
 				;;
 			-s | --stars)
@@ -368,11 +368,11 @@ then
 	if [ ! -z "$verbose_opt" ]; then
 		laf_opt=" $laf_opt -o laf:-v"
 	fi
-	optional_step=" -c laf=on $laf_opt "
+	optional_step=" -c laf $laf_opt "
 fi
 
 zax_opt=" $zax_opt $float_opt "
-cmd="$ZAFL_TM_ENV $PSZ $input_binary $output_zafl_binary $ida_or_rida_opt -c move_globals=on $optional_step -c zax=on -o move_globals:--elftables-only $stars_opt $zax_opt $verbose_opt $options $other_args $trace_opt $zipr_opt"
+cmd="$ZAFL_TM_ENV $PSZ $input_binary $output_zafl_binary $ida_or_rida_opt -s move_globals $optional_step -c zax -o move_globals:--elftables-only $stars_opt $zax_opt $verbose_opt $options $other_args $trace_opt $zipr_opt"
 
 
 if [ ! -z "$ZAFL_TM_ENV" ]; then
