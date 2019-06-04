@@ -372,7 +372,7 @@ then
 fi
 
 zax_opt=" $zax_opt $float_opt "
-cmd="$ZAFL_TM_ENV $PSZ $input_binary $output_zafl_binary $ida_or_rida_opt -s move_globals $optional_step -c zax -o move_globals:--elftables-only $stars_opt $zax_opt $verbose_opt $options $other_args $trace_opt $zipr_opt"
+cmd="$ZAFL_TM_ENV $PSZ $input_binary $output_zafl_binary $ida_or_rida_opt -s move_globals $optional_step -c zax -o move_globals:--elftables-only -o move_globals:--no-use-stars $stars_opt $zax_opt $verbose_opt $options $other_args $trace_opt $zipr_opt"
 
 
 if [ ! -z "$ZAFL_TM_ENV" ]; then
