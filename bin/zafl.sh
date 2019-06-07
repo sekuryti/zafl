@@ -43,6 +43,7 @@ usage()
 	echo "     -b, --blacklist <file>                  Specify function blacklist (one function per line)"
 	echo "     -l, --enable-laf                        Enable laf-intel style instrumentation"
 	echo "     -L, --disable-laf                       Disable laf-intel style instrumentation"
+	echo "     -a, --args <args>                       Add extra args to be passed to backend analysis engine"
 	echo "     -v                                      Verbose mode" 
 	echo 
 }
@@ -58,7 +59,7 @@ trace_opt=""
 zipr_opt=""
 random_seed=""
 laf_opt=""
-
+extra_args=""
 
 me=$(whoami)
 tmp_dir=/tmp/${me}/$$
@@ -114,6 +115,11 @@ parse_args()
 				;;
 			--rida)
 				ida_or_rida_opt=" -s rida "
+				shift
+				;;
+			-a | --args)
+				shift
+				extra_args=" $extra_args $1"
 				shift
 				;;
 			-s | --stars)
@@ -346,7 +352,7 @@ verify_zafl_symbols()
 	fi
 }
 
-parse_args $*
+parse_args "$@"
 if [ -z "$entry_opt" ]; then
 	find_main
 else
@@ -372,7 +378,7 @@ then
 fi
 
 zax_opt=" $zax_opt $float_opt "
-cmd="$ZAFL_TM_ENV $PSZ $input_binary $output_zafl_binary $ida_or_rida_opt -s move_globals $optional_step -c zax -o move_globals:--elftables-only -o move_globals:--no-use-stars $stars_opt $zax_opt $verbose_opt $options $other_args $trace_opt $zipr_opt"
+cmd="$ZAFL_TM_ENV $PSZ $input_binary $output_zafl_binary $ida_or_rida_opt -s move_globals $optional_step -c zax -o move_globals:--elftables-only -o move_globals:--no-use-stars $stars_opt $zax_opt $verbose_opt $options $other_args $trace_opt $zipr_opt $extra_args"
 
 
 if [ ! -z "$ZAFL_TM_ENV" ]; then
