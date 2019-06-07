@@ -28,6 +28,7 @@ usage()
 	echo "     -t, --tempdir <dir>                     Specify location of analysis results directory"
 	echo "     -e, --entry                             Specify fork server entry point"
 	echo "     -E, --exit                              Specify fork server exit point(s)"
+	echo "     --instrumentation-style <mode>          mode = {edge, block} (default: edge a la AFL)"
 	echo "     -u, --untracer                          Specify untracer instrumentation"
 	echo "     -c, --enable-breakup-critical-edges     Breakup critical edges"
 	echo "     -C, --disable-breakup-critical-edges    Do not breakup critical edges (default)"
@@ -175,6 +176,12 @@ parse_args()
 				shift
 				zax_opt=" $zax_opt -o zax:\"--blacklist $(realpath $1) \""
 				shift
+				;;
+			--instrumentation-style)
+				shift
+				if [ "$1" == "block" ]; then
+					zax_opt=" $zax_opt -o zax:--untracer "
+				fi
 				;;
 			-u | --untracer)
 				zax_opt=" $zax_opt -o zax:--untracer "
