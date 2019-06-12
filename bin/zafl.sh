@@ -179,9 +179,21 @@ parse_args()
 				;;
 			--instrumentation-style)
 				shift
-				if [ "$1" == "block" ]; then
-					zax_opt=" $zax_opt -o zax:--untracer "
-				fi
+				case $1 in
+					block)
+						zax_opt=" $zax_opt -o zax:--untracer "
+					;;
+					edge)
+					;;
+					"")
+						echo "Error: you must specify an instrumentation style" >&2
+						exit 1
+					;;
+					*)
+						echo "Error: $1 is not a valid instrumentation style" >&2
+						exit 1
+					;;
+				esac
 				;;
 			-u | --untracer)
 				zax_opt=" $zax_opt -o zax:--untracer "
