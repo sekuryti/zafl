@@ -5,6 +5,3 @@
 [submodule "zfuzz/libzafl"]
 	path = libzafl
 	url = git@git.zephyr-software.com:opensrc/libzafl.git
-[submodule "move_globals"]
-	path = move_globals
-	url = git@git.zephyr-software.com:allnp/move_globals.git
