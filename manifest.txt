@@ -5,7 +5,5 @@ submanifest zipr_umbrella/manifest.txt
 file set_env_vars zafl
 file set_env_vars zafl
 file get-packages.sh zafl
-file move_globals/set_env_vars zafl
-directory move_globals/plugins_install zafl
 directory bin zafl
 directory zafl_plugins zafl

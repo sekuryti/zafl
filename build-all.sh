@@ -23,12 +23,8 @@ fi
 cd zipr_umbrella
 ./build-all.sh $build_all_flags  || exit
 
-
 cd $ZAFL_HOME
 cd tools
-scons $SCONSDEBUG -j 3 || exit
-
-cd $ZAFL_HOME/move_globals
 scons $SCONSDEBUG -j 3 || exit
 
 cd $ZAFL_HOME/libzafl

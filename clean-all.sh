@@ -9,11 +9,6 @@ scons -c
 cd $ZAFL_HOME/tools
 scons -c
 
-cd $ZAFL_HOME/move_globals
-scons -c
-
-
-
 
 # clean up installation if this module is the root of the install.
 # skip pedi cleanup if we are part of a larger project, as future builds
