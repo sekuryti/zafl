@@ -4,6 +4,13 @@ export AFL_SKIP_CPUFREQ=1
 export AFL_SKIP_BIN_CHECK=1
 export AFL_I_DONT_CARE_ABOUT_MISSING_CRASHES=1
 
+# make sure bc exists
+which bc
+if [ ! $? -eq 0 ]; then
+	echo "SKIP test: bc not on system"
+	exit 0
+fi
+
 user=$(whoami)
 session=/tmp/tmp.${user}.zafl.bc.fixed_map.$$
 
