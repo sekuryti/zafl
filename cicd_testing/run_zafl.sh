@@ -6,6 +6,11 @@ main()
 	export USER=root;
 	cd /zafl 
 	source ./set_env_vars 
+
+	pwd
+	ls
+	ls /zafl/install/zipr_umbrella/tools
+
 	cd /tmp 
 	/zafl/bin/zafl.sh "$@" 
 
