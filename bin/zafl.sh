@@ -1,5 +1,8 @@
 #!/bin/bash
 
+source $(dirname $0)/../zipr_umbrella/tools/ps_wrapper.source $0
+
+
 #
 # Invoke underlying Zipr toolchain with Zafl step and parameters
 #

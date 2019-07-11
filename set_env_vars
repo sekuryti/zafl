@@ -10,7 +10,7 @@ if [ -z "$ZAFL_INSTALL" ]; then
 		export ZAFL_INSTALL=$PWD/install
 	else
 		# we're in release mode
-		export ZAFL_INSTALL=$ZAFl-home
+		export ZAFL_INSTALL=$ZAFL_HOME
 	fi
 fi
 export PS_INSTALL=$ZAFL_INSTALL/zipr_umbrella
