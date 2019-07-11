@@ -4,12 +4,9 @@ main()
 {
 	service postgresql start
 	export USER=root;
-	cd /zafl 
+	export ZAFL_INSTALL=/zafl
+	cd $ZAFL_INSTALL
 	source ./set_env_vars 
-
-	pwd
-	ls
-	ls /zafl/install/zipr_umbrella/tools
 
 	cd /tmp 
 	/zafl/bin/zafl.sh "$@" 
