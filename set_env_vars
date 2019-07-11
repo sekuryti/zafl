@@ -3,7 +3,15 @@ export AFL_SKIP_BIN_CHECK=1
 
 export ZAFL_HOME=$PWD
 if [ -z "$ZAFL_INSTALL" ]; then
-	export ZAFL_INSTALL=$PWD/install
+
+	# manifest.txt doesn't exist in the installed development
+	if [[ -f manifest.txt ]]; then
+		# we're in dev mode
+		export ZAFL_INSTALL=$PWD/install
+	else
+		# we're in release mode
+		export ZAFL_INSTALL=$ZAFl-home
+	fi
 fi
 export PS_INSTALL=$ZAFL_INSTALL/zipr_umbrella
 
