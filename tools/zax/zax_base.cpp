@@ -460,15 +460,29 @@ void ZaxBase_t::insertForkServer(string p_forkServerEntry)
 			throw;
 		}
 
-		cout << "inserting fork server code at entry point of function: " << p_forkServerEntry << endl;
-		auto entrypoint = (*entryfunc)->getEntryPoint();
+		cout << "requested inserting fork server code at entry point of function: " << p_forkServerEntry << endl;
+
+		const auto entrypoint = (*entryfunc)->getEntryPoint();
+		auto insertion_point = entrypoint;
+		auto cfg=ControlFlowGraph_t::factory(*entryfunc);	
+		for (auto &bb : cfg->getBlocks())
+		{
+			if (bb->getInstructions()[0] == entrypoint)
+			{
+				const auto idx = bb->getInstructions().size()-1;
+				insertion_point = bb->getInstructions()[idx];
+				cout << "override: pre-inserting fork server code at last instruction of entry point block of function: 0x" << hex << insertion_point->getAddress()->getVirtualOffset() << " : " << insertion_point->getDisassembly() << endl;
+				break;
+			}
+
+		}
 		
 		if (!entrypoint) 
 		{
 			cerr << "Could not find entry point for: " << p_forkServerEntry << endl;
 			throw;
 		}
-		insertForkServer(entrypoint);
+		insertForkServer(insertion_point);
 	}
 }
 

@@ -23,17 +23,16 @@ fi
 cd zipr_umbrella
 ./build-all.sh $build_all_flags  || exit
 
-
 cd $ZAFL_HOME
 cd tools
 scons $SCONSDEBUG -j 3 || exit
 
-cd $ZAFL_HOME
-$PEDI_HOME/pedi -m manifest.txt || exit
-
 cd $ZAFL_HOME/libzafl
 scons || exit
 cp lib/* $ZEST_RUNTIME/lib64/ || exit
+
+cd $ZAFL_HOME
+$PEDI_HOME/pedi -m manifest.txt || exit
 
 cd $ZAFL_HOME
 echo "ZAFL Overall build complete."

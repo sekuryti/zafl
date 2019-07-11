@@ -10,7 +10,6 @@ cd $ZAFL_HOME/tools
 scons -c
 
 
-
 # clean up installation if this module is the root of the install.
 # skip pedi cleanup if we are part of a larger project, as future builds
 # won't know how to install properly.  

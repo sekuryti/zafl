@@ -28,10 +28,12 @@ usage()
 	echo "     -t, --tempdir <dir>                     Specify location of analysis results directory"
 	echo "     -e, --entry                             Specify fork server entry point"
 	echo "     -E, --exit                              Specify fork server exit point(s)"
+	echo "     --instrumentation-style <mode>          mode = {edge, block} (default: edge a la AFL)"
 	echo "     -u, --untracer                          Specify untracer instrumentation"
 	echo "     -c, --enable-breakup-critical-edges     Breakup critical edges"
 	echo "     -C, --disable-breakup-critical-edges    Do not breakup critical edges (default)"
 	echo "     -f, --fork-server-only                  Fork server only"
+	echo "     -F, --disable-fork-server               No fork server"
 	echo "     -m, --enable-fixed-map [<address>]      Use fixed address for tracing map (<address> must be hex and page-aligned, e.g., 0x10000)"
 	echo "     -M, --disable-fixed-map                 Disable fixed address tracing map"
 	echo "     -i, --enable-floating-instrumentation   Select best instrumentation point within basic block (default)"
@@ -42,6 +44,7 @@ usage()
 	echo "     -b, --blacklist <file>                  Specify function blacklist (one function per line)"
 	echo "     -l, --enable-laf                        Enable laf-intel style instrumentation"
 	echo "     -L, --disable-laf                       Disable laf-intel style instrumentation"
+	echo "     -a, --args <args>                       Add extra args to be passed to backend analysis engine"
 	echo "     -v                                      Verbose mode" 
 	echo 
 }
@@ -57,7 +60,7 @@ trace_opt=""
 zipr_opt=""
 random_seed=""
 laf_opt=""
-
+extra_args=""
 
 me=$(whoami)
 tmp_dir=/tmp/${me}/$$
@@ -108,11 +111,16 @@ parse_args()
 				exit 0
 				;;
 			--ida)
-				ida_or_rida_opt=" -c meds_static=on -s rida=off "
+				ida_or_rida_opt=" -s meds_static "
 				shift
 				;;
 			--rida)
-				ida_or_rida_opt=" -s meds_static=off -c rida=on "
+				ida_or_rida_opt=" -s rida "
+				shift
+				;;
+			-a | --args)
+				shift
+				extra_args=" $extra_args $1"
 				shift
 				;;
 			-s | --stars)
@@ -169,6 +177,24 @@ parse_args()
 				zax_opt=" $zax_opt -o zax:\"--blacklist $(realpath $1) \""
 				shift
 				;;
+			--instrumentation-style)
+				shift
+				case $1 in
+					block)
+						zax_opt=" $zax_opt -o zax:--untracer "
+					;;
+					edge)
+					;;
+					"")
+						echo "Error: you must specify an instrumentation style" >&2
+						exit 1
+					;;
+					*)
+						echo "Error: $1 is not a valid instrumentation style" >&2
+						exit 1
+					;;
+				esac
+				;;
 			-u | --untracer)
 				zax_opt=" $zax_opt -o zax:--untracer "
 				shift
@@ -185,6 +211,10 @@ parse_args()
 				ZAFL_LIMIT_END=0
 				export ZAFL_LIMIT_END
 				log_warning "Fork Server Only mode: no block-level instrumentation will be performed"
+				shift
+				;;
+			-F | --disable-fork-server)
+				zax_opt=" $zax_opt -o zax:\"-F\" "
 				shift
 				;;
 			-m | --enable-fixed-map)
@@ -341,7 +371,7 @@ verify_zafl_symbols()
 	fi
 }
 
-parse_args $*
+parse_args "$@"
 if [ -z "$entry_opt" ]; then
 	find_main
 else
@@ -363,11 +393,11 @@ then
 	if [ ! -z "$verbose_opt" ]; then
 		laf_opt=" $laf_opt -o laf:-v"
 	fi
-	optional_step=" -c laf=on $laf_opt "
+	optional_step=" -c laf $laf_opt "
 fi
 
 zax_opt=" $zax_opt $float_opt "
-cmd="$ZAFL_TM_ENV $PSZ $input_binary $output_zafl_binary $ida_or_rida_opt -c move_globals=on $optional_step -c zax=on -o move_globals:--elftables-only $stars_opt $zax_opt $verbose_opt $options $other_args $trace_opt $zipr_opt"
+cmd="$ZAFL_TM_ENV $PSZ $input_binary $output_zafl_binary $ida_or_rida_opt -s move_globals $optional_step -c zax -o move_globals:--elftables-only -o move_globals:--no-use-stars $stars_opt $zax_opt $verbose_opt $options $other_args $trace_opt $zipr_opt $extra_args"
 
 
 if [ ! -z "$ZAFL_TM_ENV" ]; then
