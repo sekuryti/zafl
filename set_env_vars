@@ -21,13 +21,13 @@ source ./set_env_vars
 unset DAFFY_HOME
 export DAFFY_HOME
 
-export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$ZAFL_HOME/zest_runtime/lib
+export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$ZAFL_INSTALL/zest_runtime/lib
 
 cd $ZAFL_HOME
 
-export PATH=$PATH:$ZAFL_HOME/bin
+export PATH=$PATH:$ZAFL_INSTALL/bin
 export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$SECURITY_TRANSFORMS_HOME/lib
 
 
-export PSPATH=$PSPATH:$ZAFL_HOME/zafl_plugins
+export PSPATH=$PSPATH:$ZAFL_INSTALL/zafl_plugins
 
