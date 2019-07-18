@@ -1160,6 +1160,20 @@ void ZaxBase_t::addContextSensitivity(const ControlFlowGraph_t& cfg)
 		throw;
 }
 
+
+void ZaxBase_t::addLibZaflIntegration()
+{
+	const auto ptrsize      = getFileIR()->getArchitectureBitWidth()/8;
+	const auto raw_contents = reinterpret_cast<const char*>(&m_trace_map_fixed_addr);
+
+	auto sa       = getFileIR()->addNewAddress(getFileIR()->getFile()->getFileID(), 0);
+	auto ea       = getFileIR()->addNewAddress(getFileIR()->getFile()->getFileID(), ptrsize-1);
+	auto contents = string(raw_contents, ptrsize);
+
+	(void)getFileIR()->addNewDataScoop("libZaflIntegration", sa, ea, nullptr, 6, false, contents );
+}
+
+
 /*
  * Execute the transform.
  *
@@ -1300,6 +1314,8 @@ int ZaxBase_t::execute()
 			auto cs_cfg=ControlFlowGraph_t::factory(f);	
 			addContextSensitivity(*cs_cfg);
 		}
+
+		addLibZaflIntegration();
 
 		if (m_verbose)
 		{

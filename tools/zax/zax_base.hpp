@@ -51,6 +51,7 @@ namespace Zafl
 			void filterEntryBlock(BasicBlockSet_t& in_out, BasicBlock_t* p_entry);
 			void filterExitBlocks(BasicBlockSet_t& in_out);
 			void addContextSensitivity(const ControlFlowGraph_t&);
+			void addLibZaflIntegration();
 
 		protected:
 			ZaxBase_t(pqxxDB_t &p_dbinterface, FileIR_t *p_variantIR, string p_entry, set<string> p_exits, bool p_use_stars=false, bool p_autozafl=false);

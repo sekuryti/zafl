@@ -28,7 +28,7 @@ cd tools
 scons $SCONSDEBUG -j 3 || exit
 
 cd $ZAFL_HOME/libzafl
-scons || exit
+scons $SCONSDEBUG || exit
 cp lib/* $ZEST_RUNTIME/lib64/ || exit
 
 cd $ZAFL_HOME
