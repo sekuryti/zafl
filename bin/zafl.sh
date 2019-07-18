@@ -217,22 +217,16 @@ parse_args()
 				shift
 				;;
 			-F | --disable-fork-server)
-				zax_opt=" $zax_opt -o zax:\"-F\" "
+				zax_opt=" $zax_opt -o zax:-F "
 				shift
 				;;
 			-m | --enable-fixed-map)
 				shift
-				case $1 in
-					0x*)
-						trace_map_address="$1"
-						shift
-					;;
-				esac
-				ZAFL_TM_ENV="ZAFL_TRACE_MAP_FIXED_ADDRESS=$trace_map_address"
+				zax_opt=" $zax_opt -o zax:-m -o $1 "
+				shift
 				;;
 			-M | --disable-fixed-map)
-				unset ZAFL_TRACE_MAP_FIXED_ADDRESS
-				ZAFL_TM_ENV=""
+				zax_opt=" $zax_opt -o zax:-M "
 				shift
 				;;
 			-i | --enable-floating-instrumentation)

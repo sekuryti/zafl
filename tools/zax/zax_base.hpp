@@ -16,11 +16,11 @@ namespace Zafl
 	using namespace IRDB_SDK;
 	using namespace std;
 
-	using ZaflBlockId_t = uint32_t;
-	using ZaflLabelId_t = uint32_t;
+	using ZaflBlockId_t   = uint32_t;
+	using ZaflLabelId_t   = uint32_t;
 	using ZaflContextId_t = uint32_t;
-	using BBRecord_t = vector<Instruction_t*>;
-	using RegisterSet_t = IRDB_SDK::RegisterIDSet_t;
+	using BBRecord_t      = vector<Instruction_t*>;
+	using RegisterSet_t   = IRDB_SDK::RegisterIDSet_t;
 	enum ContextSensitivity_t {ContextSensitivity_None, ContextSensitivity_Callsite, ContextSensitivity_Function};
 
 	/*
@@ -32,12 +32,13 @@ namespace Zafl
 	{
 		public:
 			ZaxBase_t() = delete;
-			ZaxBase_t(const Zafl::ZaxBase_t&) = delete;
+			ZaxBase_t(const ZaxBase_t&) = delete;
 			virtual ~ZaxBase_t() {};
 			virtual int execute();
 			void setWhitelist(const string& p_filename); 
 			void setBlacklist(const string& p_filename); 
 			void setVerbose(bool); 
+			void setFixedMapAddress(const VirtualOffset_t a); 
 			void setBasicBlockOptimization(bool);
 			void setDomgraphOptimization(bool);
 			void setBasicBlockFloatingInstrumentation(bool);

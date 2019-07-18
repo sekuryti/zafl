@@ -41,6 +41,8 @@ static void usage(char* name)
 	cerr<<"\t[--exitpoint|-E {<funcName>|<hex_address>}]    Specify where to insert exit"<<endl;
 	cerr<<"\t[--whitelist|-w whitelistFile]                 Specify list of functions/addresses to instrument"<<endl;
 	cerr<<"\t[--blacklist|-b blacklistFile]                 Specify list of functions/addresses to omit"<<endl;
+	cerr<<"\t[--fixed-map-address <addr>]                   Enable fixed-mapping addressing and Specify the address to use for the map [Default 0x10000]"<<endl;
+	cerr<<"\t[--no-fixed-map]                               Disablw fixed-mapping addressing"<<endl;
 	cerr<<"\t[--stars|-s]                                   Enable STARS optimizations    "<<endl;
 	cerr<<"\t[--enable-bb-graph-optimization|-g]            Elide instrumentation if basic block has 1 successor"<<endl;
 	cerr<<"\t[--disable-bb-graph-optimization|-G]           Elide instrumentation if basic block has 1 successor"<<endl;
@@ -79,37 +81,40 @@ int main(int argc, char **argv)
 	auto floating_instrumentation=false;
 	auto context_sensitivity=ContextSensitivity_None;
 	auto random_seed = 0U;
+	auto fixed_map_address=VirtualOffset_t(0x10000);
 	set<string> exitpoints;
 
 	srand(getpid()+time(NULL));
 
 	// Parse some options for the transform
 	static struct option long_options[] = {
-		{"verbose", no_argument, 0, 'v'},
-		{"help", no_argument, 0, 'h'},
-		{"usage", no_argument, 0, '?'},
-		{"stars", no_argument, 0, 's'},
-		{"entrypoint", required_argument, 0, 'e'},
-		{"exitpoint", required_argument, 0, 'E'},
-		{"whitelist", required_argument, 0, 'w'},
-		{"blacklist", required_argument, 0, 'b'},
-		{"autozafl", no_argument, 0, 'a'},
-		{"enable-bb-graph-optimization", no_argument, 0, 'g'},
-		{"disable-bb-graph-optimization", no_argument, 0, 'G'},
-		{"enable-domgraph-optimization", no_argument, 0, 'd'},
-		{"disable-domgraph-optimization", no_argument, 0, 'D'},
-		{"enable-forkserver", no_argument, 0, 'f'},
-		{"disable-forkserver", no_argument, 0, 'F'},
-		{"untracer", no_argument, 0, 'u'},
-		{"enable-critical-edge-breakup", no_argument, 0, 'c'},
-		{"disable-critical-edge-breakup", no_argument, 0, 'C'},
-		{"enable-floating-instrumentation", no_argument, 0, 'i'},
-		{"disable-floating-instrumentation", no_argument, 0, 'I'},
-		{"enable-context-sensitivity", required_argument, 0, 'z'},
-		{"random-seed", required_argument, 0, 'r'},
+		{"verbose",                          no_argument,       0, 'v'},
+		{"help",                             no_argument,       0, 'h'},
+		{"usage",                            no_argument,       0, '?'},
+		{"stars",                            no_argument,       0, 's'},
+		{"entrypoint",                       required_argument, 0, 'e'},
+		{"exitpoint",                        required_argument, 0, 'E'},
+		{"whitelist",                        required_argument, 0, 'w'},
+		{"blacklist",                        required_argument, 0, 'b'},
+		{"fixed-map-address",                required_argument, 0, 'm'},
+		{"no-fixed-map",                     no_argument,       0, 'M'},
+		{"autozafl",                         no_argument,       0, 'a'},
+		{"enable-bb-graph-optimization",     no_argument,       0, 'g'},
+		{"disable-bb-graph-optimization",    no_argument,       0, 'G'},
+		{"enable-domgraph-optimization",     no_argument,       0, 'd'},
+		{"disable-domgraph-optimization",    no_argument,       0, 'D'},
+		{"enable-forkserver",                no_argument,       0, 'f'},
+		{"disable-forkserver",               no_argument,       0, 'F'},
+		{"untracer",                         no_argument,       0, 'u'},
+		{"enable-critical-edge-breakup",     no_argument,       0, 'c'},
+		{"disable-critical-edge-breakup",    no_argument,       0, 'C'},
+		{"enable-floating-instrumentation",  no_argument,       0, 'i'},
+		{"disable-floating-instrumentation", no_argument,       0, 'I'},
+		{"enable-context-sensitivity",       required_argument, 0, 'z'},
+		{"random-seed",                      required_argument, 0, 'r'},
 		{0,0,0,0}
 	};
-	const char* short_opts="r:z:e:E:w:sv?hagGdDfFucCiI";
+	const char* short_opts="r:z:e:E:w:sv?hagGdDfFucCiIm:M";
 
 	while(true)
 	{
@@ -119,81 +124,87 @@ int main(int argc, char **argv)
 			break;
 		switch(c)
 		{
-		case 'v':
-			verbose=true;
-			break;
-		case '?':
-		case 'h':
-			usage(argv[0]);
-			exit(1);
-			break;
-		case 's':
-			use_stars=true;
-			cout << "STARS optimization enabled" << endl;
-			break;
-		case 'e':
-			entry_fork_server = optarg;
-			break;
-		case 'E':
-			exitpoints.insert(optarg);
-			break;
-		case 'w':
-			whitelistFile=optarg;
-			break;
-		case 'b':
-			blacklistFile=optarg;
-			break;
-		case 'a':
-			autozafl=true;
-			break;
-		case 'g':
-			bb_graph_optimize=true;
-			break;
-		case 'G':
-			bb_graph_optimize=false;
-			break;
-		case 'd':
-			domgraph_optimize=true;
-			break;
-		case 'D':
-			domgraph_optimize=false;
-			break;
-		case 'f':
-			forkserver_enabled=true;
-			break;
-		case 'F':
-			forkserver_enabled=false;
-			break;
-		case 'u':
-			untracer_mode=true;
-			break;
-		case 'c':
-			breakup_critical_edges=true;
-			break;
-		case 'C':
-			breakup_critical_edges=false;
-			break;
-		case 'i':
-			floating_instrumentation=true;
-			break;
-		case 'I':
-			floating_instrumentation=false;
-			break;
-		case 'z':
-			if (optarg == string("callsite"))
-				context_sensitivity=ContextSensitivity_Callsite; // Angora fuzzer style
-			else if (optarg == string("function"))
-				context_sensitivity=ContextSensitivity_Function;
-			else
-				context_sensitivity=ContextSensitivity_None;
-			break;
-		case 'r':
-			random_seed = strtoul(optarg, NULL, 0);
-			srand(random_seed);
-			cout << "Setting random seed to: " << random_seed << endl;
-			break;
-		default:
-			break;
+			case 'v':
+				verbose=true;
+				break;
+			case '?':
+			case 'h':
+				usage(argv[0]);
+				exit(1);
+				break;
+			case 's':
+				use_stars=true;
+				cout << "STARS optimization enabled" << endl;
+				break;
+			case 'e':
+				entry_fork_server = optarg;
+				break;
+			case 'E':
+				exitpoints.insert(optarg);
+				break;
+			case 'w':
+				whitelistFile=optarg;
+				break;
+			case 'b':
+				blacklistFile=optarg;
+				break;
+			case 'm':
+				fixed_map_address = strtoul(optarg, nullptr, 0);
+				break;
+			case 'M':
+				fixed_map_address = 0;
+				break;
+			case 'a':
+				autozafl=true;
+				break;
+			case 'g':
+				bb_graph_optimize=true;
+				break;
+			case 'G':
+				bb_graph_optimize=false;
+				break;
+			case 'd':
+				domgraph_optimize=true;
+				break;
+			case 'D':
+				domgraph_optimize=false;
+				break;
+			case 'f':
+				forkserver_enabled=true;
+				break;
+			case 'F':
+				forkserver_enabled=false;
+				break;
+			case 'u':
+				untracer_mode=true;
+				break;
+			case 'c':
+				breakup_critical_edges=true;
+				break;
+			case 'C':
+				breakup_critical_edges=false;
+				break;
+			case 'i':
+				floating_instrumentation=true;
+				break;
+			case 'I':
+				floating_instrumentation=false;
+				break;
+			case 'z':
+				if (optarg == string("callsite"))
+					context_sensitivity=ContextSensitivity_Callsite; // Angora fuzzer style
+				else if (optarg == string("function"))
+					context_sensitivity=ContextSensitivity_Function;
+				else
+					context_sensitivity=ContextSensitivity_None;
+				break;
+			case 'r':
+				random_seed = strtoul(optarg, NULL, 0);
+				srand(random_seed);
+				cout << "Setting random seed to: " << random_seed << endl;
+				break;
+			default:
+				break;
 		}
 	}
 
@@ -233,12 +244,9 @@ int main(int argc, char **argv)
 
 		try
 		{
-			ZaxBase_t* zax_raw;
-			if (untracer_mode)
-				  zax_raw = new ZUntracer_t(*pqxx_interface, firp.get(), entry_fork_server, exitpoints, use_stars, autozafl);
-			else
-				  zax_raw = new Zax_t(*pqxx_interface, firp.get(), entry_fork_server, exitpoints, use_stars, autozafl);
-			auto zax = unique_ptr<ZaxBase_t>(zax_raw);
+			const auto zax = (untracer_mode) ?  
+				unique_ptr<ZaxBase_t>(new ZUntracer_t(*pqxx_interface, firp.get(), entry_fork_server, exitpoints, use_stars, autozafl)) : 
+				unique_ptr<ZaxBase_t>(new Zax_t      (*pqxx_interface, firp.get(), entry_fork_server, exitpoints, use_stars, autozafl)); 
 
 			if (whitelistFile.size()>0)
 				zax->setWhitelist(whitelistFile);
@@ -252,6 +260,7 @@ int main(int argc, char **argv)
 			zax->setEnableForkServer(forkserver_enabled);
 			zax->setBreakupCriticalEdges(breakup_critical_edges);
 			zax->setContextSensitivity(context_sensitivity); 
+			zax->setFixedMapAddress(fixed_map_address);
 
 			int success=zax->execute();
 

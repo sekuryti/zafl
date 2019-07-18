@@ -95,7 +95,11 @@ ZaxBase_t::ZaxBase_t(IRDB_SDK::pqxxDB_t &p_dbinterface, IRDB_SDK::FileIR_t *p_va
 	m_forkserver_enabled(true),
 	m_breakupCriticalEdges(false),
 	m_fork_server_entry(p_forkServerEntryPoint),
-	m_exitpoints(p_exitPoints)
+	m_exitpoints(p_exitPoints),
+	m_do_fixed_addr_optimization(false),
+	m_trace_map_fixed_addr(0),
+	m_previd_fixed_addr(0),
+	m_context_fixed_addr(0)
 {
 	if (m_use_stars) {
 		cout << "Use STARS analysis engine" << endl;
@@ -182,33 +186,6 @@ ZaxBase_t::ZaxBase_t(IRDB_SDK::pqxxDB_t &p_dbinterface, IRDB_SDK::FileIR_t *p_va
 	m_num_contexts_entry = 0;
 	m_num_contexts_exit = 0;
 
-	// fixed addresses (must match libzafl)
-	const auto trace_map_fixed_addr_s = getenv("ZAFL_TRACE_MAP_FIXED_ADDRESS");
-	m_do_fixed_addr_optimization = (trace_map_fixed_addr_s!=nullptr);
-
-	if (m_do_fixed_addr_optimization) {
-		cout << "fixed address optimization enabled" << endl;
-		m_trace_map_fixed_addr = strtoul(trace_map_fixed_addr_s,nullptr,0);
-		// must match values in libzafl.so
-		// @todo: include libzafl.hpp
-		const auto trace_map_size = 65536; // power of 2 
-		const auto gap = 4096;             // page, multiple of 4K
-		const auto previd_offset = 32;     // word aligned
-		const auto context_offset = 64;    // word aligned (make sure no overlap with previd)
-		m_previd_fixed_addr = m_trace_map_fixed_addr + trace_map_size + gap + previd_offset;
-		m_context_fixed_addr = m_trace_map_fixed_addr + trace_map_size + gap + context_offset;
-		cout << hex;
-		cout << "tracemap fixed at: 0x" << m_trace_map_fixed_addr << endl;
-		cout << "prev_id fixed at : 0x" << m_previd_fixed_addr << endl;
-		cout << "context fixed at : 0x" << m_context_fixed_addr << endl;
-		cout << dec;
-	}
-	else
-	{
-		m_trace_map_fixed_addr = 0;
-		m_previd_fixed_addr = 0;
-		m_context_fixed_addr = 0;
-	}
 }
 
 bool ZaxBase_t::useFixedAddresses() const
@@ -234,6 +211,37 @@ unsigned long ZaxBase_t::getFixedAddressContext() const
 void ZaxBase_t::setVerbose(bool p_verbose)
 {
 	m_verbose = p_verbose;
+}
+
+void ZaxBase_t::setFixedMapAddress(VirtualOffset_t p_fixed_addr)
+{
+	cout << "Setting fixed-map address to "<< hex << p_fixed_addr << endl;
+        m_trace_map_fixed_addr       = p_fixed_addr;
+        m_do_fixed_addr_optimization = (p_fixed_addr != 0);
+	if (m_do_fixed_addr_optimization) 
+	{
+		cout << "fixed address optimization enabled" << endl;
+		// must match values in libzafl.so
+		// @todo: include libzafl.hpp
+		const auto trace_map_size = 65536; // power of 2 
+		const auto gap = 4096;             // page, multiple of 4K
+		const auto previd_offset = 32;     // word aligned
+		const auto context_offset = 64;    // word aligned (make sure no overlap with previd)
+		m_previd_fixed_addr = m_trace_map_fixed_addr + trace_map_size + gap + previd_offset;
+		m_context_fixed_addr = m_trace_map_fixed_addr + trace_map_size + gap + context_offset;
+		cout << hex;
+		cout << "tracemap fixed at: 0x" << m_trace_map_fixed_addr << endl;
+		cout << "prev_id fixed at : 0x" << m_previd_fixed_addr << endl;
+		cout << "context fixed at : 0x" << m_context_fixed_addr << endl;
+		cout << dec;
+	}
+	else
+	{
+		cout << "fixed address optimization disabled" << endl;
+		m_trace_map_fixed_addr = 0;
+		m_previd_fixed_addr = 0;
+		m_context_fixed_addr = 0;
+	}
 }
 
 void ZaxBase_t::setBasicBlockOptimization(bool p_bb_graph_optimize) 
