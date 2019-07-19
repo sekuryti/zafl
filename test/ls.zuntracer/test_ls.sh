@@ -117,8 +117,6 @@ fuzz_with_zafl ./ls.untracer.critical_edge -lt
 log_message "Fuzz zuntracer (break critical edges + graph optimization) for $AFL_TIMEOUT seconds"
 fuzz_with_zafl ./ls.untracer.critical_edge.graph -lt
 
-build_zuntracer ls.untracer.fixed -m 
-test_zuntracer ./ls.untracer.fixed -lt
 build_zuntracer ls.untracer.fixed.0x10000 -m 0x10000
 test_zuntracer ./ls.untracer.fixed.0x10000 -lt
 
