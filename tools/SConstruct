@@ -18,6 +18,7 @@ env.Replace(SECURITY_TRANSFORMS_HOME=os.environ['SECURITY_TRANSFORMS_HOME'])
 env.Replace(ZAFL_HOME=os.environ['ZAFL_HOME'])
 env.Replace(SMPSA_HOME=os.environ['SMPSA_HOME'])
 env.Replace(IRDB_SDK=os.environ['IRDB_SDK'])
+env.Replace(IRDB_LIBS=os.environ['IRDB_LIBS'])
 env.Replace(debug=ARGUMENTS.get("debug",0))
 
 

@@ -20,6 +20,7 @@ if "CYGWIN" in sysname:
 Export('env')
 
 dirs='''
+	zedge
 	laf
 	zax
 	'''
