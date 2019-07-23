@@ -16,6 +16,8 @@
 
 #include <stdlib.h>
 #include <fstream>
+#include <memory>
+
 #include <irdb-core>
 #include <libgen.h>
 #include "zedge.hpp"
