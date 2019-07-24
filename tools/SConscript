@@ -6,8 +6,8 @@ Import('env')
 
 (sysname, nodename, release, version, machine)=os.uname()
 
-env.Append(CXXFLAGS=" -std=c++11 -Wall -Werror")
-env.Append(LINKFLAGS=" -std=c++11 -Wall -Werror -Wl,-unresolved-symbols=ignore-in-shared-libs ")
+env.Append(CXXFLAGS="  -std=c++11 -Wall -Werror -fmax-errors=2 ")
+env.Append(LINKFLAGS=" -std=c++11 -Wall -Werror -fmax-errors=2 -Wl,-unresolved-symbols=ignore-in-shared-libs ")
 
 env['BASE_IRDB_LIBS']="irdb-core"
 
