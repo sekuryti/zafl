@@ -1199,6 +1199,8 @@ void ZaxBase_t::addLibZaflIntegration()
  */
 int ZaxBase_t::execute()
 {
+	getFileIR()->setBaseIDS();
+	getFileIR()->assembleRegistry();
 	if (m_breakupCriticalEdges)
 	{
 		CriticalEdgeBreaker_t ceb(getFileIR(), m_blacklist, m_verbose);
