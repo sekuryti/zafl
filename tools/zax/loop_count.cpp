@@ -15,7 +15,7 @@
 */
 
 #include <assert.h>
-#include "zedge.hpp"
+#include "loop_count.hpp"
 
 using namespace ZedgeNS;
 
@@ -48,6 +48,10 @@ bool Zedge_t::execute()
 	const auto dead_registers = de -> getDeadRegisters();
 
 	static auto label_counter=0;
+
+	auto new_blk_count      = 0u;
+	auto loops_instrumented = 0u;
+	auto flag_save_points   = 0u;
 
 
 	for(auto f : getFileIR()->getFunctions())
@@ -84,28 +88,36 @@ bool Zedge_t::execute()
 			for(auto bucket_threshold : bucket_thresholds)
 			{
 				// the block to jump to if the comparison for this bucket is true.
-				auto new_nop = addNewAssembly(              "nop");
-				(void)         insertAssemblyAfter(new_nop, "jmp 0", loop_start);
+				auto new_hlt_blk = addNewAssembly("jmp 0");
+				new_hlt_blk->setTarget(loop_start);
 
 				// the actual comparison of the counter to the bucket thresholds
 				auto loop_cnt_str = to_string(label_counter++);
 				auto cmp_str      = string() + "L"+ loop_cnt_str +": cmp dword [rel L"+loop_cnt_str + "], "+to_string(bucket_threshold);
 				auto new_cmp      = tmp = insertAssemblyAfter(tmp,cmp_str);
 				create_scoop_reloc(getFileIR(), {new_sc,0}, new_cmp);
-				                    tmp = insertAssemblyAfter(tmp, "jg  0", new_nop);
+				                    tmp = insertAssemblyAfter(tmp, "jg  0", new_hlt_blk);
 			}
+			new_blk_count      += 2 * bucket_thresholds.size();
+			loops_instrumented += 1;
 
 			// now, go back and save/restore context around the instrumentation as necessary.
 			const auto dead_regs  = getDeadRegs(*dead_registers, loop_start);
                         const auto live_flags = dead_regs.find(IRDB_SDK::rn_EFLAGS)==dead_regs.end();
 			if(live_flags)
 			{
+				flag_save_points += 1;
 				(void)insertAssemblyBefore(inc,        "pushf");
 				(void)insertAssemblyBefore(loop_start, "popf") ;
 			}
 
 		}
 	}
+
+	cout << dec; 
+	cout << "#ATTRIBUTE zax::loop_count_total_blocks_inserted ="    << new_blk_count      << endl;
+	cout << "#ATTRIBUTE zax::loop_count_total_loops_instrumented =" << loops_instrumented << endl;
+	cout << "#ATTRIBUTE zax::loop_count_total_flags_saves ="        << flag_save_points  << endl;
 
 	// success!
 	return true;

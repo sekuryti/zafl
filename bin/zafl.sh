@@ -22,6 +22,7 @@ usage()
 	echo "zafl.sh <input_binary> <output_zafl_binary> [options]"
 	echo 
 	echo "options:"
+	echo "     -h, --help                              Print this screen and exit."
 	echo "     -s, --stars                             Use STARS (default)"
 	echo "     -S, --no-stars                          Do not use STARS"
 	echo "     -g, --graph-optimization                Use control flow graph optimizations"
@@ -35,6 +36,8 @@ usage()
 	echo "     -u, --untracer                          Specify untracer instrumentation"
 	echo "     -c, --enable-breakup-critical-edges     Breakup critical edges"
 	echo "     -C, --disable-breakup-critical-edges    Do not breakup critical edges (default)"
+	echo "     -j, --enable-loop-count-instr           Insert instrumentation to afl-style count loop headers."
+	echo "     -J, --disable-loop-count-instr          Do not do -j (default)"
 	echo "     -f, --fork-server-only                  Fork server only"
 	echo "     -F, --disable-fork-server               No fork server"
 	echo "     -m, --enable-fixed-map [<address>]      Use fixed address for tracing map (<address> must be hex and page-aligned, e.g., 0x10000)"
@@ -208,6 +211,14 @@ parse_args()
 				;;
 			-C | --disable-breakup-critical-edges)
 				zax_opt=" $zax_opt -o zax:-C "
+				shift
+				;;
+			-j | --enable-loop-count-instr)
+				zax_opt=" $zax_opt -o zax:-j "
+				shift
+				;;
+			-J | --disable-loop-count-instr)
+				zax_opt=" $zax_opt -o zax:-J "
 				shift
 				;;
 			-f | --fork-server-only)

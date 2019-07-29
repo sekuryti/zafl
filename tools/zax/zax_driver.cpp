@@ -50,6 +50,8 @@ static void usage(char* name)
 	cerr<<"\t[--untracer|-u]                                Untracer-style block-coverage instrumentation"<<endl;
 	cerr<<"\t[--enable-critical-edge-breakup|-c]            Breakup critical edges"<<endl;
 	cerr<<"\t[--disable-critical-edge-breakup|-C]           Do not breakup critical edges (default)"<<endl;
+	cerr<<"\t[--enable-loop-count-instr|-j]                 Insert instrumentation to do afl-style loop counting for zuntracer."<<endl;
+	cerr<<"\t[--disable-loop-count-instr|-J]                Do not do -j (default)"<<endl;
 	cerr<<"\t[--enable-floating-instrumentation|-i]         Select best instrumentation within basic block"<<endl;
 	cerr<<"\t[--disable-floating-instrumentation|-I]        Instrument first instruction in basic blocks"<<endl;
 	cerr<<"\t[--enable-context-sensitivity <style>]         Use calling context sensitivity, style={callsite,function}"<<endl;
@@ -78,6 +80,7 @@ int main(int argc, char **argv)
 	auto forkserver_enabled=true;
 	auto untracer_mode=false;
 	auto breakup_critical_edges=false;
+	auto do_loop_count_instr=false;
 	auto floating_instrumentation=false;
 	auto context_sensitivity=ContextSensitivity_None;
 	auto random_seed = 0U;
@@ -108,13 +111,15 @@ int main(int argc, char **argv)
 		{"untracer",                         no_argument,       0, 'u'},
 		{"enable-critical-edge-breakup",     no_argument,       0, 'c'},
 		{"disable-critical-edge-breakup",    no_argument,       0, 'C'},
+		{"enable-loop-count-instr",          no_argument,       0, 'j'},
+		{"disable-loop-count-instr",         no_argument,       0, 'J'},
 		{"enable-floating-instrumentation",  no_argument,       0, 'i'},
 		{"disable-floating-instrumentation", no_argument,       0, 'I'},
 		{"enable-context-sensitivity",       required_argument, 0, 'z'},
 		{"random-seed",                      required_argument, 0, 'r'},
 		{0,0,0,0}
 	};
-	const char* short_opts="r:z:e:E:w:sv?hagGdDfFucCiIm:M";
+	const char* short_opts="r:z:e:E:w:sv?hagGdDfFucCjJiIm:M";
 
 	while(true)
 	{
@@ -183,6 +188,12 @@ int main(int argc, char **argv)
 				break;
 			case 'C':
 				breakup_critical_edges=false;
+				break;
+			case 'j':
+				do_loop_count_instr=true;
+				break;
+			case 'J':
+				do_loop_count_instr=false;
 				break;
 			case 'i':
 				floating_instrumentation=true;
@@ -259,6 +270,7 @@ int main(int argc, char **argv)
 			zax->setBasicBlockFloatingInstrumentation(floating_instrumentation);
 			zax->setEnableForkServer(forkserver_enabled);
 			zax->setBreakupCriticalEdges(breakup_critical_edges);
+			zax->setDoLoopCountInstrumentation(do_loop_count_instr);
 			zax->setContextSensitivity(context_sensitivity); 
 			zax->setFixedMapAddress(fixed_map_address);
 

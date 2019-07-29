@@ -34,6 +34,7 @@
 
 #include "zax_base.hpp"
 #include "critical_edge_breaker.hpp"
+#include "loop_count.hpp"
 
 using namespace std;
 using namespace IRDB_SDK;
@@ -94,6 +95,7 @@ ZaxBase_t::ZaxBase_t(IRDB_SDK::pqxxDB_t &p_dbinterface, IRDB_SDK::FileIR_t *p_va
 	m_domgraph_optimize(false),
 	m_forkserver_enabled(true),
 	m_breakupCriticalEdges(false),
+	m_doLoopCountInstrumentation(false),
 	m_fork_server_entry(p_forkServerEntryPoint),
 	m_exitpoints(p_exitPoints),
 	m_do_fixed_addr_optimization(false),
@@ -268,8 +270,16 @@ void ZaxBase_t::setBreakupCriticalEdges(bool p_breakupEdges)
 {
 	m_breakupCriticalEdges = p_breakupEdges;
 	m_breakupCriticalEdges ?
-		cout << "enable breaking of critical edges" << endl :
-		cout << "disable breaking of critical edges" << endl;
+		cout << "enable breaking of critical edges"  << endl :
+		cout << "disable breaking of critical edges" << endl ;
+}
+
+void ZaxBase_t::setDoLoopCountInstrumentation(bool p_lc)
+{
+	m_doLoopCountInstrumentation = p_lc;
+	m_doLoopCountInstrumentation ?
+		cout << "enable loop count instr."  << endl :
+		cout << "disable loop count instr." << endl ;
 }
 
 void ZaxBase_t::setBasicBlockFloatingInstrumentation(bool p_float)
@@ -1188,6 +1198,12 @@ int ZaxBase_t::execute()
 		CriticalEdgeBreaker_t ceb(getFileIR(), m_blacklist, m_verbose);
 		cout << "#ATTRIBUTE num_bb_extra_blocks=" << ceb.getNumberExtraNodes() << endl;
 
+		getFileIR()->setBaseIDS();
+		getFileIR()->assembleRegistry();
+	}
+	if (m_doLoopCountInstrumentation)
+	{
+		ZedgeNS::Zedge_t(getFileIR()).execute();
 		getFileIR()->setBaseIDS();
 		getFileIR()->assembleRegistry();
 	}

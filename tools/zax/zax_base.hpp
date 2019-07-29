@@ -44,6 +44,7 @@ namespace Zafl
 			void setBasicBlockFloatingInstrumentation(bool);
 			void setEnableForkServer(bool);
 			void setBreakupCriticalEdges(bool);
+			void setDoLoopCountInstrumentation(bool);
 			void setContextSensitivity(ContextSensitivity_t);
 			void filterPaddingNOP(BasicBlockSet_t& p_in_out);
 			void filterBlocksByDomgraph(BasicBlockSet_t& in_out, const DominatorGraph_t  * dg );
@@ -103,6 +104,7 @@ namespace Zafl
 			bool                           m_domgraph_optimize;  // skip basic blocks based on dominator graph
 			bool                           m_forkserver_enabled; // fork server enabled?
 			bool                           m_breakupCriticalEdges;
+			bool                           m_doLoopCountInstrumentation;
 			bool                           m_bb_float_instrumentation;  // skip basic blocks based on graph
 			bool                           m_verbose;
 			pair<DataScoop_t*,int>         m_trace_map;  // afl shared memory trace map
