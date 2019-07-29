@@ -62,6 +62,9 @@ bool Zedge_t::execute()
 			const auto header = loop -> getHeader(); 
 			auto loop_start = header->getInstructions()[0];
 
+			// do this here, before we insertBefore on loop_start
+			const auto dead_regs  = getDeadRegs(*dead_registers, loop_start);
+
 			cout << "Loop header: " << hex << loop_start->getBaseID() << ":" << loop_start->getDisassembly() << endl;
 
 			// create the loop counter
@@ -102,7 +105,6 @@ bool Zedge_t::execute()
 			loops_instrumented += 1;
 
 			// now, go back and save/restore context around the instrumentation as necessary.
-			const auto dead_regs  = getDeadRegs(*dead_registers, loop_start);
                         const auto live_flags = dead_regs.find(IRDB_SDK::rn_EFLAGS)==dead_regs.end();
 			if(live_flags)
 			{
@@ -115,9 +117,9 @@ bool Zedge_t::execute()
 	}
 
 	cout << dec; 
-	cout << "#ATTRIBUTE zax::loop_count_total_blocks_inserted ="    << new_blk_count      << endl;
-	cout << "#ATTRIBUTE zax::loop_count_total_loops_instrumented =" << loops_instrumented << endl;
-	cout << "#ATTRIBUTE zax::loop_count_total_flags_saves ="        << flag_save_points  << endl;
+	cout << "#ATTRIBUTE zax::loop_count_total_blocks_inserted="    << new_blk_count      << endl;
+	cout << "#ATTRIBUTE zax::loop_count_total_loops_instrumented=" << loops_instrumented << endl;
+	cout << "#ATTRIBUTE zax::loop_count_total_flags_saves="        << flag_save_points  << endl;
 
 	// success!
 	return true;
