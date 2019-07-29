@@ -38,6 +38,7 @@ usage()
 	echo "     -C, --disable-breakup-critical-edges    Do not breakup critical edges (default)"
 	echo "     -j, --enable-loop-count-instr           Insert instrumentation to afl-style count loop headers."
 	echo "     -J, --disable-loop-count-instr          Do not do -j (default)"
+	echo "     --loop-count-buckets <bucket_spec>      The buckets for -j.  bucket_spec = int[,int]*, e.g., 1,2,4,8,16.  Spaces are disallowed."
 	echo "     -f, --fork-server-only                  Fork server only"
 	echo "     -F, --disable-fork-server               No fork server"
 	echo "     -m, --enable-fixed-map [<address>]      Use fixed address for tracing map (<address> must be hex and page-aligned, e.g., 0x10000)"
@@ -220,6 +221,18 @@ parse_args()
 			-J | --disable-loop-count-instr)
 				zax_opt=" $zax_opt -o zax:-J "
 				shift
+				;;
+			--loop-count-buckets)
+				shift
+				case $1 in
+					-*|""|*" "*)
+						echo "--loop-count-buckets requires exacatly 1 parameter with no spaces."
+						exit 1
+						;;
+					*)
+						zax_opt=" $zax_opt -o zax:--loop-count-buckets -o $1 "
+					;;
+				esac
 				;;
 			-f | --fork-server-only)
 				ZAFL_LIMIT_END=0

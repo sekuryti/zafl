@@ -34,11 +34,25 @@ static void create_scoop_reloc(FileIR_t* fir, pair<DataScoop_t*,int> wrt, Instru
 
 
 
-Zedge_t::Zedge_t(FileIR_t *p_variantIR)
+Zedge_t::Zedge_t(FileIR_t *p_variantIR, const string& p_buckets)
 	: 
-	Transform_t(p_variantIR) 
+	Transform_t(p_variantIR)
 {
-	// no other setup needed	
+	stringstream ss(p_buckets);
+
+	auto bucket = 0u;
+	auto comma = ',';
+	while( ss >> bucket )
+	{
+		m_loopCountBuckets.insert(bucket);
+		if(! (ss >> comma))
+			break;
+	}
+
+	for(auto bucket : m_loopCountBuckets)
+	{
+		cout <<"Loop count bucket has: "<< dec << bucket << endl;
+	}
 }
 
 bool Zedge_t::execute()
@@ -86,7 +100,7 @@ bool Zedge_t::execute()
 			loop_start = insertAssemblyBefore(tmp, inc_str);
 			create_scoop_reloc(getFileIR(), {new_sc,0}, inc);
 				
-			const auto bucket_thresholds = set<uint32_t>{0,1,2,4,8,16,32,64,128};
+			const auto &bucket_thresholds = m_loopCountBuckets;
 
 			for(auto bucket_threshold : bucket_thresholds)
 			{

@@ -81,6 +81,7 @@ int main(int argc, char **argv)
 	auto untracer_mode=false;
 	auto breakup_critical_edges=false;
 	auto do_loop_count_instr=false;
+	auto loop_count_buckets=string("0,1,2,4,8,16,32,64,128");
 	auto floating_instrumentation=false;
 	auto context_sensitivity=ContextSensitivity_None;
 	auto random_seed = 0U;
@@ -113,6 +114,7 @@ int main(int argc, char **argv)
 		{"disable-critical-edge-breakup",    no_argument,       0, 'C'},
 		{"enable-loop-count-instr",          no_argument,       0, 'j'},
 		{"disable-loop-count-instr",         no_argument,       0, 'J'},
+		{"loop-count-buckets",               required_argument, 0, ':'},
 		{"enable-floating-instrumentation",  no_argument,       0, 'i'},
 		{"disable-floating-instrumentation", no_argument,       0, 'I'},
 		{"enable-context-sensitivity",       required_argument, 0, 'z'},
@@ -195,6 +197,9 @@ int main(int argc, char **argv)
 			case 'J':
 				do_loop_count_instr=false;
 				break;
+			case ':':
+				loop_count_buckets = string(optarg);
+				break;
 			case 'i':
 				floating_instrumentation=true;
 				break;
@@ -271,6 +276,7 @@ int main(int argc, char **argv)
 			zax->setEnableForkServer(forkserver_enabled);
 			zax->setBreakupCriticalEdges(breakup_critical_edges);
 			zax->setDoLoopCountInstrumentation(do_loop_count_instr);
+			zax->setLoopCountBuckets(loop_count_buckets);
 			zax->setContextSensitivity(context_sensitivity); 
 			zax->setFixedMapAddress(fixed_map_address);
 

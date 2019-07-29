@@ -282,6 +282,12 @@ void ZaxBase_t::setDoLoopCountInstrumentation(bool p_lc)
 		cout << "disable loop count instr." << endl ;
 }
 
+void ZaxBase_t::setLoopCountBuckets(string p_buckets)
+{
+	m_loopCountBuckets = p_buckets;
+	cout << "loop count buckets = " << m_loopCountBuckets << endl;
+}
+
 void ZaxBase_t::setBasicBlockFloatingInstrumentation(bool p_float)
 {
 	m_bb_float_instrumentation = p_float;
@@ -1203,7 +1209,7 @@ int ZaxBase_t::execute()
 	}
 	if (m_doLoopCountInstrumentation)
 	{
-		ZedgeNS::Zedge_t(getFileIR()).execute();
+		ZedgeNS::Zedge_t(getFileIR(), m_loopCountBuckets).execute();
 		getFileIR()->setBaseIDS();
 		getFileIR()->assembleRegistry();
 	}

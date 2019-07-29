@@ -29,11 +29,11 @@ namespace ZedgeNS
 	class Zedge_t : protected Transform_t
 	{
 		public:
-			Zedge_t(FileIR_t *p_variantIR);
-
+			Zedge_t(FileIR_t *p_variantIR, const string& p_loopCountBuckets);
 			bool execute();
 
 		private:
+			set<uint32_t> m_loopCountBuckets = {};
 	};
 
 }
