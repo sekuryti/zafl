@@ -83,7 +83,7 @@ namespace Zafl
 			bool BB_isPaddingNop(const BasicBlock_t *) const;
 			bool getBasicBlockFloatingInstrumentation() const;
 			ContextSensitivity_t getContextSensitivity() const;
-			bool hasLeafAnnotation(Function_t* fn) const;
+			bool shouldHonorRedZone(Function_t* fn) const;
 			RegisterSet_t getDeadRegs(Instruction_t* insn) const;
 			RegisterSet_t getFreeRegs(const RegisterSet_t& candidates, const RegisterSet_t& allowed) const;
 			void addContextSensitivity_Callsite(const ControlFlowGraph_t&);
@@ -96,7 +96,6 @@ namespace Zafl
 
 		protected:
 			pqxxDB_t&                      m_dbinterface;
-			unique_ptr<FunctionSet_t>      leaf_functions;
 			unique_ptr<DeadRegisterMap_t>  dead_registers;
 
 			bool                           m_use_stars;          // use STARS to have access to dead register info

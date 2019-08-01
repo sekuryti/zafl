@@ -64,10 +64,14 @@ RegisterSet_t ZaxBase_t::getFreeRegs(const RegisterSet_t& candidates, const Regi
 	return free_regs;
 }
 
-bool ZaxBase_t::hasLeafAnnotation(Function_t* fn) const
+bool ZaxBase_t::shouldHonorRedZone(Function_t* fn) const
 {
-	auto it = leaf_functions -> find(fn);
-	return (it != leaf_functions->end());
+	const auto &insns = fn->getInstructions();
+	const auto rz_it  = find_if(ALLOF(insns), [](Instruction_t* i)
+		{
+			return i->getDisassembly().find("[rsp -") != string::npos;
+		});
+	return rz_it != insns.end();
 }
 
 bool ZaxBase_t::BB_isPaddingNop(const BasicBlock_t *p_bb) const
@@ -106,7 +110,6 @@ ZaxBase_t::ZaxBase_t(IRDB_SDK::pqxxDB_t &p_dbinterface, IRDB_SDK::FileIR_t *p_va
 	if (m_use_stars) {
 		cout << "Use STARS analysis engine" << endl;
 		auto deep_analysis=DeepAnalysis_t::factory(getFileIR());
-		leaf_functions = deep_analysis -> getLeafFunctions();
 		dead_registers = deep_analysis -> getDeadRegisters();
 	}
 
@@ -1127,9 +1130,7 @@ void ZaxBase_t::addContextSensitivity_Function(const ControlFlowGraph_t& cfg)
 				i = do_insert(i, "lea rsp, [rsp+128]");
 		};
 
-	bool honor_red_zone = true;
-	if (m_use_stars) 
-		honor_red_zone = hasLeafAnnotation(cfg.getFunction());
+	const auto honor_red_zone = shouldHonorRedZone(cfg.getFunction());
 
 	auto contextid = getContextId();
 	auto entry_block = cfg.getEntry();
@@ -1242,9 +1243,7 @@ int ZaxBase_t::execute()
 		// skip if function has no entry point
 		if (!f->getEntryPoint()) continue;
 
-		bool honorRedZone = true;
-		if (m_use_stars) 
-			honorRedZone = hasLeafAnnotation(f);
+		auto honorRedZone = shouldHonorRedZone(f);
 
 		const auto cfgp = ControlFlowGraph_t::factory(f);
 		const auto &cfg = *cfgp;
