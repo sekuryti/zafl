@@ -81,12 +81,12 @@ verify_output()
 	shift
 	local all_configs=$*
 
-	./$orig_zafl $arg > $orig_zafl.output.orig
+	timeout 30 ./$orig_zafl $arg > $orig_zafl.output.orig
 
 	for p in $all_configs 
 	do
 		echo "Program under test: $p"
-		./${p} $arg > $p.output
+		timeout 30 ./${p} $arg > $p.output
 		diff $orig_zafl.output.orig $p.output
 		if [ ! $? -eq 0 ]; then
 			log_error "output verification failure: $p.output"
