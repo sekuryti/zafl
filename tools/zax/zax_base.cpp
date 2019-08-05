@@ -21,7 +21,7 @@
  * E-mail: jwd@zephyr-software.com
  **************************************************************************/
 
-#include <stdlib.h>
+#include <cstdlib>
 #include <string.h> 
 #include <algorithm>
 #include <cctype>
@@ -67,9 +67,21 @@ RegisterSet_t ZaxBase_t::getFreeRegs(const RegisterSet_t& candidates, const Regi
 bool ZaxBase_t::shouldHonorRedZone(Function_t* fn) const
 {
 	const auto &insns = fn->getInstructions();
-	const auto rz_it  = find_if(ALLOF(insns), [](Instruction_t* i)
+	const auto rz_it  = find_if(ALLOF(insns), [fn](Instruction_t* i)
 		{
-			return i->getDisassembly().find("[rsp -") != string::npos;
+			const auto dis = i->getDisassembly();
+			if( dis.find("[rsp -") != string::npos)
+				return true;
+
+			const auto to_find = string("[rbp -");
+			const auto found_pos = dis.find(to_find);
+			if(fn->getUseFramePointer() && found_pos != string::npos)
+			{
+				const auto disp = strtoll(dis.c_str()+found_pos+to_find.length(), nullptr, 0);
+				if( fn->getStackFrameSize() < disp )
+					return true;
+			}
+			return false;
 		});
 	return rz_it != insns.end();
 }
