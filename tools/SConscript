@@ -30,4 +30,5 @@ tools=[]
 for i in Split(dirs):
 	tools=tools+SConscript(os.path.join(i,"SConscript"))
 
+Default(tools)
 Return('tools')
