@@ -1,5 +1,9 @@
 #!/bin/bash
 
+
+scons -c
+exit 0
+
 cd $ZAFL_HOME/zipr_umbrella
 ./clean-all.sh
 

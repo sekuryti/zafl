@@ -15,6 +15,10 @@ ret=[zipr,tools,libzafl]
 
 print "ret=", [str(s) for s in ret]
 
+for libzafl_file in libzafl:
+	if str(libzafl_file).endswith(".so"):
+		ret=ret+Install(os.environ['ZEST_RUNTIME']+"/lib64", libzafl_file)
+
 pedi = Command( target = "./zafl-install",
                 source = [zipr,tools,libzafl],
                 action = os.environ['PEDI_HOME']+"/pedi -m manifest.txt " )
