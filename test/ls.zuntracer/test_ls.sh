@@ -100,12 +100,28 @@ setup
 build_zuntracer ls.untracer.no_critical_edge -C
 test_zuntracer ./ls.untracer.no_critical_edge -lt
 
-# zuntracer, do break critical edges
-build_zuntracer ls.untracer.critical_edge -c
+# zuntracer, do break all critical edges
+build_zuntracer ls.untracer.critical_edge -c all
+test_zuntracer ./ls.untracer.critical_edge -lt
+
+# zuntracer, do break target critical edges
+build_zuntracer ls.untracer.critical_edge -c targets
+test_zuntracer ./ls.untracer.critical_edge -lt
+
+# zuntracer, do break fallthrough critical edges
+build_zuntracer ls.untracer.critical_edge -c fallthroughs
 test_zuntracer ./ls.untracer.critical_edge -lt
 
 # zuntracer, do break critical edges, optimize graph
-build_zuntracer ls.untracer.critical_edge.graph -c -g -M
+build_zuntracer ls.untracer.critical_edge.graph -c all -g -M
+test_zuntracer ./ls.untracer.critical_edge.graph -lt
+
+# zuntracer, do break critical edges, optimize graph
+build_zuntracer ls.untracer.critical_edge.graph -c target -g -M
+test_zuntracer ./ls.untracer.critical_edge.graph -lt
+
+# zuntracer, do break critical edges, optimize graph
+build_zuntracer ls.untracer.critical_edge.graph -c fallthrough -g -M
 test_zuntracer ./ls.untracer.critical_edge.graph -lt
 
 log_message "Fuzz zuntracer (basic block coverage) for $AFL_TIMEOUT seconds"
