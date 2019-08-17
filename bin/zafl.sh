@@ -34,8 +34,8 @@ usage()
 	echo "     -E, --exit                              Specify fork server exit point(s)"
 	echo "     --instrumentation-style <mode>          mode = {edge, block} (default: edge a la AFL)"
 	echo "     -u, --untracer                          Specify untracer instrumentation"
-	echo "     -c, --enable-breakup-critical-edges     Breakup critical edges"
-	echo "     -C, --disable-breakup-critical-edges    Do not breakup critical edges (default)"
+	echo "     -c, --break-critical-edges [<type>]     Breakup critical edges, type={all,targets,fallthroughs,none}, if -c is used without an argument, all is specified"
+	echo "     -C, --no-break-critical-edges           Same as '-c none' (default)"
 	echo "     -j, --enable-loop-count-instr           Insert instrumentation to afl-style count loop headers."
 	echo "     -J, --disable-loop-count-instr          Do not do -j (default)"
 	echo "     --loop-count-buckets <bucket_spec>      The buckets for -j.  bucket_spec = int[,int]*, Default = 0,1,2,4,8,16,32,128.  (Spaces disallowed.)"
@@ -206,12 +206,46 @@ parse_args()
 				zax_opt=" $zax_opt -o zax:--untracer "
 				shift
 				;;
-			-c | --enable-breakup-critical-edges)
-				zax_opt=" $zax_opt -o zax:-c "
+			-c | --break-critical-edges)
+				shift 
+				case $1 in
+					none)
+						zax_opt=" $zax_opt -o zax:-c -o none "
+						shift
+						;;
+					targets|target)
+						zax_opt=" $zax_opt -o zax:-c -o targets "
+						shift
+						;;
+					fallthroughs|fallthrough)
+						zax_opt=" $zax_opt -o zax:-c -o fallthroughs "
+						shift
+						;;
+					all|"")
+						zax_opt=" $zax_opt -o zax:-c -o all"
+						shift
+						;;
+					*)
+						echo "Cannot map $1 to critical edge type " 
+						exit 2
+						;;
+				esac
+				;;
+			-j | --enable-loop-count-instr)
+				zax_opt=" $zax_opt -o zax:-j "
 				shift
 				;;
-			-C | --disable-breakup-critical-edges)
-				zax_opt=" $zax_opt -o zax:-C "
+			-J | --disable-loop-count-instr)
+				zax_opt=" $zax_opt -o zax:-J "
+				shift
+				;;
+			--loop-count-buckets)
+				shift
+				zax_opt=" $zax_opt -o zax:--loop-count-buckets -o $1 "
+				shift
+				;;
+			-C | --no-break-critical-edges)
+				zax_opt=" $zax_opt -o zax:-c none "
 				shift
 				;;
 			-j | --enable-loop-count-instr)
@@ -392,52 +426,58 @@ verify_zafl_symbols()
 	fi
 }
 
-parse_args "$@"
-if [ -z "$entry_opt" ]; then
-	find_main
-else
-	options=" $options $entry_opt "
-fi
 
-if [ ! -z "$exit_opt" ]; then
-	options=" $options $exit_opt "
-fi
-
-#
-# Execute Zipr toolchain with Zafl options
-#
-log_msg "Transforming input binary $input_binary into $output_zafl_binary"
-
-optional_step=""
-if [ ! -z "$laf_opt" ];
-then
-	if [ ! -z "$verbose_opt" ]; then
-		laf_opt=" $laf_opt -o laf:-v"
+main()
+{
+	parse_args "$@"
+	if [ -z "$entry_opt" ]; then
+		find_main
+	else
+		options=" $options $entry_opt "
 	fi
-	optional_step=" -c laf $laf_opt "
-fi
 
-zax_opt=" $zax_opt $float_opt "
-cmd="$ZAFL_TM_ENV $PSZ $input_binary $output_zafl_binary $ida_or_rida_opt -s move_globals $optional_step -c zax -o move_globals:--elftables-only -o move_globals:--no-use-stars $stars_opt $zax_opt $verbose_opt $options $other_args $trace_opt $zipr_opt $extra_args"
-
-
-if [ ! -z "$ZAFL_TM_ENV" ]; then
-	log_msg "Trace map will be expected at fixed address"
-	if [ -z $ZAFL_TRACE_MAP_FIXED_ADDRESS ]; then
-		log_warning "When running afl-fuzz, make sure that the environment variable ZAFL_TRACE_MAP_FIXED_ADDRESS is exported and set properly to (otherwise the instrumented binary will crash):"
-		log_warning "export $ZAFL_TM_ENV"
+	if [ ! -z "$exit_opt" ]; then
+		options=" $options $exit_opt "
 	fi
-else
-	if [ ! -z $ZAFL_TRACE_MAP_FIXED_ADDRESS ]; then
-		log_msg "Trace map will be at fixed address: $ZAFL_TRACE_MAP_FIXED_ADDRESS"
+
+	#
+	# Execute Zipr toolchain with Zafl options
+	#
+	log_msg "Transforming input binary $input_binary into $output_zafl_binary"
+
+	optional_step=""
+	if [ ! -z "$laf_opt" ];
+	then
+		if [ ! -z "$verbose_opt" ]; then
+			laf_opt=" $laf_opt -o laf:-v"
+		fi
+		optional_step=" -c laf $laf_opt "
 	fi
-fi
 
-log_msg "Issuing command: $cmd"
-eval $cmd
-if [ $? -eq 0 ]; then
-	verify_zafl_symbols $output_zafl_binary
-else
-	log_error_exit "error transforming input program"
-fi
+	zax_opt=" $zax_opt $float_opt "
+	cmd="$ZAFL_TM_ENV $PSZ $input_binary $output_zafl_binary $ida_or_rida_opt -s move_globals $optional_step -c zax -o move_globals:--elftables-only -o move_globals:--no-use-stars $stars_opt $zax_opt $verbose_opt $options $other_args $trace_opt $zipr_opt $extra_args"
 
+
+	if [ ! -z "$ZAFL_TM_ENV" ]; then
+		log_msg "Trace map will be expected at fixed address"
+		if [ -z $ZAFL_TRACE_MAP_FIXED_ADDRESS ]; then
+			log_warning "When running afl-fuzz, make sure that the environment variable ZAFL_TRACE_MAP_FIXED_ADDRESS is exported and set properly to (otherwise the instrumented binary will crash):"
+			log_warning "export $ZAFL_TM_ENV"
+		fi
+	else
+		if [ ! -z $ZAFL_TRACE_MAP_FIXED_ADDRESS ]; then
+			log_msg "Trace map will be at fixed address: $ZAFL_TRACE_MAP_FIXED_ADDRESS"
+		fi
+	fi
+
+	log_msg "Issuing command: $cmd"
+	eval $cmd
+	if [ $? -eq 0 ]; then
+		verify_zafl_symbols $output_zafl_binary
+	else
+		log_error_exit "error transforming input program"
+	fi
+
+}
+
+main "$@"
