@@ -32,7 +32,7 @@
 #include <irdb-elfdep>
 #include <irdb-deep>
 
-#include "zax_base.hpp"
+#include "zax.hpp"
 #include "critical_edge_breaker.hpp"
 #include "loop_count.hpp"
 
@@ -110,7 +110,7 @@ ZaxBase_t::ZaxBase_t(IRDB_SDK::pqxxDB_t &p_dbinterface, IRDB_SDK::FileIR_t *p_va
 	m_graph_optimize(false),
 	m_domgraph_optimize(false),
 	m_forkserver_enabled(true),
-	m_breakupCriticalEdges(false),
+	m_breakupCriticalEdges(bceNone),
 	m_doLoopCountInstrumentation(false),
 	m_fork_server_entry(p_forkServerEntryPoint),
 	m_exitpoints(p_exitPoints),
@@ -281,12 +281,18 @@ void ZaxBase_t::setEnableForkServer(bool p_forkserver_enabled)
 	m_forkserver_enabled = p_forkserver_enabled;
 }
 
-void ZaxBase_t::setBreakupCriticalEdges(bool p_breakupEdges)
+void ZaxBase_t::setBreakCriticalEdgeStyle(bceStyle_t p_sty)
 {
-	m_breakupCriticalEdges = p_breakupEdges;
-	m_breakupCriticalEdges ?
-		cout << "enable breaking of critical edges"  << endl :
-		cout << "disable breaking of critical edges" << endl ;
+	m_breakupCriticalEdges = p_sty;
+
+	const auto style_str = 
+		p_sty == bceAll          ? "all"          : 
+		p_sty == bceNone         ? "none"         : 
+		p_sty == bceTargets      ? "targets"      : 
+		p_sty == bceFallthroughs ? "fallthroughs" : 
+		throw invalid_argument("Cannot map p_sty to string")
+		;
+	cout << "breaking of critical edge style: " << style_str << endl ;
 }
 
 void ZaxBase_t::setDoLoopCountInstrumentation(bool p_lc)
@@ -985,7 +991,7 @@ void ZaxBase_t::dumpMap()
 	getFileIR()->setBaseIDS();           // make sure instructions have IDs
 	getFileIR()->assembleRegistry();     // make sure to assemble all instructions
 
-	std::ofstream mapfile("zax.map");
+	ofstream mapfile("zax.map");
 
 	mapfile << "# BLOCK_ID  ID_EP:size  ID_OLDEP:size (ID_INSTRUMENTATION:size)*" << endl;
 	for (auto &mb : m_modifiedBlocks)
@@ -1214,11 +1220,10 @@ int ZaxBase_t::execute()
 {
 	getFileIR()->setBaseIDS();
 	getFileIR()->assembleRegistry();
-	if (m_breakupCriticalEdges)
+	if (m_breakupCriticalEdges != bceNone)
 	{
-		CriticalEdgeBreaker_t ceb(getFileIR(), m_blacklist, m_verbose);
+		auto ceb = CriticalEdgeBreaker_t(getFileIR(), m_blacklist, m_breakupCriticalEdges, m_verbose);
 		cout << "#ATTRIBUTE num_bb_extra_blocks=" << ceb.getNumberExtraNodes() << endl;
-
 		getFileIR()->setBaseIDS();
 		getFileIR()->assembleRegistry();
 	}
