@@ -113,16 +113,16 @@ build_zuntracer ls.untracer.critical_edge -c fallthroughs
 test_zuntracer ./ls.untracer.critical_edge -lt
 
 # zuntracer, do break critical edges, optimize graph
-build_zuntracer ls.untracer.critical_edge.graph -c all -g -M
-test_zuntracer ./ls.untracer.critical_edge.graph -lt
+build_zuntracer ls.untracer.critical_edge_all.graph -c all -g -M
+test_zuntracer ./ls.untracer.critical_edge_all.graph -lt
 
 # zuntracer, do break critical edges, optimize graph
-build_zuntracer ls.untracer.critical_edge.graph -c target -g -M
-test_zuntracer ./ls.untracer.critical_edge.graph -lt
+build_zuntracer ls.untracer.critical_edge_target.graph -c target -g -M
+test_zuntracer ./ls.untracer.critical_edge_target.graph -lt
 
 # zuntracer, do break critical edges, optimize graph
-build_zuntracer ls.untracer.critical_edge.graph -c fallthrough -g -M
-test_zuntracer ./ls.untracer.critical_edge.graph -lt
+build_zuntracer ls.untracer.critical_edge_fallthrough.graph -c fallthrough -g -M
+test_zuntracer ./ls.untracer.critical_edge_fallthrough.graph -lt
 
 log_message "Fuzz zuntracer (basic block coverage) for $AFL_TIMEOUT seconds"
 fuzz_with_zafl ./ls.untracer.no_critical_edge -lt
