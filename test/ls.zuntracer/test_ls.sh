@@ -128,7 +128,7 @@ log_message "Fuzz zuntracer (basic block coverage) for $AFL_TIMEOUT seconds"
 fuzz_with_zafl ./ls.untracer.no_critical_edge -lt
 
 log_message "Fuzz zuntracer (break critical edges) for $AFL_TIMEOUT seconds"
-fuzz_with_zafl ./ls.untracer.critical_edge_call -lt 
+fuzz_with_zafl ./ls.untracer.critical_edge_all -lt 
 
 log_message "Fuzz zuntracer (break critical edges + graph optimization) for $AFL_TIMEOUT seconds"
 fuzz_with_zafl ./ls.untracer.critical_edge_all.graph -lt
