@@ -11,9 +11,9 @@ PUT3=test_running.exe
 MYARG3="000aaaaaaaa"
 MYARG3A="000aaaaaaaaaaaaaaaaaaaaaaaaaaaa"
 
-ZAFL_PUT="$PUT.zafl $PUT.zafl.c $PUT.zafl.g $PUT.zafl.d $PUT.zafl.d.g $PUT.zafl.c.d.g"
-ZAFL_PUT2="$PUT2.zafl $PUT2.zafl.c $PUT2.zafl.g $PUT2.zafl.d $PUT2.zafl.d.g $PUT2.zafl.c.d.g"
-ZAFL_PUT3="$PUT3.zafl $PUT3.zafl.c $PUT3.zafl.g $PUT3.zafl.d $PUT3.zafl.d.g $PUT3.zafl.c.d.g"
+ZAFL_PUT= "$PUT.zafl  $PUT.zafl.call  $PUT.zafl.ctarg $PUT.zafl.cfall $PUT.zafl.g $PUT.zafl.d $PUT.zafl.d.g "
+ZAFL_PUT2="$PUT2.zafl $PUT2.zafl.call $PUT2.zafl.ctarg $PUT2.zafl.cfall $PUT2.zafl.g $PUT2.zafl.d $PUT2.zafl.d.g "
+ZAFL_PUT3="$PUT3.zafl $PUT3.zafl.call $PUT3.zafl.ctarg $PUT3.zafl.cfall $PUT3.zafl.g $PUT3.zafl.d $PUT3.zafl.d.g "
 
 log_msg()
 {
