@@ -60,13 +60,12 @@ zafl_all()
 	for p in $*
 	do
 		build_one $p $p.zafl -v -t $p.analysis 
-		build_one $p $p.zafl.call  -c all -v -t $p.analysis.c
-		build_one $p $p.zafl.ctarg -c targets -v -t $p.analysis.c
-		build_one $p $p.zafl.cfall -c fallthroughs -v -t $p.analysis.c
+		build_one $p $p.zafl.call  -c all -v -t $p.analysis.call
+		build_one $p $p.zafl.ctarg -c targets -v -t $p.analysis.ctarg
+		build_one $p $p.zafl.cfall -c fallthroughs -v -t $p.analysis.cfall
 		build_one $p $p.zafl.g -g -v -t $p.analysis.g
 		build_one $p $p.zafl.d -d -v -t $p.analysis.d
 		build_one $p $p.zafl.d.g -d -g -v -t $p.analysis.d.g
-		build_one $p $p.zafl.c.d.g -d -g -v -t $p.analysis.c.d.g
 	done
 }
 
