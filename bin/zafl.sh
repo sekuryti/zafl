@@ -245,7 +245,7 @@ parse_args()
 				shift
 				;;
 			-C | --no-break-critical-edges)
-				zax_opt=" $zax_opt -o zax:-c none "
+				zax_opt=" $zax_opt -o zax:-c -o none "
 				shift
 				;;
 			-j | --enable-loop-count-instr)

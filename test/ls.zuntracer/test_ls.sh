@@ -37,7 +37,7 @@ build_zuntracer()
 {
 	ls_zafl=$1
 	shift
-	zafl.sh `which ls` $ls_zafl --untracer --tempdir analysis.${ls_zafl} $*
+	(set -x ; zafl.sh `which ls` $ls_zafl --untracer --tempdir analysis.${ls_zafl} $* )
 	if [ ! $? -eq 0 ]; then
 		log_error "$ls_zafl: unable to generate zafl version"	
 	else
