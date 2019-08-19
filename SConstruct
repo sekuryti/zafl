@@ -13,8 +13,6 @@ Depends(tools,zipr)
 
 ret=[zipr,tools,libzafl]
 
-print "ret=", [str(s) for s in ret]
-
 for libzafl_file in libzafl:
 	if str(libzafl_file).endswith(".so"):
 		ret=ret+Install(os.environ['ZEST_RUNTIME']+"/lib64", libzafl_file)
