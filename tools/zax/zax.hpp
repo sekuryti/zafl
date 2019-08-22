@@ -1,10 +1,14 @@
 #ifndef _LIBTRANSFORM_ZAX_H
 #define _LIBTRANSFORM_ZAX_H
 
-#include "zax_base.hpp"
-
 namespace Zafl
 {
+	enum bceStyle_t  { bceAll, bceNone, bceTargets, bceFallthroughs};
+}
+#include "zax_base.hpp"
+namespace Zafl
+{
+
 	//
 	// Implements afl-style edge coverage instrumentation
 	//

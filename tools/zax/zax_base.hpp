@@ -43,7 +43,7 @@ namespace Zafl
 			void setDomgraphOptimization(bool);
 			void setBasicBlockFloatingInstrumentation(bool);
 			void setEnableForkServer(bool);
-			void setBreakupCriticalEdges(bool);
+			void setBreakCriticalEdgeStyle(const bceStyle_t sty);
 			void setDoLoopCountInstrumentation(bool);
 			void setLoopCountBuckets(string);
 			void setContextSensitivity(ContextSensitivity_t);
@@ -103,7 +103,7 @@ namespace Zafl
 			bool                           m_graph_optimize;     // skip basic blocks based on graph
 			bool                           m_domgraph_optimize;  // skip basic blocks based on dominator graph
 			bool                           m_forkserver_enabled; // fork server enabled?
-			bool                           m_breakupCriticalEdges;
+			bceStyle_t                     m_breakupCriticalEdges;
 			bool                           m_doLoopCountInstrumentation;
 			string                         m_loopCountBuckets;
 			bool                           m_bb_float_instrumentation;  // skip basic blocks based on graph

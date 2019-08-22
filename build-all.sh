@@ -5,6 +5,9 @@ if [[ "$*" =~ "--debug" ]]; then
         build_all_flags=" --debug "
 fi
 
+scons $SCONSDBUG -j 3
+exit
+
 
 # check if DIR is the directory containing the build script.
 BUILD_LOC=`dirname $0`

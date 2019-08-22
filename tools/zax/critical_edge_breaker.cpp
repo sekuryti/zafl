@@ -23,18 +23,26 @@
 
 #include <irdb-cfg>
 #include <irdb-transform>
+#include <fstream>
 #include "critical_edge_breaker.hpp"
 
 using namespace std;
 using namespace IRDB_SDK;
 using namespace Zafl;
 
-CriticalEdgeBreaker_t::CriticalEdgeBreaker_t(IRDB_SDK::FileIR_t *p_IR, set<string> p_blacklist, const bool p_verbose) :
+CriticalEdgeBreaker_t::CriticalEdgeBreaker_t(IRDB_SDK::FileIR_t *p_IR, set<string> p_blacklist, const bceStyle_t sty, const bool p_verbose) :
 	m_IR(p_IR),
 	m_blacklist(p_blacklist),
 	m_verbose(p_verbose),
-	m_extra_nodes(0)
+	m_extra_nodes(0),
+	m_break_style(sty)
 {
+	// open and print a header line in ceb.map
+	map_file.open("ceb.map");
+	if(!map_file)
+		throw invalid_argument("Cannot open ceb.map");
+	map_file << "instID\tbroken\ttype" << endl;
+
 	breakCriticalEdges();
 }
 
@@ -69,11 +77,15 @@ void CriticalEdgeBreaker_t::breakCriticalEdges()
 //        
 unsigned CriticalEdgeBreaker_t::breakCriticalEdges(Function_t* p_func)
 {
+	
 	auto cfgp = ControlFlowGraph_t::factory(p_func);
 	auto &cfg = *cfgp;
 
 	auto ceap = CriticalEdges_t::factory(cfg, false);
 	auto &cea = *ceap;
+
+	const auto breakTargets  =  m_break_style == bceAll || m_break_style == bceTargets;
+	const auto breakFallthru =  m_break_style == bceAll || m_break_style == bceFallthroughs;
 	
 	const auto critical_edges = cea.getAllCriticalEdges();
 	auto num_critical_edges_instrumented = 0;
@@ -96,11 +108,17 @@ unsigned CriticalEdgeBreaker_t::breakCriticalEdges(Function_t* p_func)
 		auto last_instruction_in_source_block = source_block->getInstructions()[source_block->getInstructions().size()-1];
 		auto first_instruction_in_target_block = target_block->getInstructions()[0];
 
+
 		if (source_block->endsInConditionalBranch())
 		{
-			const auto func = last_instruction_in_source_block->getFunction();
+			// start a line in th emap
+			map_file << hex << last_instruction_in_source_block ->getBaseID() << "\t";
 
-			if (last_instruction_in_source_block->getTarget() == first_instruction_in_target_block)
+			const auto func        = last_instruction_in_source_block->getFunction();
+			const auto is_target   = last_instruction_in_source_block->getTarget() == first_instruction_in_target_block;
+			const auto is_fallthru = last_instruction_in_source_block->getFallthrough() == first_instruction_in_target_block;
+
+			if ( is_target && breakTargets)
 			{
 				auto jmp=m_IR->addNewInstruction(nullptr,func);	
 				setInstructionAssembly(m_IR, jmp, "jmp 0", nullptr, first_instruction_in_target_block);
@@ -108,8 +126,9 @@ unsigned CriticalEdgeBreaker_t::breakCriticalEdges(Function_t* p_func)
 
 				last_instruction_in_source_block->setTarget(jmp);
 				num_critical_edges_instrumented++;
+				map_file << "true\ttarget";
 			}
-			else if (last_instruction_in_source_block->getFallthrough() == first_instruction_in_target_block)
+			else if (is_fallthru && breakFallthru)
 			{
 				auto jmp=m_IR->addNewInstruction(nullptr,func);	
 				setInstructionAssembly(m_IR, jmp, "jmp 0", nullptr, first_instruction_in_target_block);
@@ -117,7 +136,16 @@ unsigned CriticalEdgeBreaker_t::breakCriticalEdges(Function_t* p_func)
 
 				last_instruction_in_source_block->setFallthrough(jmp);
 				num_critical_edges_instrumented++;
+				map_file << "true\tfallthrough";
 			}
+			else
+			{
+				if(is_target)
+					map_file << "false\ttarget";
+				else
+					map_file << "false\tfallthrough";
+			}
+			map_file << endl;
 		}
 	}
 

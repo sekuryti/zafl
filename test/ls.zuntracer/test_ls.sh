@@ -37,7 +37,7 @@ build_zuntracer()
 {
 	ls_zafl=$1
 	shift
-	zafl.sh `which ls` $ls_zafl --untracer --tempdir analysis.${ls_zafl} $*
+	(set -x ; zafl.sh `which ls` $ls_zafl --untracer --tempdir analysis.${ls_zafl} $* )
 	if [ ! $? -eq 0 ]; then
 		log_error "$ls_zafl: unable to generate zafl version"	
 	else
@@ -100,22 +100,38 @@ setup
 build_zuntracer ls.untracer.no_critical_edge -C
 test_zuntracer ./ls.untracer.no_critical_edge -lt
 
-# zuntracer, do break critical edges
-build_zuntracer ls.untracer.critical_edge -c
-test_zuntracer ./ls.untracer.critical_edge -lt
+# zuntracer, do break all critical edges
+build_zuntracer ls.untracer.critical_edge_all -c all
+test_zuntracer ./ls.untracer.critical_edge_all -lt
+
+# zuntracer, do break target critical edges
+build_zuntracer ls.untracer.critical_edge_targ -c targets
+test_zuntracer ./ls.untracer.critical_edge_targ -lt
+
+# zuntracer, do break fallthrough critical edges
+build_zuntracer ls.untracer.critical_edge_fall -c fallthroughs
+test_zuntracer ./ls.untracer.critical_edge_fall -lt
 
 # zuntracer, do break critical edges, optimize graph
-build_zuntracer ls.untracer.critical_edge.graph -c -g -M
-test_zuntracer ./ls.untracer.critical_edge.graph -lt
+build_zuntracer ls.untracer.critical_edge_all.graph -c all -g -M
+test_zuntracer ./ls.untracer.critical_edge_all.graph -lt
+
+# zuntracer, do break critical edges, optimize graph
+build_zuntracer ls.untracer.critical_edge_target.graph -c target -g -M
+test_zuntracer ./ls.untracer.critical_edge_target.graph -lt
+
+# zuntracer, do break critical edges, optimize graph
+build_zuntracer ls.untracer.critical_edge_fallthrough.graph -c fallthrough -g -M
+test_zuntracer ./ls.untracer.critical_edge_fallthrough.graph -lt
 
 log_message "Fuzz zuntracer (basic block coverage) for $AFL_TIMEOUT seconds"
 fuzz_with_zafl ./ls.untracer.no_critical_edge -lt
 
 log_message "Fuzz zuntracer (break critical edges) for $AFL_TIMEOUT seconds"
-fuzz_with_zafl ./ls.untracer.critical_edge -lt 
+fuzz_with_zafl ./ls.untracer.critical_edge_all -lt 
 
 log_message "Fuzz zuntracer (break critical edges + graph optimization) for $AFL_TIMEOUT seconds"
-fuzz_with_zafl ./ls.untracer.critical_edge.graph -lt
+fuzz_with_zafl ./ls.untracer.critical_edge_all.graph -lt
 
 build_zuntracer ls.untracer.fixed.0x10000 -m 0x10000
 test_zuntracer ./ls.untracer.fixed.0x10000 -lt

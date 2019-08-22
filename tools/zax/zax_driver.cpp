@@ -48,8 +48,7 @@ static void usage(char* name)
 	cerr<<"\t[--disable-bb-graph-optimization|-G]           Elide instrumentation if basic block has 1 successor"<<endl;
 	cerr<<"\t[--autozafl|-a]                                Auto-initialize fork server (incompatible with --entrypoint)"<<endl;
 	cerr<<"\t[--untracer|-u]                                Untracer-style block-coverage instrumentation"<<endl;
-	cerr<<"\t[--enable-critical-edge-breakup|-c]            Breakup critical edges"<<endl;
-	cerr<<"\t[--disable-critical-edge-breakup|-C]           Do not breakup critical edges (default)"<<endl;
+	cerr<<"\t[--break-critical-edge-style|-c]               Breakup critical edges"<<endl;
 	cerr<<"\t[--enable-loop-count-instr|-j]                 Insert instrumentation to do afl-style loop counting for zuntracer."<<endl;
 	cerr<<"\t[--disable-loop-count-instr|-J]                Do not do -j (default)"<<endl;
 	cerr<<"\t[--enable-floating-instrumentation|-i]         Select best instrumentation within basic block"<<endl;
@@ -79,7 +78,7 @@ int main(int argc, char **argv)
 	auto domgraph_optimize=false;
 	auto forkserver_enabled=true;
 	auto untracer_mode=false;
-	auto breakup_critical_edges=false;
+	auto break_critical_edge_style=bceNone;
 	auto do_loop_count_instr=false;
 	auto loop_count_buckets=string("0,1,2,4,8,16,32,64,128");
 	auto floating_instrumentation=false;
@@ -110,8 +109,7 @@ int main(int argc, char **argv)
 		{"enable-forkserver",                no_argument,       0, 'f'},
 		{"disable-forkserver",               no_argument,       0, 'F'},
 		{"untracer",                         no_argument,       0, 'u'},
-		{"enable-critical-edge-breakup",     no_argument,       0, 'c'},
-		{"disable-critical-edge-breakup",    no_argument,       0, 'C'},
+		{"break-critical-edge",     	     required_argument, 0, 'c'},
 		{"enable-loop-count-instr",          no_argument,       0, 'j'},
 		{"disable-loop-count-instr",         no_argument,       0, 'J'},
 		{"loop-count-buckets",               required_argument, 0, ':'},
@@ -121,7 +119,7 @@ int main(int argc, char **argv)
 		{"random-seed",                      required_argument, 0, 'r'},
 		{0,0,0,0}
 	};
-	const char* short_opts="r:z:e:E:w:sv?hagGdDfFucCjJiIm:M";
+	const char* short_opts="r:z:e:E:w:sv?hagGdDfFuc:jJiIm:M";
 
 	while(true)
 	{
@@ -186,10 +184,28 @@ int main(int argc, char **argv)
 				untracer_mode=true;
 				break;
 			case 'c':
-				breakup_critical_edges=true;
-				break;
-			case 'C':
-				breakup_critical_edges=false;
+				if(optarg)
+				{
+					if(string(optarg)=="all")
+						break_critical_edge_style=bceAll;
+					else if(string(optarg)=="none")
+						break_critical_edge_style=bceNone;
+					else if(string(optarg)=="targets")
+						break_critical_edge_style=bceTargets;
+					else if(string(optarg)=="target")
+						break_critical_edge_style=bceTargets;
+					else if(string(optarg)=="fallthroughs")
+						break_critical_edge_style=bceFallthroughs;
+					else if(string(optarg)=="fallthrough")
+						break_critical_edge_style=bceFallthroughs;
+					else
+					{
+						cout << "Cannot map " << optarg << "to {all,none,targets,fallthrough}" << endl;
+						exit(2);
+					}
+				}
+				else
+					break_critical_edge_style=bceAll;
 				break;
 			case 'j':
 				do_loop_count_instr=true;
@@ -274,7 +290,7 @@ int main(int argc, char **argv)
 			zax->setDomgraphOptimization(domgraph_optimize);
 			zax->setBasicBlockFloatingInstrumentation(floating_instrumentation);
 			zax->setEnableForkServer(forkserver_enabled);
-			zax->setBreakupCriticalEdges(breakup_critical_edges);
+			zax->setBreakCriticalEdgeStyle(break_critical_edge_style);
 			zax->setDoLoopCountInstrumentation(do_loop_count_instr);
 			zax->setLoopCountBuckets(loop_count_buckets);
 			zax->setContextSensitivity(context_sensitivity); 

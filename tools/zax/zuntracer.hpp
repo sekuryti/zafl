@@ -1,7 +1,7 @@
 #ifndef _LIBTRANSFORM_ZUNTRACER_H
 #define _LIBTRANSFORM_ZUNTRACER_H
 
-#include "zax_base.hpp"
+#include "zax.hpp"
 
 namespace Zafl
 {
