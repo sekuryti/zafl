@@ -85,7 +85,7 @@ verify_output()
 
 	for p in $all_configs 
 	do
-		echo "Program under test: $p"
+		echo "Program under test: $p $arg"
 		timeout 30 ./${p} $arg > $p.output
 		diff $orig_zafl.output.orig $p.output
 		if [ ! $? -eq 0 ]; then
