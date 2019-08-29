@@ -1,6 +1,6 @@
 #! /bin/bash
 
-export AFL_TIMEOUT=15
+export AFL_TIMEOUT=20
 export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$SECURITY_TRANSFORMS_HOME/lib/:. 
 export AFL_SKIP_CPUFREQ=1
 export AFL_SKIP_BIN_CHECK=1
@@ -63,7 +63,7 @@ fuzz_with_zafl()
 
 build_all_exes()
 {
-    rm *.ncexe
+    rm -f *.ncexe
     gcc -m64 -fno-stack-protector -O1 -std=c99 -o eightqueens_c_O1.ncexe $TEST_SRC_DIR/eightqueens.c
     if [ $? -ne 0 ]; then
         log_error "C build failure for O1 optimization level"
@@ -94,6 +94,37 @@ build_all_exes()
         log_error "C++ build failure for O3 optimization level"
     fi
 
+    clang -m64 -O1 -o eightqueens_c_clang_O1.ncexe $TEST_SRC_DIR/eightqueens.c
+    if [ $? -ne 0 ]; then
+        log_error "C build failure for clang O1 optimization level"
+    fi
+
+    clang -m64 -O2 -o eightqueens_c_clang_O2.ncexe $TEST_SRC_DIR/eightqueens.c
+    if [ $? -ne 0 ]; then
+        log_error "C build failure for clang O2 optimization level"
+    fi
+
+    clang -m64 -O3 -o eightqueens_c_clang_O3.ncexe $TEST_SRC_DIR/eightqueens.c
+    if [ $? -ne 0 ]; then
+        log_error "C build failure for clang O3 optimization level"
+    fi
+
+    clang++ -m64 -O1 -o eightqueens_cpp_clang_O1.ncexe $TEST_SRC_DIR/eightqueens.cpp
+    if [ $? -ne 0 ]; then
+        log_error "C++ build failure for clang O1 optimization level"
+    fi
+
+    clang++ -m64 -O2 -o eightqueens_cpp_clang_O2.ncexe $TEST_SRC_DIR/eightqueens.cpp
+    if [ $? -ne 0 ]; then
+        log_error "C++ build failure for clang O2 optimization level"
+    fi
+
+    clang++ -m64 -O3 -o eightqueens_cpp_clang_O3.ncexe $TEST_SRC_DIR/eightqueens.cpp
+    if [ $? -ne 0 ]; then
+        log_error "C++ build failure for clang O3 optimization level"
+    fi
+
+    
     log_success "All builds of exes succeeded."
 }
 
@@ -101,7 +132,7 @@ test_one_exe()
 {
     test_exe=$1
 # build with graph optimization
-    zafl.sh $test_exe $test_exe.stars.zafl.d.g.r.cs -d -g -c all --tempdir analysis.eightqueens.stars.zafl.d.g.r.cs -r 123 --enable-context-sensitivity function
+    zafl.sh $test_exe $test_exe.stars.zafl.d.g.r.cs -d -g -c all --tempdir analysis.eightqueens.$test_exe.stars.zafl.d.g.r.cs -r 123 --enable-context-sensitivity function
     if [ $? -eq 0 ]; then
 	     log_success "build $test_exe.stars.zafl.d.g.r.cs"
     else
@@ -127,6 +158,18 @@ pushd $session
 build_all_exes
 
 test_one_exe "eightqueens_c_O1.ncexe"
+test_one_exe "eightqueens_c_Og.ncexe"
+test_one_exe "eightqueens_c_O3.ncexe"
+test_one_exe "eightqueens_cpp_O1.ncexe"
+test_one_exe "eightqueens_cpp_Og.ncexe"
+test_one_exe "eightqueens_cpp_O3.ncexe"
+
+test_one_exe "eightqueens_c_clang_O1.ncexe"
+test_one_exe "eightqueens_c_clang_O2.ncexe"
+test_one_exe "eightqueens_c_clang_O3.ncexe"
+test_one_exe "eightqueens_cpp_clang_O1.ncexe"
+test_one_exe "eightqueens_cpp_clang_O2.ncexe"
+test_one_exe "eightqueens_cpp_clang_O3.ncexe"
 
 popd
 
