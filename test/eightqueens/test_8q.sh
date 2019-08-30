@@ -94,6 +94,12 @@ build_all_exes()
         log_error "C++ build failure for O3 optimization level"
     fi
 
+    # Kitchen sink: tons of options at once.
+    g++ -m64 -fno-stack-protector -falign-functions -falign-loops -falign-jumps -falign-labels -ffast-math -fomit-frame-pointer -funroll-all-loops -malign-data=cacheline -O3 -std=c++1y -o eightqueens_cpp_ks.ncexe $TEST_SRC_DIR/eightqueens.cpp
+    if [ $? -ne 0 ]; then
+        log_error "C++ build failure for O3 kitchen sink optimization level"
+    fi
+    
     clang -m64 -O1 -o eightqueens_c_clang_O1.ncexe $TEST_SRC_DIR/eightqueens.c
     if [ $? -ne 0 ]; then
         log_error "C build failure for clang O1 optimization level"
@@ -124,6 +130,12 @@ build_all_exes()
         log_error "C++ build failure for clang O3 optimization level"
     fi
 
+    # Kitchen sink: tons of options at once.
+    clang++ -m64 -ffast-math -funroll-loops -pg -finline-functions -fexperimental-isel -O3 -std=c++14 -o eightqueens_cpp_clang_ks.ncexe $TEST_SRC_DIR/eightqueens.cpp
+    if [ $? -ne 0 ]; then
+        log_error "C++ build failure for clang O3 kitchen sink optimization level"
+    fi
+    
     
     log_success "All builds of exes succeeded."
 }
@@ -131,6 +143,7 @@ build_all_exes()
 test_one_exe()
 {
     test_exe=$1
+
 # build with graph optimization
     zafl.sh $test_exe $test_exe.stars.zafl.d.g.r.cs -d -g -c all --tempdir analysis.eightqueens.$test_exe.stars.zafl.d.g.r.cs -r 123 --enable-context-sensitivity function
     if [ $? -eq 0 ]; then
@@ -150,6 +163,26 @@ test_one_exe()
     else
 	     log_error "$test_exe.stars.zafl.d.g.r.cs basic functionality"
     fi
+
+#Do again with -D -G -C instead of -d -g -c
+    zafl.sh $test_exe $test_exe.stars.zafl.D.G.r.cs -D -G -C all --tempdir analysis.eightqueens.$test_exe.stars.zafl.D.G.r.cs -r 123 --enable-context-sensitivity function
+    if [ $? -eq 0 ]; then
+	     log_success "build $test_exe.stars.zafl.D.G.r.cs"
+    else
+	     log_error "build $test_exe.stars.zafl.D.G.r.cs"
+    fi
+    log_message "Fuzz for $AFL_TIMEOUT secs"
+    fuzz_with_zafl $(realpath ./$test_exe.stars.zafl.D.G.r.cs)
+
+# test functionality
+    ./$test_exe > out.eightqueens.orig
+    ./$test_exe.stars.zafl.D.G.r.cs > out.eightqueens.stars.zafl.D.G.r.cs
+    diff out.eightqueens.orig out.eightqueens.stars.zafl.D.G.r.cs >/dev/null 2>&1
+    if [ $? -eq 0 ]; then
+	     log_success "$test_exe.stars.zafl.D.G.r.cs basic functionality"
+    else
+	     log_error "$test_exe.stars.zafl.D.G.r.cs basic functionality"
+    fi
 }
 
 mkdir -p $session
@@ -163,6 +196,7 @@ test_one_exe "eightqueens_c_O3.ncexe"
 test_one_exe "eightqueens_cpp_O1.ncexe"
 test_one_exe "eightqueens_cpp_Og.ncexe"
 test_one_exe "eightqueens_cpp_O3.ncexe"
+test_one_exe "eightqueens_cpp_ks.ncexe"
 
 test_one_exe "eightqueens_c_clang_O1.ncexe"
 test_one_exe "eightqueens_c_clang_O2.ncexe"
@@ -170,6 +204,7 @@ test_one_exe "eightqueens_c_clang_O3.ncexe"
 test_one_exe "eightqueens_cpp_clang_O1.ncexe"
 test_one_exe "eightqueens_cpp_clang_O2.ncexe"
 test_one_exe "eightqueens_cpp_clang_O3.ncexe"
+test_one_exe "eightqueens_cpp_clang_ks.ncexe"
 
 popd
 
