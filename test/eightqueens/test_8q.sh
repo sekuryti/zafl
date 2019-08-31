@@ -131,7 +131,7 @@ build_all_exes()
     fi
 
     # Kitchen sink: tons of options at once.
-    clang++ -m64 -ffast-math -funroll-loops -pg -finline-functions -fexperimental-isel -O3 -std=c++14 -o eightqueens_cpp_clang_ks.ncexe $TEST_SRC_DIR/eightqueens.cpp
+    clang++ -m64 -ffast-math -funroll-loops -pg -finline-functions -O3 -std=c++14 -o eightqueens_cpp_clang_ks.ncexe $TEST_SRC_DIR/eightqueens.cpp
     if [ $? -ne 0 ]; then
         log_error "C++ build failure for clang O3 kitchen sink optimization level"
     fi
