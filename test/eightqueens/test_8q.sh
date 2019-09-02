@@ -11,6 +11,18 @@ TEST_SRC_DIR=$ZAFL_HOME/test/eightqueens
 user=$(whoami)
 session=/tmp/tmp.${user}.zafl.bc.$$
 
+if [ `uname -a|grep CentOS` -ne 0 ]; then
+    CENTOS_FOUND=1
+else
+    CENTOS_FOUND=0
+fi
+
+if [ $CENTOS_FOUND ]; then
+    ALIGN_ARG=""
+else
+    ALIGN_ARG=" -malign-data=cacheline "
+fi
+
 cleanup()
 {
 	rm -fr $session
@@ -95,7 +107,7 @@ build_all_exes()
     fi
 
     # Kitchen sink: tons of options at once.
-    g++ -m64 -fno-stack-protector -falign-functions -falign-loops -falign-jumps -falign-labels -ffast-math -fomit-frame-pointer -funroll-all-loops -malign-data=cacheline -O3 -std=c++1y -o eightqueens_cpp_ks.ncexe $TEST_SRC_DIR/eightqueens.cpp
+    g++ -m64 -fno-stack-protector -falign-functions -falign-loops -falign-jumps -falign-labels -ffast-math -fomit-frame-pointer -funroll-all-loops $ALIGN_ARG -O3 -std=c++1y -o eightqueens_cpp_ks.ncexe $TEST_SRC_DIR/eightqueens.cpp
     if [ $? -ne 0 ]; then
         log_error "C++ build failure for O3 kitchen sink optimization level"
     fi
@@ -159,6 +171,8 @@ test_one_exe()
     ./$test_exe.zipr > /dev/null
     if [ $? -ne 0 ]; then
         log_error "Zipr-only run of $test_exe failed."
+    else
+        log_success "Zipr-only run of $test_exe succeeded."
     fi
 
 
