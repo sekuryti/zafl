@@ -151,6 +151,17 @@ test_one_exe()
         log_error "Original run on $test_exe failed."
     fi
 
+# Test sanity with zipr-only before zafl.sh is invoked.
+    $PSZ ./$test_exe ./$test_exe.zipr -c rida
+    if [ $? -ne 0 ]; then
+        log_error "Zipr-only build of $test_exe failed."
+    fi
+    ./$test_exe.zipr > /dev/null
+    if [ $? -ne 0 ]; then
+        log_error "Zipr-only run of $test_exe failed."
+    fi
+
+
 # build with graph optimization
     zafl.sh $test_exe $test_exe.stars.zafl.d.g.r.cs -d -g -c all --tempdir analysis.eightqueens.$test_exe.stars.zafl.d.g.r.cs -r 123 --enable-context-sensitivity function
     if [ $? -eq 0 ]; then
