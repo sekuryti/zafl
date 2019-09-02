@@ -144,6 +144,10 @@ test_one_exe()
 {
     test_exe=$1
 
+# Run original binary early so that we can confirm valid build
+#  happened before we invoke zafl.
+    ./$test_exe > out.eightqueens.orig
+
 # build with graph optimization
     zafl.sh $test_exe $test_exe.stars.zafl.d.g.r.cs -d -g -c all --tempdir analysis.eightqueens.$test_exe.stars.zafl.d.g.r.cs -r 123 --enable-context-sensitivity function
     if [ $? -eq 0 ]; then
@@ -155,7 +159,6 @@ test_one_exe()
     fuzz_with_zafl $(realpath ./$test_exe.stars.zafl.d.g.r.cs)
 
 # test functionality
-    ./$test_exe > out.eightqueens.orig
     ./$test_exe.stars.zafl.d.g.r.cs > out.eightqueens.stars.zafl.d.g.r.cs
     diff out.eightqueens.orig out.eightqueens.stars.zafl.d.g.r.cs >/dev/null 2>&1
     if [ $? -eq 0 ]; then
