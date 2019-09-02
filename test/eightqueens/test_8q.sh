@@ -158,8 +158,6 @@ test_one_exe()
     else
 	     log_error "build $test_exe.stars.zafl.d.g.r.cs"
     fi
-    log_message "Fuzz for $AFL_TIMEOUT secs"
-    fuzz_with_zafl $(realpath ./$test_exe.stars.zafl.d.g.r.cs)
 
 # test functionality
     ./$test_exe.stars.zafl.d.g.r.cs > out.eightqueens.stars.zafl.d.g.r.cs
@@ -173,6 +171,10 @@ test_one_exe()
 	     log_error "$test_exe.stars.zafl.d.g.r.cs basic functionality"
     fi
 
+# Fuzz with AFL
+    log_message "Fuzz for $AFL_TIMEOUT secs"
+    fuzz_with_zafl $(realpath ./$test_exe.stars.zafl.d.g.r.cs)
+
 #Do again with -D -G -C instead of -d -g -c
     zafl.sh $test_exe $test_exe.stars.zafl.D.G.r.cs -D -G -C all --tempdir analysis.eightqueens.$test_exe.stars.zafl.D.G.r.cs -r 123 --enable-context-sensitivity function
     if [ $? -eq 0 ]; then
@@ -180,8 +182,6 @@ test_one_exe()
     else
 	     log_error "build $test_exe.stars.zafl.D.G.r.cs"
     fi
-    log_message "Fuzz for $AFL_TIMEOUT secs"
-    fuzz_with_zafl $(realpath ./$test_exe.stars.zafl.D.G.r.cs)
 
 # test functionality
     ./$test_exe.stars.zafl.D.G.r.cs > out.eightqueens.stars.zafl.D.G.r.cs
@@ -194,6 +194,10 @@ test_one_exe()
     else
 	     log_error "$test_exe.stars.zafl.D.G.r.cs basic functionality"
     fi
+
+# Fuzz with AFL
+    log_message "Fuzz for $AFL_TIMEOUT secs"
+    fuzz_with_zafl $(realpath ./$test_exe.stars.zafl.D.G.r.cs)
 }
 
 mkdir -p $session
