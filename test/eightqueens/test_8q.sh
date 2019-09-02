@@ -147,6 +147,9 @@ test_one_exe()
 # Run original binary early so that we can confirm valid build
 #  happened before we invoke zafl.
     ./$test_exe > out.eightqueens.orig
+    if [ $? -ne 0 ]; then
+        log_error "Original run on $test_exe failed."
+    fi
 
 # build with graph optimization
     zafl.sh $test_exe $test_exe.stars.zafl.d.g.r.cs -d -g -c all --tempdir analysis.eightqueens.$test_exe.stars.zafl.d.g.r.cs -r 123 --enable-context-sensitivity function
@@ -160,6 +163,9 @@ test_one_exe()
 
 # test functionality
     ./$test_exe.stars.zafl.d.g.r.cs > out.eightqueens.stars.zafl.d.g.r.cs
+    if [ $? -ne 0 ]; then
+        log_error "d.g.c run on $test_exe failed."
+    fi
     diff out.eightqueens.orig out.eightqueens.stars.zafl.d.g.r.cs >/dev/null 2>&1
     if [ $? -eq 0 ]; then
 	     log_success "$test_exe.stars.zafl.d.g.r.cs basic functionality"
@@ -178,8 +184,10 @@ test_one_exe()
     fuzz_with_zafl $(realpath ./$test_exe.stars.zafl.D.G.r.cs)
 
 # test functionality
-    ./$test_exe > out.eightqueens.orig
     ./$test_exe.stars.zafl.D.G.r.cs > out.eightqueens.stars.zafl.D.G.r.cs
+    if [ $? -ne 0 ]; then
+        log_error "D.G.C run on $test_exe failed."
+    fi
     diff out.eightqueens.orig out.eightqueens.stars.zafl.D.G.r.cs >/dev/null 2>&1
     if [ $? -eq 0 ]; then
 	     log_success "$test_exe.stars.zafl.D.G.r.cs basic functionality"
