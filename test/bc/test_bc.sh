@@ -100,7 +100,7 @@ if [ $? -eq 0 ]; then
 else
 	log_error "bc.stars.zafl.d.g.r.cs basic functionality"
 fi
-log_message "Fuzz for $AFL_TIMEOUT secs"
+log_message "Fuzz for $AFL_TIMEOUT secs (both bc and readline are instrumented)"
 fuzz_with_zafl $(realpath ./bc.stars.zafl.d.g.r.cs)
 
 # build ZAFL version of readline shared library (add --auto-zafl-libraries)
@@ -121,8 +121,8 @@ if [ $? -eq 0 ]; then
 else
 	log_error "bc.stars.zafl.d.g.r.cs basic functionality with --auto-zafl-libraries"
 fi
-log_message "Fuzz for $AFL_TIMEOUT secs"
-fuzz_with_zafl $(realpath ./bc.stars.zafl.d.g.r.cs)
+log_message "Fuzz for $AFL_TIMEOUT secs (only readline is instrumented with auto zafl'ng turned on)"
+fuzz_with_zafl $(which bc)
 
 popd
 
