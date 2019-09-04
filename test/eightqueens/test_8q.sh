@@ -11,12 +11,9 @@ TEST_SRC_DIR=$ZAFL_HOME/test/eightqueens
 user=$(whoami)
 session=/tmp/tmp.${user}.zafl.bc.$$
 
-lowercase()
-{
-    echo "$1" | sed "y/ABCDEFGHIJKLMNOPQRSTUVWXYZ/abcdefghijklmnopqrstuvwxyz/"
-}
+tempstr=$(uname)
+unamestr=`echo $tempstr | tr '[:upper:]' '[:lower:]'`
 
-unamestr=lowercase $(uname)
 
 if [ "$unamestr" == 'centos' ]; then
     CENTOS_FOUND=1
@@ -256,7 +253,10 @@ test_one_exe "eightqueens_c_clang_O3.ncexe"
 test_one_exe "eightqueens_cpp_clang_O1.ncexe"
 test_one_exe "eightqueens_cpp_clang_O2.ncexe"
 test_one_exe "eightqueens_cpp_clang_O3.ncexe"
-test_one_exe "eightqueens_cpp_clang_ks.ncexe"
+
+if [ "$CENTOS_FOUND" == "0" ]; then
+    test_one_exe "eightqueens_cpp_clang_ks.ncexe"
+fi
 
 popd
 
