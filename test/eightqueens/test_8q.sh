@@ -13,12 +13,14 @@ session=/tmp/tmp.${user}.zafl.bc.$$
 
 tempstr=$(uname)
 unamestr=`echo $tempstr | tr '[:upper:]' '[:lower:]'`
+echo "uname string is $unamestr"
 
-
-if [ "$unamestr" == 'centos' ]; then
+echo "$unamestr" | grep "centos" - > /dev/null
+if [ $? -eq 0 ]; then
     CENTOS_FOUND=1
-    log_success "Found CentOS"
+    echo "Found CentOS"
 else
+    echo "Did not find CentOS"
     CENTOS_FOUND=0
 fi
 
