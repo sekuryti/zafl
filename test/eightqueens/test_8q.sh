@@ -11,7 +11,7 @@ TEST_SRC_DIR=$ZAFL_HOME/test/eightqueens
 user=$(whoami)
 session=/tmp/tmp.${user}.zafl.bc.$$
 
-tempstr=$(uname)
+tempstr=$(uname -a)
 unamestr=`echo $tempstr | tr '[:upper:]' '[:lower:]'`
 echo "uname string is $unamestr"
 
