@@ -28,9 +28,11 @@ fi
 if [ $CENTOS_FOUND ]; then
     ALIGN_ARG=""
     INLINE_ARG=""
+    CLANG_STD_ARG=" -std=c++1y "
 else
     ALIGN_ARG=" -malign-data=cacheline "
     INLINE_ARG=" -finline-functions "
+    CLANG_STD_ARG=" -std=c++14 "
 fi
 
 cleanup()
@@ -153,7 +155,7 @@ build_all_exes()
     fi
 
     # Kitchen sink: tons of options at once.
-    clang++ -m64 -ffast-math -funroll-loops -pg $INLINE_ARG -O3 -std=c++14 -o eightqueens_cpp_clang_ks.ncexe $TEST_SRC_DIR/eightqueens.cpp
+    clang++ -m64 -ffast-math -funroll-loops -pg $INLINE_ARG -O3 $CLANG_STD_ARG -o eightqueens_cpp_clang_ks.ncexe $TEST_SRC_DIR/eightqueens.cpp
     if [ $? -ne 0 ]; then
         log_error "C++ build failure for clang O3 kitchen sink optimization level"
     fi
