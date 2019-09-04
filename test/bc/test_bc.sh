@@ -40,6 +40,9 @@ fuzz_with_zafl()
 	bc_zafl=$1
 
 	# setup AFL directories
+	if [ -d zafl_in ]; then
+		rm -fr zafl_in
+	fi
 	mkdir zafl_in
 	echo "1" > zafl_in/1
 
@@ -81,7 +84,6 @@ readline=$( ldd `which bc` | grep libreadline | cut -d'>' -f2 | cut -d'(' -f1 )
 readline_basename=$( basename $readline )
 readline_realpath=$( realpath $readline )
 echo "basename: $readline_basename  realpath: $readline_realpath"
-#$PSZ $readline_realpath $readline_basename -c move_globals=on -c zafl=on -o move_globals:--elftables -o zipr:--traceplacement:on -o zipr:true -o zafl:--stars 
 zafl.sh $readline_realpath $readline_basename --random-seed 42 -d
 if [ $? -eq 0 ]; then
 	log_success "build zafl version of $readline_basename at $readline_realpath"
@@ -98,6 +100,29 @@ if [ $? -eq 0 ]; then
 else
 	log_error "bc.stars.zafl.d.g.r.cs basic functionality"
 fi
+log_message "Fuzz for $AFL_TIMEOUT secs"
+fuzz_with_zafl $(realpath ./bc.stars.zafl.d.g.r.cs)
+
+# build ZAFL version of readline shared library (add --auto-zafl-libraries)
+rm $readline_basename
+zafl.sh $readline_realpath $readline_basename --random-seed 42 -d --auto-zafl-libraries
+if [ $? -eq 0 ]; then
+	log_success "build zafl version of $readline_basename at $readline_realpath"
+else
+	log_error "build zafl version of $readline_basename at $readline_realpath"
+fi
+
+# test functionality
+echo "2+3" | `which bc` > out.bc.orig
+echo "2+3" | ./bc.stars.zafl.d.g.r.cs > out.bc.stars.zafl.d.g.r.cs
+diff out.bc.orig out.bc.stars.zafl.d.g.r.cs >/dev/null 2>&1
+if [ $? -eq 0 ]; then
+	log_success "bc.stars.zafl.d.g.r.cs basic functionality with --auto-zafl-libraries"
+else
+	log_error "bc.stars.zafl.d.g.r.cs basic functionality with --auto-zafl-libraries"
+fi
+log_message "Fuzz for $AFL_TIMEOUT secs"
+fuzz_with_zafl $(realpath ./bc.stars.zafl.d.g.r.cs)
 
 popd
 

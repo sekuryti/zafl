@@ -52,6 +52,7 @@ usage()
 	echo "     -l, --enable-laf                        Enable laf-intel style instrumentation"
 	echo "     -L, --disable-laf                       Disable laf-intel style instrumentation"
 	echo "     -a, --args <args>                       Add extra args to be passed to backend analysis engine"
+	echo "     --auto-zafl-libraries                   Auto-initialize fork server when fuzzing just libraries"
 	echo "     -v                                      Verbose mode" 
 	echo 
 }
@@ -67,6 +68,7 @@ trace_opt=""
 zipr_opt=""
 random_seed=""
 laf_opt=""
+auto_zafl_opt=""
 extra_args=""
 
 me=$(whoami)
@@ -330,6 +332,10 @@ parse_args()
 				laf_opt=""
 				shift
 				;;
+			-L | --auto-zafl-libraries)
+				auto_zafl_libraries="yes"
+				shift
+				;;
 			-*|--*=) # unsupported flags
 				echo "Error: Unsupported flag $1" >&2
 				exit 1
@@ -402,7 +408,12 @@ find_main()
 				options=" $options -o zax:'-e 0x$main_addr'"
 			fi
 		else
-			log_warning "no main() detected, probably a library ==> no automated insertion of fork server"
+			if [ -z $auto_zafl_libraries ]; then
+				log_warning "no main() detected, probably a library ==> no automated insertion of fork server"
+			else
+				log_warning "no main() detected, automatically insert fork server"
+				auto_zafl_opt=" -o zax:--autozafl "
+			fi
 		fi
 	fi
 	rm $tmp_objdump >/dev/null 2>&1
@@ -454,8 +465,8 @@ main()
 		optional_step=" -c laf $laf_opt "
 	fi
 
-	zax_opt=" $zax_opt $float_opt "
-	cmd="$ZAFL_TM_ENV $PSZ $input_binary $output_zafl_binary $ida_or_rida_opt -s move_globals $optional_step -c zax -o move_globals:--elftables-only -o move_globals:--no-use-stars $stars_opt $zax_opt $verbose_opt $options $other_args $trace_opt $zipr_opt $extra_args"
+	zax_opt=" $zax_opt $float_opt $auto_zafl_opt "
+	cmd="$ZAFL_TM_ENV $PSZ $input_binary $output_zafl_binary $ida_or_rida_opt -s move_globals $optional_step -c zax -o move_globals:--elftables-only -o move_globals:--no-use-stars $stars_opt $zax_opt $verbose_opt $options $other_args $trace_opt $zipr_opt $extra_args" 
 
 
 	if [ ! -z "$ZAFL_TM_ENV" ]; then
