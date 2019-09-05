@@ -121,8 +121,8 @@ if [ $? -eq 0 ]; then
 else
 	log_error "bc.stars.zafl.d.g.r.cs basic functionality with --auto-zafl-libraries"
 fi
-log_message "Fuzz for $AFL_TIMEOUT secs (only readline is instrumented with auto zafl'ng turned on)"
-fuzz_with_zafl $(which bc)
+#log_message "Fuzz for $AFL_TIMEOUT secs (only readline is instrumented with auto zafl'ng turned on)"
+#fuzz_with_zafl $(which bc)
 
 popd
 
