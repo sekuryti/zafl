@@ -1355,7 +1355,6 @@ int ZaxBase_t::execute()
 			addContextSensitivity(*cs_cfg);
 		}
 
-		addLibZaflIntegration();
 
 		if (m_verbose)
 		{
@@ -1368,6 +1367,8 @@ int ZaxBase_t::execute()
 
 		cout << "Function " << f->getName() << ":  " << dec << keepers.size() << "/" << num_blocks_in_func << " basic blocks instrumented." << endl;
 	};
+
+	addLibZaflIntegration();
 
 
 	teardown();
