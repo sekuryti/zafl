@@ -10,9 +10,9 @@ for arg in $args; do
 		all | deploy | test)
                         which apt-get 1> /dev/null 2> /dev/null
                         if [ $? -eq 0 ]; then
-                                sudo apt-get install -y --ignore-missing afl
+                                sudo apt-get install -y --ignore-missing afl clang
                         else
-                                sudo yum install -y --skip-broken afl
+                                sudo yum install -y --skip-broken afl clang
                         fi
                 ;;
 

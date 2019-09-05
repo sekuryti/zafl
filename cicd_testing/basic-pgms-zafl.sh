@@ -23,7 +23,13 @@ main()
 
 	# test other zafl configs on various apps
 	./test_cmds.sh -c "$configs" -a "$benchmarks" -l 
+   if [ $? -ne 0 ]; then
+       return 1
+   fi
 
+   # zafl-specific test stressing compiler options
+   cd $ZAFL_HOME/test/eightqueens
+   ./test_8q.sh
 }
 
 main "$@"
