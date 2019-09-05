@@ -24,6 +24,15 @@ else
     CENTOS_FOUND=0
 fi
 
+echo "$unamestr" | grep "ubuntu16" - > /dev/null
+if [ $? -eq 0 ]; then
+    UBUNTU16_FOUND=1
+    echo "Found Ubunut16"
+else
+    echo "Did not find Ubuntu16"
+    UBUNTU16_FOUND=0
+fi
+
 if [ $CENTOS_FOUND ]; then
     ALIGN_ARG=""
     INLINE_ARG=""
@@ -32,6 +41,12 @@ else
     ALIGN_ARG=" -malign-data=cacheline "
     INLINE_ARG=" -finline-functions "
     CLANG_STD_ARG=" -std=c++14 "
+fi
+
+if [ $UBUNTU16_FOUND ]; then
+    GPROF_ARG=""
+else
+    GPROF_ARG=" -pg "
 fi
 
 cleanup()
@@ -155,7 +170,7 @@ build_all_exes()
 
     # Kitchen sink: tons of options at once.
 if [ "$CENTOS_FOUND" == "0" ]; then
-    clang++ -m64 -ffast-math -funroll-loops -pg $INLINE_ARG -O3 $CLANG_STD_ARG -o eightqueens_cpp_clang_ks.ncexe $TEST_SRC_DIR/eightqueens.cpp
+    clang++ -m64 -ffast-math -funroll-loops $GPROF_ARG $INLINE_ARG -O3 $CLANG_STD_ARG -o eightqueens_cpp_clang_ks.ncexe $TEST_SRC_DIR/eightqueens.cpp
     if [ $? -ne 0 ]; then
         log_error "C++ build failure for clang O3 kitchen sink optimization level"
     fi
