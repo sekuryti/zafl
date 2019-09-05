@@ -24,13 +24,24 @@ else
     CENTOS_FOUND=0
 fi
 
-echo "$unamestr" | grep "ubuntu16" - > /dev/null
+UBUNTU16_FOUND=0
+UBUNTU18_FOUND=0
+echo "$unamestr" | grep "ubuntu" - > /dev/null
 if [ $? -eq 0 ]; then
-    UBUNTU16_FOUND=1
-    echo "Found Ubunut16"
+    echo "$unamestr" | grep "16.0" - > /dev/null
+    if [ $? -eq 0 ]; then
+        UBUNTU16_FOUND=1
+        echo "Found Ubuntu16"
+    fi
+    echo "$unamestr" | grep "18.0" - > /dev/null
+    if [ $? -eq 0 ]; then
+        UBUNTU18_FOUND=1
+        echo "Found Ubuntu18"
+    else
+        echo "Ubuntu found, but neither Ubuntu16 nor Ubuntu18 found."
+    fi
 else
-    echo "Did not find Ubuntu16"
-    UBUNTU16_FOUND=0
+    echo "Did not find Ubuntu"
 fi
 
 if [ $CENTOS_FOUND ]; then
