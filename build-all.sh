@@ -5,7 +5,7 @@ if [[ "$*" =~ "--debug" ]]; then
         build_all_flags=" --debug "
 fi
 
-scons $SCONSDBUG -j 3
+scons $SCONSDBUG build_ida=0 build_ida7=0 -j 3
 exit
 
 
