@@ -36,6 +36,7 @@
 
 #include <irdb-core>
 #include "zax.hpp"
+#include <fstream>
 
 namespace Zafl
 {

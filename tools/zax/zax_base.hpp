@@ -54,7 +54,7 @@ namespace Zafl
 	using ZaflLabelId_t   = uint32_t;
 	using ZaflContextId_t = uint32_t;
 	using BBRecord_t      = vector<Instruction_t*>;
-	using RegisterSet_t   = IRDB_SDK::RegisterIDSet_t;
+	using RegisterSet_t   = RegisterIDSet_t;
 	enum ContextSensitivity_t {ContextSensitivity_None, ContextSensitivity_Callsite, ContextSensitivity_Function};
 
 	/*
@@ -77,11 +77,13 @@ namespace Zafl
 			void setDomgraphOptimization(bool);
 			void setBasicBlockFloatingInstrumentation(bool);
 			void setEnableForkServer(bool);
-			void setBreakCriticalEdgeStyle(const bceStyle_t sty);
-			void setDoLoopCountInstrumentation(bool);
-			void setLoopCountBuckets(string);
+			// void setBreakCriticalEdgeStyle(const bceStyle_t sty);
+			// void setDoLoopCountInstrumentation(bool);
+			// void setLoopCountBuckets(string);
+			void setKeepLoopHeadersOnly(bool);
 			void setContextSensitivity(ContextSensitivity_t);
 			void filterPaddingNOP(BasicBlockSet_t& p_in_out);
+			void filterKeepLoopHeadersOnly(BasicBlockSet_t& p_in_out, ControlFlowGraph_t& f);
 			void filterBlocksByDomgraph(BasicBlockSet_t& in_out, const DominatorGraph_t  * dg );
 			void filterConditionalBranches(BasicBlockSet_t& p_in_out);
 			void filterEntryBlock(BasicBlockSet_t& in_out, BasicBlock_t* p_entry);
@@ -130,16 +132,15 @@ namespace Zafl
 
 		protected:
 			pqxxDB_t&                      m_dbinterface;
-			unique_ptr<DeadRegisterMap_t>  dead_registers;
+			unique_ptr<DeepAnalysis_t>     m_deep_analysis;
+			unique_ptr<DeadRegisterMap_t>  m_dead_registers;
 
 			bool                           m_use_stars;          // use STARS to have access to dead register info
 			bool                           m_autozafl;           // link in library w/ auto fork server
 			bool                           m_graph_optimize;     // skip basic blocks based on graph
 			bool                           m_domgraph_optimize;  // skip basic blocks based on dominator graph
 			bool                           m_forkserver_enabled; // fork server enabled?
-			bceStyle_t                     m_breakupCriticalEdges;
-			bool                           m_doLoopCountInstrumentation;
-			string                         m_loopCountBuckets;
+			bool                           m_doKeepLoopHeadersOnly;
 			bool                           m_bb_float_instrumentation;  // skip basic blocks based on graph
 			bool                           m_verbose;
 			pair<DataScoop_t*,int>         m_trace_map;  // afl shared memory trace map
@@ -160,6 +161,7 @@ namespace Zafl
 			size_t m_num_bb_skipped;
 			size_t m_num_bb_skipped_pushjmp;
 			size_t m_num_bb_skipped_nop_padding;
+			size_t m_num_bb_loop_header_trimmed;
 			size_t m_num_bb_skipped_cbranch;
 			size_t m_num_bb_float_instrumentation;
 			size_t m_num_bb_float_regs_saved;

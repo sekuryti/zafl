@@ -38,6 +38,8 @@ usage()
 	echo "     -C, --no-break-critical-edges           Same as '-c none' (default)"
 	echo "     -j, --enable-loop-count-instr           Insert instrumentation to afl-style count loop headers."
 	echo "     -J, --disable-loop-count-instr          Do not do -j (default)"
+	echo "     -k, --keep-loop-headers-only            Prune all nodes from a CFG except the loop header nodes (note: other opts, e.g. -g may prune loop headers)"
+	echo "     -J, --disable-loop-count-instr          Do not do -j (default)"
 	echo "     --loop-count-buckets <bucket_spec>      The buckets for -j.  bucket_spec = int[,int]*, Default = 0,1,2,4,8,16,32,128.  (Spaces disallowed.)"
 	echo "     -f, --fork-server-only                  Fork server only"
 	echo "     -F, --disable-fork-server               No fork server"
@@ -239,6 +241,10 @@ parse_args()
 				;;
 			-J | --disable-loop-count-instr)
 				zax_opt=" $zax_opt -o zax:-J "
+				shift
+				;;
+			-k | --keep-loop-headers-only)
+				zax_opt=" $zax_opt -o zax:-k "
 				shift
 				;;
 			--loop-count-buckets)

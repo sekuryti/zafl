@@ -37,6 +37,8 @@
 #include <unistd.h>
 
 #include "zax.hpp"
+#include "critical_edge_breaker.hpp"
+#include "loop_count.hpp"
 #include "zuntracer.hpp"
 
 using namespace std;
@@ -91,6 +93,7 @@ int main(int argc, char **argv)
 	auto untracer_mode=false;
 	auto break_critical_edge_style=bceNone;
 	auto do_loop_count_instr=false;
+	auto do_keep_loop_headers_only=false;
 	auto loop_count_buckets=string("0,1,2,4,8,16,32,64,128");
 	auto floating_instrumentation=false;
 	auto context_sensitivity=ContextSensitivity_None;
@@ -123,6 +126,7 @@ int main(int argc, char **argv)
 		{"break-critical-edge",     	     required_argument, 0, 'c'},
 		{"enable-loop-count-instr",          no_argument,       0, 'j'},
 		{"disable-loop-count-instr",         no_argument,       0, 'J'},
+		{"keep-loop-headers-only",           no_argument,       0, 'k'},
 		{"loop-count-buckets",               required_argument, 0, ':'},
 		{"enable-floating-instrumentation",  no_argument,       0, 'i'},
 		{"disable-floating-instrumentation", no_argument,       0, 'I'},
@@ -130,7 +134,7 @@ int main(int argc, char **argv)
 		{"random-seed",                      required_argument, 0, 'r'},
 		{0,0,0,0}
 	};
-	const char* short_opts="r:z:e:E:w:sv?hagGdDfFuc:jJiIm:M";
+	const char* short_opts="r:z:e:E:w:sv?hagGdDfFuc:jJkiIm:M";
 
 	while(true)
 	{
@@ -224,6 +228,9 @@ int main(int argc, char **argv)
 			case 'J':
 				do_loop_count_instr=false;
 				break;
+			case 'k':
+				do_keep_loop_headers_only=true;
+				break;
 			case ':':
 				loop_count_buckets = string(optarg);
 				break;
@@ -287,9 +294,24 @@ int main(int argc, char **argv)
 
 		try
 		{
-			const auto zax = (untracer_mode) ?  
-				unique_ptr<ZaxBase_t>(new ZUntracer_t(*pqxx_interface, firp.get(), entry_fork_server, exitpoints, use_stars, autozafl)) : 
-				unique_ptr<ZaxBase_t>(new Zax_t      (*pqxx_interface, firp.get(), entry_fork_server, exitpoints, use_stars, autozafl)); 
+
+			if (break_critical_edge_style != bceNone)
+			{
+				CriticalEdgeBreaker_t ceb(firp.get(), {}, break_critical_edge_style, verbose);
+				cout << "#ATTRIBUTE num_bb_extra_blocks=" << ceb.getNumberExtraNodes() << endl;
+				firp->setBaseIDS();
+				firp->assembleRegistry();
+			}
+			if (do_loop_count_instr)
+			{
+				ZedgeNS::Zedge_t(firp.get(), loop_count_buckets).execute();
+				firp->setBaseIDS();
+				firp->assembleRegistry();
+			}
+
+			const auto zax = unique_ptr<ZaxBase_t>( 
+					untracer_mode ? static_cast<ZaxBase_t*>(new ZUntracer_t(*pqxx_interface, firp.get(), entry_fork_server, exitpoints, use_stars, autozafl)) : 
+					                static_cast<ZaxBase_t*>(new Zax_t      (*pqxx_interface, firp.get(), entry_fork_server, exitpoints, use_stars, autozafl))); 
 
 			if (whitelistFile.size()>0)
 				zax->setWhitelist(whitelistFile);
@@ -301,9 +323,10 @@ int main(int argc, char **argv)
 			zax->setDomgraphOptimization(domgraph_optimize);
 			zax->setBasicBlockFloatingInstrumentation(floating_instrumentation);
 			zax->setEnableForkServer(forkserver_enabled);
-			zax->setBreakCriticalEdgeStyle(break_critical_edge_style);
-			zax->setDoLoopCountInstrumentation(do_loop_count_instr);
-			zax->setLoopCountBuckets(loop_count_buckets);
+//		 	zax->setBreakCriticalEdgeStyle(break_critical_edge_style);
+			zax->setKeepLoopHeadersOnly(do_keep_loop_headers_only);
+//			zax->setDoLoopCountInstrumentation(do_loop_count_instr);
+//			zax->setLoopCountBuckets(loop_count_buckets);
 			zax->setContextSensitivity(context_sensitivity); 
 			zax->setFixedMapAddress(fixed_map_address);
 

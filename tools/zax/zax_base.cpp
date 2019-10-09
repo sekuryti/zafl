@@ -44,8 +44,6 @@
 #include <irdb-deep>
 
 #include "zax.hpp"
-#include "critical_edge_breaker.hpp"
-#include "loop_count.hpp"
 
 using namespace std;
 using namespace IRDB_SDK;
@@ -61,8 +59,8 @@ void create_got_reloc(FileIR_t* fir, pair<DataScoop_t*,int> wrt, Instruction_t* 
 
 RegisterSet_t ZaxBase_t::getDeadRegs(Instruction_t* insn) const
 {
-	auto it = dead_registers -> find(insn);
-	if(it != dead_registers->end())
+	auto it = m_dead_registers -> find(insn);
+	if(it != m_dead_registers->end())
 		return it->second;
 	return RegisterSet_t();
 }
@@ -121,8 +119,7 @@ ZaxBase_t::ZaxBase_t(IRDB_SDK::pqxxDB_t &p_dbinterface, IRDB_SDK::FileIR_t *p_va
 	m_graph_optimize(false),
 	m_domgraph_optimize(false),
 	m_forkserver_enabled(true),
-	m_breakupCriticalEdges(bceNone),
-	m_doLoopCountInstrumentation(false),
+	m_doKeepLoopHeadersOnly(false),
 	m_fork_server_entry(p_forkServerEntryPoint),
 	m_exitpoints(p_exitPoints),
 	m_do_fixed_addr_optimization(false),
@@ -130,10 +127,11 @@ ZaxBase_t::ZaxBase_t(IRDB_SDK::pqxxDB_t &p_dbinterface, IRDB_SDK::FileIR_t *p_va
 	m_previd_fixed_addr(0),
 	m_context_fixed_addr(0)
 {
-	if (m_use_stars) {
+	if (m_use_stars) 
+	{
 		cout << "Use STARS analysis engine" << endl;
-		auto deep_analysis=DeepAnalysis_t::factory(getFileIR());
-		dead_registers = deep_analysis -> getDeadRegisters();
+		m_deep_analysis  = DeepAnalysis_t::factory(getFileIR());
+		m_dead_registers = m_deep_analysis -> getDeadRegisters();
 	}
 
 	auto ed=ElfDependencies_t::factory(getFileIR());
@@ -202,6 +200,7 @@ ZaxBase_t::ZaxBase_t(IRDB_SDK::pqxxDB_t &p_dbinterface, IRDB_SDK::FileIR_t *p_va
 	m_num_bb_skipped = 0;
 	m_num_bb_skipped_pushjmp = 0;
 	m_num_bb_skipped_nop_padding = 0;
+	m_num_bb_loop_header_trimmed = 0;
 	m_num_bb_skipped_cbranch = 0;
 	m_num_style_collafl = 0;
 	m_num_bb_float_instrumentation = 0;
@@ -275,15 +274,13 @@ void ZaxBase_t::setFixedMapAddress(VirtualOffset_t p_fixed_addr)
 void ZaxBase_t::setBasicBlockOptimization(bool p_bb_graph_optimize) 
 {
 	m_graph_optimize = p_bb_graph_optimize;
-	const auto enabled = m_graph_optimize ? "enable" : "disable";
-	cout << enabled << " basic block optimization" << endl ;
+	cout << "basic block optimization enabled: " << boolalpha << m_graph_optimize << endl ;
 }
 
 void ZaxBase_t::setDomgraphOptimization(bool p_domgraph_optimize) 
 {
 	m_domgraph_optimize = p_domgraph_optimize;
-	const auto enabled = m_domgraph_optimize ? "enable" : "disable";
-	cout << enabled << " dominator graph optimization" << endl ;
+	cout << "dominator graph optimization enabled: " << boolalpha << m_domgraph_optimize << endl;
 }
 
 
@@ -292,40 +289,16 @@ void ZaxBase_t::setEnableForkServer(bool p_forkserver_enabled)
 	m_forkserver_enabled = p_forkserver_enabled;
 }
 
-void ZaxBase_t::setBreakCriticalEdgeStyle(bceStyle_t p_sty)
+void ZaxBase_t::setKeepLoopHeadersOnly(bool p_klho)
 {
-	m_breakupCriticalEdges = p_sty;
-
-	const auto style_str = 
-		p_sty == bceAll          ? "all"          : 
-		p_sty == bceNone         ? "none"         : 
-		p_sty == bceTargets      ? "targets"      : 
-		p_sty == bceFallthroughs ? "fallthroughs" : 
-		throw invalid_argument("Cannot map p_sty to string")
-		;
-	cout << "breaking of critical edge style: " << style_str << endl ;
-}
-
-void ZaxBase_t::setDoLoopCountInstrumentation(bool p_lc)
-{
-	m_doLoopCountInstrumentation = p_lc;
-	m_doLoopCountInstrumentation ?
-		cout << "enable loop count instr."  << endl :
-		cout << "disable loop count instr." << endl ;
-}
-
-void ZaxBase_t::setLoopCountBuckets(string p_buckets)
-{
-	m_loopCountBuckets = p_buckets;
-	cout << "loop count buckets = " << m_loopCountBuckets << endl;
+	m_doKeepLoopHeadersOnly = p_klho;
+	cout << "Keep loop headers only enabled: " << boolalpha << m_doKeepLoopHeadersOnly << endl;
 }
 
 void ZaxBase_t::setBasicBlockFloatingInstrumentation(bool p_float)
 {
 	m_bb_float_instrumentation = p_float;
-	m_bb_float_instrumentation ?
-		cout << "enable floating instrumentation" << endl :
-		cout << "disable floating instrumentation" << endl;
+	cout << "floating instrumentation enabled: " << boolalpha << m_bb_float_instrumentation << endl ;
 }
 
 bool ZaxBase_t::getBasicBlockFloatingInstrumentation() const
@@ -364,7 +337,7 @@ void ZaxBase_t::setWhitelist(const string& p_whitelist)
 	std::ifstream whitelistFile(p_whitelist);
 	if (!whitelistFile.is_open())
 		throw std::runtime_error("Could not open file " + p_whitelist);
-	std::string line;
+	auto line = string();
 	while(whitelistFile >> line)
 	{
 		cout <<"Adding " << line << " to white list" << endl;
@@ -731,24 +704,49 @@ BasicBlockSet_t ZaxBase_t::getBlocksToInstrument(const ControlFlowGraph_t &cfg)
 
 		keepers.insert(bb);
 	}
+	if(m_verbose)
+		cout << "#ATTRIBUTE orig_blocks_to_instrument=" << dec << keepers.size() << endl;
 	return keepers;
 }
 
 void ZaxBase_t::filterPaddingNOP(BasicBlockSet_t& p_in_out)
 {
+	const auto orig_size = p_in_out.size();
 	auto copy=p_in_out;
 	for(auto block : copy)
 	{
 		if (BB_isPaddingNop(block))
 		{
-			p_in_out.erase(block);
 			m_num_bb_skipped_nop_padding++;
 		}
 	}
+	if(m_verbose)
+		cout << "#ATTRIBUTE nop_padding_filter=" << dec << orig_size << " -> " << p_in_out.size() << endl;
+}
+
+void ZaxBase_t::filterKeepLoopHeadersOnly(BasicBlockSet_t& p_in_out, ControlFlowGraph_t& cfg)
+{
+	if(!m_doKeepLoopHeadersOnly)
+		return;
+	const auto orig_size = p_in_out.size();
+	auto input_set=move(p_in_out);
+	assert(p_in_out.size()==0);
+	auto loop_header_blocks=BasicBlockSet_t();
+	const auto loop_nest = m_deep_analysis->getLoops(&cfg);
+	for(auto loop : loop_nest->getAllLoops())
+	{
+		loop_header_blocks.insert(loop -> getHeader());
+	}
+	set_intersection(ALLOF(input_set),ALLOF(loop_header_blocks), inserter(p_in_out,p_in_out.begin()));
+	if(m_verbose)
+		cout << "#ATTRIBUTE loop_headers_filter=" << dec << orig_size << " -> " << p_in_out.size() << endl;
+
+	m_num_bb_loop_header_trimmed += (orig_size-p_in_out.size());
 }
 
 void ZaxBase_t::filterEntryBlock(BasicBlockSet_t& p_in_out, BasicBlock_t* p_entry)
 {
+	const auto orig_size = p_in_out.size();
 	if (p_entry->getSuccessors().size() != 1)
 		return;
 
@@ -765,10 +763,13 @@ void ZaxBase_t::filterEntryBlock(BasicBlockSet_t& p_in_out, BasicBlock_t* p_entr
 	if (m_verbose) {
 		cout << "Eliding entry block" << endl; 
 	}
+	if(m_verbose)
+		cout << "#ATTRIBUTE entry_block_filter=" << dec << orig_size << " -> " << p_in_out.size() << endl;
 }
 
 void ZaxBase_t::filterExitBlocks(BasicBlockSet_t& p_in_out)
 {
+	const auto orig_size = p_in_out.size();
 	auto copy=p_in_out;
 	for(auto block : copy)
 	{
@@ -798,10 +799,13 @@ void ZaxBase_t::filterExitBlocks(BasicBlockSet_t& p_in_out)
 			cout << "Eliding exit block" << endl; 
 		}
 	}
+	if(m_verbose)
+		cout << "#ATTRIBUTE exit_block_filter=" << dec << orig_size << " -> " << p_in_out.size() << endl;
 }
 
 void ZaxBase_t::filterConditionalBranches(BasicBlockSet_t& p_in_out)
 {
+	const auto orig_size = p_in_out.size();
 	if (!m_graph_optimize)
 		return;
 	auto copy=p_in_out;
@@ -841,10 +845,13 @@ void ZaxBase_t::filterConditionalBranches(BasicBlockSet_t& p_in_out)
 			continue;
 		}
 	}
+	if(m_verbose)
+		cout << "#ATTRIBUTE cond_branch_filter=" << dec << orig_size << " -> " << p_in_out.size() << endl;
 }
 
 void ZaxBase_t::filterBlocksByDomgraph(BasicBlockSet_t& p_in_out,  const DominatorGraph_t* dg)
 {
+	const auto orig_size = p_in_out.size();
 	if(!m_domgraph_optimize)
 		return;
 
@@ -898,6 +905,8 @@ void ZaxBase_t::filterBlocksByDomgraph(BasicBlockSet_t& p_in_out,  const Dominat
 			}
 		}
 	}
+	if(m_verbose)
+		cout << "#ATTRIBUTE dom_graph_filter=" << dec << orig_size << " -> " << p_in_out.size() << endl;
 }
 
 // by default, return the first instruction in block
@@ -982,6 +991,7 @@ void ZaxBase_t::dumpAttributes()
 	cout << "#ATTRIBUTE num_bb_skipped=" << m_num_bb_skipped << endl;
 	cout << "#ATTRIBUTE num_bb_skipped_pushjmp=" << m_num_bb_skipped_pushjmp << endl;
 	cout << "#ATTRIBUTE num_bb_skipped_nop_padding=" << m_num_bb_skipped_nop_padding << endl;
+	cout << "#ATTRIBUTE num_bb_loop_header_trimmed=" << m_num_bb_loop_header_trimmed << endl;
 	cout << "#ATTRIBUTE num_bb_float_instrumentation=" << m_num_bb_float_instrumentation << endl;
 	cout << "#ATTRIBUTE num_bb_float_register_saved=" << m_num_bb_float_regs_saved << endl;
 	cout << "#ATTRIBUTE graph_optimize=" << boolalpha << m_graph_optimize << endl;
@@ -1229,22 +1239,6 @@ void ZaxBase_t::addLibZaflIntegration()
  */
 int ZaxBase_t::execute()
 {
-	getFileIR()->setBaseIDS();
-	getFileIR()->assembleRegistry();
-	if (m_breakupCriticalEdges != bceNone)
-	{
-		CriticalEdgeBreaker_t ceb(getFileIR(), m_blacklist, m_breakupCriticalEdges, m_verbose);
-		cout << "#ATTRIBUTE num_bb_extra_blocks=" << ceb.getNumberExtraNodes() << endl;
-		getFileIR()->setBaseIDS();
-		getFileIR()->assembleRegistry();
-	}
-	if (m_doLoopCountInstrumentation)
-	{
-		ZedgeNS::Zedge_t(getFileIR(), m_loopCountBuckets).execute();
-		getFileIR()->setBaseIDS();
-		getFileIR()->assembleRegistry();
-	}
-
 	setup();
 
 	// for all functions
@@ -1273,8 +1267,8 @@ int ZaxBase_t::execute()
 
 		auto honorRedZone = shouldHonorRedZone(f);
 
-		const auto cfgp = ControlFlowGraph_t::factory(f);
-		const auto &cfg = *cfgp;
+		auto cfgp = ControlFlowGraph_t::factory(f);
+		auto &cfg = *cfgp;
 		const auto num_blocks_in_func = cfg.getBlocks().size();
 		m_num_bb += num_blocks_in_func;
 
@@ -1321,6 +1315,7 @@ int ZaxBase_t::execute()
 		}
 
 		filterPaddingNOP(keepers);
+		filterKeepLoopHeadersOnly(keepers,cfg);
 
 		struct BBSorter
 		{
@@ -1380,7 +1375,6 @@ int ZaxBase_t::execute()
 	};
 
 	addLibZaflIntegration();
-
 
 	teardown();
 
