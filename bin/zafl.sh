@@ -225,12 +225,12 @@ parse_args()
 						zax_opt=" $zax_opt -o zax:-c -o fallthroughs "
 						shift
 						;;
-					all|"")
+					all)
 						zax_opt=" $zax_opt -o zax:-c -o all"
 						shift
 						;;
 					*)
-						echo "Cannot map $1 to critical edge type " 
+						echo "Cannot map '$1' to critical edge type " 
 						exit 2
 						;;
 				esac

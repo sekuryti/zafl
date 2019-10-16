@@ -63,7 +63,10 @@ namespace Zafl
 			const bool         m_verbose;
 			unsigned           m_extra_nodes;
 			const bceStyle_t   m_break_style;
+
 			ofstream           map_file;
+			InstructionSet_t broken_targets;
+			InstructionSet_t broken_fallthroughs;
 	};
 } 
 

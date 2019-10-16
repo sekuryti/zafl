@@ -34,6 +34,8 @@
 
 #include "zax.hpp"
 
+#define ALLOF(a) begin(a),end(a)
+
 using namespace std;
 using namespace IRDB_SDK;
 using namespace Zafl;
@@ -78,19 +80,21 @@ ZaflBlockId_t Zax_t::getBlockId(const unsigned p_max)
 void Zax_t::instrumentBasicBlock(BasicBlock_t *p_bb, bool p_honorRedZone, const bool p_collafl_optimization)
 {
 	char buf[8192];
-	auto live_flags = true;
-	char *reg_temp = NULL;
-	char *reg_temp32 = NULL;
-	char *reg_temp16 = NULL;
+	auto live_flags     = true;
+	char *reg_temp      = NULL;
+	char *reg_temp32    = NULL;
+	char *reg_temp16    = NULL;
 	char *reg_trace_map = NULL;
-	char *reg_prev_id = NULL;
-	char *reg_context = NULL;
+	char *reg_prev_id   = NULL;
+	char *reg_context   = NULL;
 	char *reg_context16 = NULL;
-	auto save_temp = true;
+	auto save_temp      = true;
 	auto save_trace_map = true;
-	auto save_prev_id = true;
-	auto save_context = (getContextSensitivity() != ContextSensitivity_None) ? true : false;
-	auto block_record=BBRecord_t();
+	auto save_prev_id   = true;
+	auto save_context   = (getContextSensitivity() != ContextSensitivity_None) ? true : false;
+	auto block_record   = BBRecord_t();
+
+	const auto &bb_insns = p_bb->getInstructions();
 
 	// if fixed address, only need 1 register
 	// if not, need up to 4 registers
@@ -113,7 +117,7 @@ void Zax_t::instrumentBasicBlock(BasicBlock_t *p_bb, bool p_honorRedZone, const 
 	auto instr = getInstructionToInstrument(p_bb, num_free_regs_desired);
 	if (!instr) throw;
 
-	block_record.push_back(instr);
+	block_record.insert(end(block_record), ALLOF(bb_insns));
 
 	// If we are using stars, try to assign rax, rcx, and rdx to their 
 	// most desireable position in the instrumentation.

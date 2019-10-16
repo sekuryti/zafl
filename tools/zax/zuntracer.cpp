@@ -33,6 +33,8 @@
 // @HEADER_END
 #include "zuntracer.hpp"
 
+#define ALLOF(a) begin(a),end(a)
+
 using namespace std;
 using namespace IRDB_SDK;
 using namespace Zafl;
@@ -57,6 +59,7 @@ void ZUntracer_t::instrumentBasicBlock(BasicBlock_t *p_bb, const bool p_redZoneH
 // Highly efficient instrumentation using known address for tracemap
 void ZUntracer_t::_instrumentBasicBlock_fixed(BasicBlock_t *p_bb, char* p_tracemap_addr)
 {
+	const auto &bb_instructions = p_bb->getInstructions();
 	// 1st instruction in block record is the new entry point of the block (instr)
 	// 2nd instruction in block record is where the instruction at the old entry point is now at (orig)
 	auto instr = getInstructionToInstrument(p_bb);
@@ -64,7 +67,7 @@ void ZUntracer_t::_instrumentBasicBlock_fixed(BasicBlock_t *p_bb, char* p_tracem
 
 	const auto blockid = getBlockId();
 	BBRecord_t block_record;
-	block_record.push_back(instr);
+	block_record.insert(end(block_record), ALLOF(bb_instructions));
 
 	// e.g.: mov BYTE [ 0x10000 + blockid ], 0x1
 	const auto s = string("mov BYTE [") + p_tracemap_addr + "+" + to_string(blockid) + "], 0x1";

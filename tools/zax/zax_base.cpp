@@ -1014,14 +1014,14 @@ void ZaxBase_t::dumpMap()
 
 	ofstream mapfile("zax.map");
 
-	mapfile << "# BLOCK_ID  ID_EP:size  ID_OLDEP:size (ID_INSTRUMENTATION:size)*" << endl;
+	mapfile << "blockID\t(insnID:size)*" << endl;
 	for (auto &mb : m_modifiedBlocks)
 	{
 		const auto blockid = mb.first;
-		mapfile << dec << blockid << " ";
+		mapfile << hex << blockid << "\t";
 		for (auto &entry : mb.second)
 		{
-			mapfile << hex << entry->getBaseID() << ":" << dec << entry->getDataBits().size() << " ";
+			mapfile << hex << entry->getBaseID() << ":" << dec << entry->getDataBits().size() << "\t";
 		}
 		mapfile << endl;
 	}
