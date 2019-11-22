@@ -295,16 +295,16 @@ int main(int argc, char **argv)
 		try
 		{
 
+			if (do_loop_count_instr)
+			{
+				ZedgeNS::Zedge_t(firp.get(), loop_count_buckets).execute();
+				firp->setBaseIDS();
+				firp->assembleRegistry();
+			}
 			if (break_critical_edge_style != bceNone)
 			{
 				CriticalEdgeBreaker_t ceb(firp.get(), {}, break_critical_edge_style, verbose);
 				cout << "#ATTRIBUTE num_bb_extra_blocks=" << ceb.getNumberExtraNodes() << endl;
-				firp->setBaseIDS();
-				firp->assembleRegistry();
-			}
-			if (do_loop_count_instr)
-			{
-				ZedgeNS::Zedge_t(firp.get(), loop_count_buckets).execute();
 				firp->setBaseIDS();
 				firp->assembleRegistry();
 			}
