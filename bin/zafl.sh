@@ -428,7 +428,7 @@ find_main()
 verify_zafl_symbols()
 {
 	# verify library dependency set
-	ldd $1 | grep -e libzafl -e libautozafl >/dev/null 2>&1
+	ldd $1 2>&1 | grep -e libzafl -e libautozafl >/dev/null 2>&1
 	if [ $? -eq 0 ]; then
 		log_msg "success. Output file is: $1"
 	else
@@ -472,7 +472,7 @@ main()
 	fi
 
 	zax_opt=" $zax_opt $float_opt $auto_zafl_opt "
-	cmd="$ZAFL_TM_ENV $PSZ $input_binary $output_zafl_binary $ida_or_rida_opt -s move_globals $optional_step -c zax -o move_globals:--elftables-only -o move_globals:--no-use-stars $stars_opt $zax_opt $verbose_opt $options $other_args $trace_opt $zipr_opt $extra_args" 
+	cmd="$ZAFL_TM_ENV $PSZ $input_binary $output_zafl_binary $ida_or_rida_opt $optional_step -c zax -o move_globals:--elftables-only -o move_globals:--no-use-stars $stars_opt $zax_opt $verbose_opt $options $other_args $trace_opt $zipr_opt $extra_args" 
 
 
 	if [ ! -z "$ZAFL_TM_ENV" ]; then

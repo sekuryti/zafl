@@ -134,7 +134,10 @@ ZaxBase_t::ZaxBase_t(IRDB_SDK::pqxxDB_t &p_dbinterface, IRDB_SDK::FileIR_t *p_va
 		m_dead_registers = m_deep_analysis -> getDeadRegisters();
 	}
 
+#if 0
 	auto ed=ElfDependencies_t::factory(getFileIR());
+
+	// only need zafl.so for the fork server 
 	if (p_autozafl)
 	{
 		cout << "autozafl library is on" << endl;
@@ -151,6 +154,7 @@ ZaxBase_t::ZaxBase_t(IRDB_SDK::pqxxDB_t &p_dbinterface, IRDB_SDK::FileIR_t *p_va
 	m_trace_map = ed->appendGotEntry("zafl_trace_map");
 	m_prev_id = ed->appendGotEntry("zafl_prev_id");
 	m_context_id = ed->appendGotEntry("zafl_context");
+#endif
 
 	// let's not instrument these functions ever
 	// see isBlacklisted() for other blacklisted functions
