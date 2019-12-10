@@ -1,7 +1,7 @@
 import os
 
 if not os.path.isfile("manifest.txt.config"):
-        os.system(os.environ['PEDI_HOME']+'/pedi --setup -m manifest.txt -l zafl -l ps -l zipr -l stratafier -l stars -i ' + os.environ['ZAFL_INSTALL'])
+        os.system(os.environ['PEDI_HOME']+'/pedi --setup -m manifest.txt -l zafl -l ps -l zipr -l ida -l ida_key -l stratafier -l stars -i ' + os.environ['ZAFL_INSTALL'])
 
 
 zipr=SConscript("zipr_umbrella/SConstruct")
