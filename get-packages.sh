@@ -12,7 +12,7 @@ for arg in $args; do
                         if [ $? -eq 0 ]; then
                                 sudo apt-get install -y --ignore-missing afl clang
                         else
-                                sudo yum install -y --skip-broken afl clang
+                                sudo yum install -y --skip-broken afl clang fakeroot dpkg
                         fi
                 ;;
 

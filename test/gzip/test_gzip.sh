@@ -39,7 +39,8 @@ build_zafl()
 {
 	gzip_zafl=$1
 	shift
-	$PSZ `which gzip` $gzip_zafl -c move_globals=on -c zax=on -o move_globals:--elftables -o zipr:--traceplacement:on -o zipr:true $* --tempdir analysis.${gzip_zafl}
+#	$PSZ `which gzip` $gzip_zafl -c rida -c move_globals=on -c zax=on -o move_globals:--elftables -o zipr:--traceplacement:on -o zipr:true $* --tempdir analysis.${gzip_zafl}
+	zafl.sh `which gzip` $gzip_zafl --tempdir analysis.${gzip_zafl} $*
 	if [ ! $? -eq 0 ]; then
 		log_error "$gzip_zafl: unable to generate zafl version"	
 	else
@@ -108,22 +109,16 @@ fi
 
 # test setting of entry point via address
 ep=$( objdump -Mintel -d /bin/gzip | grep text | grep -v -i disassembly | cut -d' ' -f1 | sed 's/^00000000//g' )
-build_zafl gzip.stars.entrypoint.${ep}.zafl -o zax:--stars -o "zax:--entrypoint=$ep"
+zafl.sh /bin/gzip gzip.stars.entrypoint.${ep}.zafl --entry $ep
 test_zafl ./gzip.stars.entrypoint.${ep}.zafl --fast
 
-# test setting of entry point via function name
-build_zafl gzip.entrypoint.zafl -o "zax:--entrypoint=main"
-test_zafl ./gzip.entrypoint.zafl --best
-
 # test non-STARS version
-build_zafl gzip.nostars.zafl
-test_zafl ./gzip.nostars.zafl
+zafl.sh  /bin/gzip gzip.nostars.zafl --no-stars
 test_zafl ./gzip.nostars.zafl --fast
 test_zafl ./gzip.nostars.zafl --best
 
 # test STARS version
-build_zafl gzip.stars.zafl -o zax:--stars
-test_zafl ./gzip.stars.zafl
+zafl.sh /bin/gzip  gzip.stars.zafl --stars
 test_zafl ./gzip.stars.zafl --fast
 test_zafl ./gzip.stars.zafl --best
 
