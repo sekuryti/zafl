@@ -1,4 +1,7 @@
 FROM git.zephyr-software.com:4567/opensrc/irdb-sdk/zipr-dev:latest
+
+RUN ls
+
 RUN DEBIAN_FRONTEND=noninteractive apt-get update &&   \
     DEBIAN_FRONTEND=noninteractive apt-get install -yq \
 	postgresql  				\
