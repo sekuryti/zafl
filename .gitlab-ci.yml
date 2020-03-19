@@ -64,15 +64,15 @@ do-build-ubuntu18:
 #
 # test_cmds.sh zafl
 #
-.basic-pgms-zafl: &basic-pgms-zafl
-  stage: test
-  script:
-    - ./cicd_testing/basic-pgms-zafl.sh
+#.basic-pgms-zafl: &basic-pgms-zafl
+#  stage: test
+#  script:
+#    - ./cicd_testing/basic-pgms-zafl.sh
 
-basic-pgms-zafl-ubuntu18:
-  <<: *basic-pgms-zafl
-  tags:
-    - ubuntu18
+#basic-pgms-zafl-ubuntu18:
+#  <<: *basic-pgms-zafl
+#  tags:
+#    - ubuntu18
 
 #basic-pgms-zafl-ubuntu16:
 #  <<: *basic-pgms-zafl
@@ -87,15 +87,15 @@ basic-pgms-zafl-ubuntu18:
 #
 # test zafl with afl
 #
-.afl-zafl: &afl-zafl
-  stage: test
-  script:
-    - ./cicd_testing/afl-zafl.sh
-
-afl-zafl-ubuntu18:
-  <<: *afl-zafl
-  tags:
-    - ubuntu18
+#.afl-zafl: &afl-zafl
+#  stage: test
+#  script:
+#    - ./cicd_testing/afl-zafl.sh
+#
+#afl-zafl-ubuntu18:
+#  <<: *afl-zafl
+#  tags:
+#    - ubuntu18
 
 #afl-zafl-ubuntu16:
 #  <<: *afl-zafl
