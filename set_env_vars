@@ -14,12 +14,12 @@ if [ -z "$ZAFL_INSTALL" ]; then
 	fi
 fi
 
-export PS_INSTALL=$ZAFL_INSTALL/zipr_umbrella
+#export PS_INSTALL=$ZAFL_INSTALL/zipr_umbrella
 
-cd $ZAFL_HOME/zipr_umbrella
-source ./set_env_vars
+#cd $ZAFL_HOME/zipr_umbrella
+#source ./set_env_vars
+
 cd $ZAFL_HOME
-
 
 export PATH=$PATH:$ZAFL_INSTALL/bin
 export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$ZAFL_INSTALL/zest_runtime/lib
