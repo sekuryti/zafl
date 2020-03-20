@@ -7,7 +7,7 @@ source set_env_vars
 
 # Test with afl
 
-echo "Setup afl - ZAFL_HOME=$ZAFL_HOME "
+echo "Setup afl - ZAFL_HOME=$ZAFL_HOME"
 $ZAFL_HOME/util/setup-afl.sh
 sudo $ZAFL_HOME/util/afl_setup_core_pattern.sh
 
