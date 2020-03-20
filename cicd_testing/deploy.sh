@@ -5,7 +5,7 @@ export ZAFL_TAG=zafl:latest
 export DOCKER_ZAFL=${ZAFL_PATH}${ZAFL_TAG}
 
 
-do_clean()
+do_docker_clean()
 {
 	if [[ $CICD_WEEKLY == 1 ]]; then
 		docker system prune -a -f
@@ -54,8 +54,14 @@ main()
 {
 	set -e 
 	set -x 
-	cd /tmp/zafl_test/cicd_testing
-	do_clean
+	if [[ -z $PEASOUP_HOME ]] ; then
+		cd $CICD_MODULE_WORK_DIR/zafl_test
+		source set_env_vars
+		cd /tmp/zafl_tmp
+		source set_env_vars
+		cd cicd_testing
+	fi
+	do_docker_clean
 	do_login
 	do_build_image
 	do_test
