@@ -107,7 +107,6 @@ afl-zafl-centos76:
   tags:
     - centos76
 
-
 #
 # Deploy a docker image to gitlab.
 #

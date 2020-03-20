@@ -13,8 +13,8 @@ sudo $ZAFL_HOME/util/afl_setup_core_pattern.sh
 
 echo "Test various zafl configurations"
 $ZAFL_HOME/test/strings/test_strings.sh
-$ZAFL_HOME//test/bc/test_bc.sh
-$ZAFL_HOME//test/od/test_od.sh
+$ZAFL_HOME/test/bc/test_bc.sh
+$ZAFL_HOME/test/od/test_od.sh
 
 echo "Test graph optimizations"
 $ZAFL_HOME/tools/zax/test/test_graph.sh

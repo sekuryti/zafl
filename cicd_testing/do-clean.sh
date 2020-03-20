@@ -1,4 +1,5 @@
 #!/bin/bash
+
 set -e
 set -x
 
@@ -12,7 +13,8 @@ main()
 		whoami
 		env|grep CICD
 
-		sudo rm -rf /tmp/zafl_test
+		# remove the cache
+		rm -rf $CICD_MODULE_WORK_DIR/zafl_test /tmp/zafl_tmp
 	fi
 }
 
