@@ -1,6 +1,6 @@
 #!/bin/bash
 
-PSZR=$(which ps_analyze.sh)
+PSZR=$(which ps_zipr.sh)
 
 #
 # Invoke underlying Zipr toolchain with Zafl step and parameters
