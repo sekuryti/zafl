@@ -1,7 +1,11 @@
 #!/bin/bash
 
-source $(dirname $0)/../zipr_umbrella/tools/ps_wrapper.source $0
+#source $(dirname $0)/../zipr_umbrella/tools/ps_wrapper.source $0
+source $PEASOUP_HOME/tools/ps_wrapper.source $0
 
+if [ -z $PSZ ]; then
+	export PSZ=$PEASOUP_HOME/tools/ps_zipr.sh
+fi
 
 #
 # Invoke underlying Zipr toolchain with Zafl step and parameters

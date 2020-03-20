@@ -25,7 +25,3 @@ for arg in $args; do
 	esac
 done
 
-pushd zipr_umbrella
-sudo -E ./get-peasoup-packages.sh $args
-popd
-
