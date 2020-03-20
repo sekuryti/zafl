@@ -53,6 +53,7 @@ do_logout()
 main()
 {
 	set -e 
+	set -x 
 	cd /tmp/zafl_test/cicd_testing
 	do_clean
 	do_login
