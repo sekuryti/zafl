@@ -25,15 +25,15 @@ do-nightly-clean-ubuntu18:
   tags:
     - ubuntu18
 
-#do-nightly-clean-ubuntu16:
-#  <<: *do-nightly-clean
-#  tags:
-#    - ubuntu16
-#
-#do-nightly-clean-centos76:
-#  <<: *do-nightly-clean
-#  tags:
-#    - centos76
+do-nightly-clean-ubuntu16:
+  <<: *do-nightly-clean
+  tags:
+    - ubuntu16
+
+do-nightly-clean-centos76:
+  <<: *do-nightly-clean
+  tags:
+    - centos76
 
 
 #
@@ -49,64 +49,63 @@ do-build-ubuntu18:
   <<: *do-build
   tags:
     - ubuntu18
-#
-#do-build-ubuntu16:
-#  <<: *do-build
-#  tags:
-#    - ubuntu16
-#
-#do-build-centos76:
-#  <<: *do-build
-#  tags:
-#    - centos76
-#
+
+do-build-ubuntu16:
+  <<: *do-build
+  tags:
+    - ubuntu16
+
+do-build-centos76:
+  <<: *do-build
+  tags:
+    - centos76
+
 
 #
 # test_cmds.sh zafl
 #
-#.basic-pgms-zafl: &basic-pgms-zafl
-#  stage: test
-#  script:
-#    - ./cicd_testing/basic-pgms-zafl.sh
+.basic-pgms-zafl: &basic-pgms-zafl
+  stage: test
+  script:
+    - ./cicd_testing/basic-pgms-zafl.sh
 
-#basic-pgms-zafl-ubuntu18:
-#  <<: *basic-pgms-zafl
-#  tags:
-#    - ubuntu18
+basic-pgms-zafl-ubuntu18:
+  <<: *basic-pgms-zafl
+  tags:
+    - ubuntu18
 
-#basic-pgms-zafl-ubuntu16:
-#  <<: *basic-pgms-zafl
-#  tags:
-#    - ubuntu16
-#
-#basic-pgms-zafl-centos76:
-#  <<: *basic-pgms-zafl
-#  tags:
-#    - centos76
+basic-pgms-zafl-ubuntu16:
+  <<: *basic-pgms-zafl
+  tags:
+    - ubuntu16
+
+basic-pgms-zafl-centos76:
+  <<: *basic-pgms-zafl
+  tags:
+    - centos76
 
 #
 # test zafl with afl
 #
-#.afl-zafl: &afl-zafl
-#  stage: test
-#  script:
-#    - ./cicd_testing/afl-zafl.sh
-#
-#afl-zafl-ubuntu18:
-#  <<: *afl-zafl
-#  tags:
-#    - ubuntu18
+.afl-zafl: &afl-zafl
+  stage: test
+  script:
+    - ./cicd_testing/afl-zafl.sh
 
-#afl-zafl-ubuntu16:
-#  <<: *afl-zafl
-#  tags:
-#    - ubuntu16
-#
-#afl-zafl-centos76:
-#  <<: *afl-zafl
-#  tags:
-#    - centos76
+afl-zafl-ubuntu18:
+  <<: *afl-zafl
+  tags:
+    - ubuntu18
 
+afl-zafl-ubuntu16:
+  <<: *afl-zafl
+  tags:
+    - ubuntu16
+
+afl-zafl-centos76:
+  <<: *afl-zafl
+  tags:
+    - centos76
 
 #
 # Deploy a docker image to gitlab.

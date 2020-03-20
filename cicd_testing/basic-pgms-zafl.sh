@@ -16,10 +16,8 @@ main()
 		benchmarks="tcpdump ncal bzip2 tar"
 		configs="zafl_nostars zafl_untracer_critical_edges zafl_context_sensitive_laf_domgraph_optgraph"
 	else
-#		benchmarks="readelf touch"
-#		configs="zafl_untracer_critical_edges zafl_context_sensitive_laf_domgraph_optgraph"
-		benchmarks="touch"
-		configs="zafl_context_sensitive_laf_domgraph_optgraph"
+		benchmarks="readelf touch"
+		configs="zafl_untracer_critical_edges zafl_context_sensitive_laf_domgraph_optgraph"
 	fi
 
 	# test other zafl configs on various apps
