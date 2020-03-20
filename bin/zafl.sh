@@ -1,11 +1,6 @@
 #!/bin/bash
 
-#source $(dirname $0)/../zipr_umbrella/tools/ps_wrapper.source $0
-source $PEASOUP_HOME/tools/ps_wrapper.source $0
-
-if [ -z $PSZ ]; then
-	export PSZ=$PEASOUP_HOME/tools/ps_zipr.sh
-fi
+PSZR=$(which ps_analyze.sh)
 
 #
 # Invoke underlying Zipr toolchain with Zafl step and parameters
@@ -476,7 +471,7 @@ main()
 	fi
 
 	zax_opt=" $zax_opt $float_opt $auto_zafl_opt "
-	cmd="$ZAFL_TM_ENV $PSZ $input_binary $output_zafl_binary $ida_or_rida_opt -s move_globals $optional_step -c zax -o move_globals:--elftables-only -o move_globals:--no-use-stars $stars_opt $zax_opt $verbose_opt $options $other_args $trace_opt $zipr_opt $extra_args" 
+	cmd="$ZAFL_TM_ENV $PSZR $input_binary $output_zafl_binary $ida_or_rida_opt -s move_globals $optional_step -c zax -o move_globals:--elftables-only -o move_globals:--no-use-stars $stars_opt $zax_opt $verbose_opt $options $other_args $trace_opt $zipr_opt $extra_args" 
 
 
 	if [ ! -z "$ZAFL_TM_ENV" ]; then

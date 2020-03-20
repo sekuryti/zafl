@@ -2,6 +2,7 @@
 export AFL_SKIP_BIN_CHECK=1
 
 export ZAFL_HOME=$PWD
+
 if [ -z "$ZAFL_INSTALL" ]; then
 
 	# manifest.txt doesn't exist in the installed development
@@ -17,7 +18,6 @@ fi
 cd $ZAFL_HOME
 
 export PATH=$PATH:$ZAFL_INSTALL/bin
-export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$ZAFL_INSTALL/zest_runtime/lib
-export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$SECURITY_TRANSFORMS_HOME/lib
+export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$ZAFL_HOME/libzafl/lib:$SECURITY_TRANSFORMS_HOME/lib
 export PSPATH=$PSPATH:$ZAFL_INSTALL/zafl_plugins
 
