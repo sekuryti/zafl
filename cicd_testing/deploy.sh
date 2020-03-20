@@ -33,10 +33,23 @@ do_build_image()
 do_test()
 {
 	# use the container to xform /bin/ls
-	cp $(which ls) /tmp
-	docker run -v /tmp:/io -t $DOCKER_ZAFL /io/ls /io/ls.zafl
-	ldd /tmp/ls.zafl 
-	ldd /tmp/ls.zafl | grep -v "not found"
+	cp $(which cat) /tmp
+
+	if [ -x /tmp/cat.zafl ]; then
+		rm /tmp/cat.zafl
+	fi
+
+	# map /io inside of containter to /tmp locally
+	docker run -v /tmp:/io -t $DOCKER_ZAFL /io/cat /io/cat.zafl
+	ldd /tmp/cat.zafl 
+	ldd /tmp/cat.zafl | grep -v "not found"
+
+	# verify functional correctness
+	echo "Verify functional correctness of cat"
+	echo "hello" > /tmp/hello
+	/tmp/cat.zafl /tmp/hello > /tmp/hello2
+	diff /tmp/hello /tmp/hello2
+	rm /tmp/hello /tmp/hello2
 }
 
 do_push()
@@ -62,6 +75,7 @@ main()
 		source set_env_vars
 		cd cicd_testing
 	fi
+
 	do_docker_clean
 	do_login
 	do_build_image
