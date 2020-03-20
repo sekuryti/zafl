@@ -35,7 +35,8 @@ do_test()
 	# use the container to xform /bin/ls
 	cp $(which ls) /tmp
 	docker run -v /tmp:/io -t $DOCKER_ZAFL /io/ls /io/ls.zafl
-	ldd /tmp/ls.zafl
+	ldd /tmp/ls.zafl 
+	ldd /tmp/ls.zafl | grep -v "not found"
 }
 
 do_push()
