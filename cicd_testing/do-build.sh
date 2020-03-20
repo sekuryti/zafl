@@ -37,7 +37,7 @@ main()
 	# make sure postgres is clean/setup
        	./postgres_setup.sh
 
-	# build the cookbook
+	# build zafl
         cd /tmp/zafl_tmp
         source set_env_vars
 	scons -j 3
