@@ -36,7 +36,7 @@ do_test()
 	cp $(which cat) /tmp
 
 	if [ -x /tmp/cat.zafl ]; then
-		rm /tmp/cat.zafl
+		sudo rm /tmp/cat.zafl
 	fi
 
 	# map /io inside of containter to /tmp locally
