@@ -1,9 +1,8 @@
 #/bin/bash
 
-export ZAFL_PATH=git.zephyr-software.com:4567/allnp/zafl_umbrella/
+export ZAFL_PATH=git.zephyr-software.com:4567/opensrc/libzafl/
 export ZAFL_TAG=zafl:latest
 export DOCKER_ZAFL=${ZAFL_PATH}${ZAFL_TAG}
-
 
 do_docker_clean()
 {
