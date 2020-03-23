@@ -2,6 +2,11 @@
 
 PSZR=$(which ps_zipr.sh)
 
+if [ ! -x "$PSZR" ]; then
+	echo "pszr is not in the search path. Please set PATH environment variable"
+	exit 1
+fi
+
 #
 # Invoke underlying Zipr toolchain with Zafl step and parameters
 #
