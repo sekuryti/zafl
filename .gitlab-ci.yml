@@ -112,6 +112,8 @@ afl-zafl-centos76:
 #
 .deploy-zafl: &deploy-zafl
   stage: deploy
+  only:
+    - master
   script:
     - ./cicd_testing/deploy.sh
 
