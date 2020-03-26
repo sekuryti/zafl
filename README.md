@@ -9,17 +9,18 @@ Key features of Zafl:
 
 ## Installation
 The instructions that follow assume that:
+* you have access to both the Zipr and ZAFL repo
 * you have `sudo` privileges
 * you are installing in your home directory
 * you are using a recent version of Linux, e.g., Ubuntu 18.04
 
-### You will first need to install the Zipr static binary rewriting infrastructure
+### First install the Zipr static binary rewriting infrastructure
 ```bash
 cd ~
 git clone --recurse-submodules git@git.zephyr-software.com:allnp/peasoup_umbrella.git
 cd peasoup_umbrella
 . set_env_vars
-./get-packages.sh
+./get-peasoup-packages.sh
 scons -j3
 ```
 
@@ -70,6 +71,7 @@ Invoke the rewritten version of /bin/ls and make sure it runs normally:
 ### Installing ZAFL
 Once Zipr has been installed, clone the repo for ZAFL and build.
 ```bash
+cd ~
 git clone --recurse-submodules git@git.zephyr-software.com:allnp/zafl_umbrella.git
 cd zafl_umbrella
 . set_env_vars
@@ -88,21 +90,28 @@ cd ~/zafl_umbrella
 
 #### Running Zafl smoke tests
 ```bash
-cd $ZAFL_HOME/zfuzz/test/bc
+cd $ZAFL_HOME/test/bc
 ./test_bc.sh
 ```
 
 The test will run afl on bc, instrumented with the proper instrumentation inlined. 
-The output should end with:
+You will see several fuzzing run, each of which should take on the order of 30 seconds.
+
+Once done, the output should end with something like:
 ```
-execs_since_crash : 77855
+unique_crashes    : 0
+unique_hangs      : 0
+last_path         : 0
+last_crash        : 0
+last_hang         : 0
+execs_since_crash : 30242
 exec_timeout      : 20
-afl_banner        : bc.stars.zafl
+afl_banner        : bc
 afl_version       : 2.52b
 target_mode       : default
-command_line      : afl-fuzz -i zafl_in -o zafl_out -- ./bc.stars.zafl -f
-TEST PASS: ./bc.stars.zafl: ran zafl binary: execs_per_sec     : 2000.00
-TEST PASS: all tests passed: zafl instrumentation operational on bc
+command_line      : afl-fuzz -i zafl_in -o zafl_out -- /usr/bin/bc
+TEST PASS: /usr/bin/bc: execs_per_sec     : 1904.76
+~/zafl_umbrella/test/bc
 ```
 
 #### Final sanity check
@@ -141,13 +150,23 @@ To make sure the binary has been instrumented properly: ```ZAFL_DEBUG=1 ./ls.zaf
 The output should start with:
 ```
 Error getting shm environment variable - fake allocate AFL trace map
-Error getting shm environment variable - fake allocate AFL trace map
-zafl_initAflForkServer(): Bad file descriptor
+Success at mmap!
+libautozafl: auto-initialize fork server
+```
+Let's prep for fuzzing:
+```bash
+mkdir input_seeds
+echo "hello" > input_seeds/hello.seed
 ```
 
 Let's now run the Zafl'd binary with afl:
 ```bash
-afl-fuzz -i in -o out -- ./ls.zafl @@
+afl-fuzz -i input_seeds -o out -- ./ls.zafl @@
+```
+
+If afl complains about `missing instrumentation`, you'll need to set the following environment variable:
+```bash
+export AFL_SKIP_BIN_CHECK=1
 ```
 
 You can also run the usual afl utilities, e.g:
@@ -160,7 +179,9 @@ Et voila!
 
 # TL;DR
 Once everything is installed properly, you can prep a binary for fuzzing with the simple command:
-```zafl.sh <target_binary> <zafl_output_binary>```
+```bash
+zafl.sh <target_binary> <zafl_output_binary>
+```
 
 
 
