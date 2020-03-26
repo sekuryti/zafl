@@ -7,11 +7,14 @@ main()
 	env
 	pwd
 	ls -lt /tmp
-
-	cd /tmp/zafl_test
+		
+	# source PEASOUP env vars
+	cd $CICD_MODULE_WORK_DIR/zafl_test
 	source set_env_vars
 
-	exit 0
+	# source ZAFL env vars
+	cd /tmp/zafl_tmp
+	source set_env_vars
 
 	cd $PEASOUP_HOME/tests; make clean; 
 

@@ -2,7 +2,12 @@
 set -e
 set -x
 
-cd /tmp/zafl_test
+# source PEASOUP env vars
+cd $CICD_MODULE_WORK_DIR/zafl_test
+source set_env_vars
+
+# source ZAFL env vars
+cd /tmp/zafl_tmp
 source set_env_vars
 
 # Test with afl
