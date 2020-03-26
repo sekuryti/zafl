@@ -19,8 +19,11 @@ sudo $ZAFL_HOME/util/afl_setup_core_pattern.sh
 echo "Test various zafl configurations"
 $ZAFL_HOME/test/strings/test_strings.sh
 
-$ZAFL_HOME/test/bc/test_bc.sh
-$ZAFL_HOME/test/od/test_od.sh
+if [[ $CICD_NIGHTLY == 1 ]] ; then
+	$ZAFL_HOME/test/bc/test_bc.sh
+	$ZAFL_HOME/test/od/test_od.sh
+	$ZAFL_HOME/test/sha256sum/test_sha256sum.sh
+fi
 
 echo "Test graph optimizations"
 $ZAFL_HOME/tools/zax/test/test_graph.sh
@@ -31,7 +34,6 @@ echo "Test laf"
 $ZAFL_HOME/tools/laf/test/run_tests.sh
 
 $ZAFL_HOME/test/bc.fixed_map/test_bc.sh
-$ZAFL_HOME/test/sha256sum/test_sha256sum.sh
 
 echo "Test zuntracer configurations"
 $ZAFL_HOME/test/ls.zuntracer/test_ls.sh

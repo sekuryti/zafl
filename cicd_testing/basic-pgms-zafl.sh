@@ -23,6 +23,10 @@ main()
 	local configs=""
 
 	if [[ $CICD_NIGHTLY == 1 ]] ; then
+		# zafl-specific test stressing compiler options
+		cd $ZAFL_HOME/test/eightqueens
+		./test_8q.sh
+
 		benchmarks="tcpdump ncal bzip2 tar"
 		configs="zafl_nostars zafl_untracer_critical_edges zafl_context_sensitive_laf_domgraph_optgraph"
 	else
@@ -32,10 +36,6 @@ main()
 
 	# test other zafl configs on various apps
 	./test_cmds.sh -c "$configs" -a "$benchmarks" -l 
-
-	# zafl-specific test stressing compiler options
-	cd $ZAFL_HOME/test/eightqueens
-	./test_8q.sh
 }
 
 main "$@"
