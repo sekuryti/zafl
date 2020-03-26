@@ -4,6 +4,7 @@ set -x
 
 main()
 {
+	# for debugging
 	env
 	pwd
 	ls -lt /tmp

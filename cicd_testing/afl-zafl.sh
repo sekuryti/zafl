@@ -19,8 +19,6 @@ sudo $ZAFL_HOME/util/afl_setup_core_pattern.sh
 echo "Test various zafl configurations"
 $ZAFL_HOME/test/strings/test_strings.sh
 
-exit 0
-
 $ZAFL_HOME/test/bc/test_bc.sh
 $ZAFL_HOME/test/od/test_od.sh
 
