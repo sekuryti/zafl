@@ -4,9 +4,15 @@ set -x
 
 main()
 {
+	env
+	pwd
+	ls -lt /tmp
 
 	cd /tmp/zafl_test
 	source set_env_vars
+
+	exit 0
+
 	cd $PEASOUP_HOME/tests; make clean; 
 
 	local benchmarks=""
