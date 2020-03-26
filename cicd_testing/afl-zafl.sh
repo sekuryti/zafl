@@ -2,7 +2,12 @@
 set -e
 set -x
 
-cd /tmp/zafl_test
+# source PEASOUP env vars
+cd $CICD_MODULE_WORK_DIR/zafl_test
+source set_env_vars
+
+# source ZAFL env vars
+cd /tmp/zafl_tmp
 source set_env_vars
 
 # Test with afl
@@ -13,6 +18,7 @@ sudo $ZAFL_HOME/util/afl_setup_core_pattern.sh
 
 echo "Test various zafl configurations"
 $ZAFL_HOME/test/strings/test_strings.sh
+
 $ZAFL_HOME/test/bc/test_bc.sh
 $ZAFL_HOME/test/od/test_od.sh
 

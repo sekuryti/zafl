@@ -4,9 +4,19 @@ set -x
 
 main()
 {
-
-	cd /tmp/zafl_test
+	# for debugging
+	env
+	pwd
+	ls -lt /tmp
+		
+	# source PEASOUP env vars
+	cd $CICD_MODULE_WORK_DIR/zafl_test
 	source set_env_vars
+
+	# source ZAFL env vars
+	cd /tmp/zafl_tmp
+	source set_env_vars
+
 	cd $PEASOUP_HOME/tests; make clean; 
 
 	local benchmarks=""
