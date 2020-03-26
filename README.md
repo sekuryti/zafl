@@ -3,28 +3,29 @@
 Welcome to *Zafl*, a project to fuzz X86 64-bit binary programs. 
 
 Key features of Zafl:
-* Uses Zipr, a fast, space-efficient binary rewriter to inline AFL-style instrumentations. Preliminary overhead: 
-    * 20% slower than afl/source code
-    * 15% faster than afl/dyninst
-    * a **lot** faster than afl/QEMU
+* Uses Zipr, a fast, space-efficient binary rewriter to inline AFL-style instrumentations
+* 100% AFL compatible
 * Platform for experimenting with other instrumentation to guide afl, e.g., add calling context to the edge-profile function (a la Angora)
 
 ## Installation
-Note that you will need **sudo** privileges to get and install all the required packages.
+The instructions that follow assume that:
+* you have `sudo` privileges
+* you are installing in your home directory
 
-### Getting packages and compiling Zafl
+### You will first need to install the Zipr static binary rewriting infrastructure
 ```bash
-git clone --recurse-submodules git@git.zephyr-software.com:allnp/zafl_umbrella.git
-cd zafl_umbrella
+cd ~
+git clone --recurse-submodules git@git.zephyr-software.com:allnp/peasoup_umbrella.git
+cd peasoup_umbrella
 . set_env_vars
 ./get-packages.sh
-./build-all.sh
+scons -j3
 ```
 
 ### Setting up local postgres tables
-Next we need to setup the proper tables in a local copy of the postgres database (email admin for instructions if you want to use a remote Postgres database). 
+Next we need to setup the proper tables in a local copy of the postgres database.
 ```bash
-cd $ZAFL_HOME/zipr_umbrella
+cd ~/peasoup_umbrella
 ./postgres_setup.sh
 ```
 
@@ -38,16 +39,8 @@ Type "help" for help.
 peasoup_XXX=> 
 ```
 
-## Testing Zafl
-
-Before running Zafl, always make sure to have your environment variable set
-```bash
-cd <zafl_top_level_directory>   # in this example, the top level dir is: zafl_umbrella
-. set_env_vars
-```
-
 ### Testing Zipr
-Test that the binary rewriting infrastructure by rewriting /bin/ls
+Test  the binary rewriting infrastructure by rewriting /bin/ls
 ```bash
 cd /tmp
 $PSZ /bin/ls ls.zipr -c rida
@@ -73,60 +66,24 @@ Invoke the rewritten version of /bin/ls and make sure it runs normally:
 ./ls.zipr
 ``` 
 
-### Testing Zafl
-
-#### Test afl 
+### Installing ZAFL
+Once Zipr has been installed, clone the repo for ZAFL and build.
 ```bash
-cd /tmp
-mkdir in
-echo "1" > in/1
-afl-fuzz -i in -o out -Q -- /bin/ls @@
+git clone --recurse-submodules git@git.zephyr-software.com:allnp/zafl_umbrella.git
+cd zafl_umbrella
+. set_env_vars
+scons -j3
 ```
 
-Alternatively, you may opt to build afl without QEMU support.
-In that case, you will need to make sure that afl works for you.
+## Testing Zafl
+Before running Zafl, always make sure to have the proper environment variables set
+```bash
+cd ~/peasoup_umbrella
+. set_env_vars
 
-You may see afl error messages such as this one that will need to be fixed:
+cd ~/zafl_umbrella
+. set_env_vars
 ```
-afl-fuzz 2.52b by <lcamtuf@google.com>
-[+] You have 24 CPU cores and 1 runnable tasks (utilization: 4%).
-[+] Try parallel jobs - see docs/parallel_fuzzing.txt.
-[*] Checking CPU core loadout...
-[+] Found a free CPU core, binding to #0.
-[*] Checking core_pattern...
-
-[-] Hmm, your system is configured to send core dump notifications to an
-    external utility. This will cause issues: there will be an extended delay
-    between stumbling upon a crash and having this information relayed to the
-    fuzzer via the standard waitpid() API.
-
-    To avoid having crashes misinterpreted as timeouts, please log in as root
-    and temporarily modify /proc/sys/kernel/core_pattern, like so:
-
-    echo core >/proc/sys/kernel/core_pattern
-
-[-] PROGRAM ABORT : Pipe at the beginning of 'core_pattern'
-         Location : check_crash_handling(), afl-fuzz.c:7275
-```
-
-or:
-
-```
-[-] Whoops, your system uses on-demand CPU frequency scaling, adjusted
-    between 1558 and 2338 MHz. Unfortunately, the scaling algorithm in the
-    kernel is imperfect and can miss the short-lived processes spawned by
-    afl-fuzz. To keep things moving, run these commands as root:
-
-    cd /sys/devices/system/cpu
-    echo performance | tee cpu*/cpufreq/scaling_governor
-
-    You can later go back to the original state by replacing 'performance' with
-    'ondemand'. If you don't want to change the settings, set AFL_SKIP_CPUFREQ
-    to make afl-fuzz skip this check - but expect some performance drop.
-```
-
-Fix any afl-related errors until you can run:
-```afl-fuzz -i in -o out -Q -- /bin/ls @@```
 
 #### Running Zafl smoke tests
 ```bash
@@ -146,8 +103,6 @@ command_line      : afl-fuzz -i zafl_in -o zafl_out -- ./bc.stars.zafl -f
 TEST PASS: ./bc.stars.zafl: ran zafl binary: execs_per_sec     : 2000.00
 TEST PASS: all tests passed: zafl instrumentation operational on bc
 ```
-
-There are also other smoke tests you can run in ```$ZAFL_HOME/zfuzz/test```
 
 #### Final sanity check
 ```bash
@@ -203,7 +158,7 @@ afl-cmin -i out/queue/ -o out.cmin -- ./ls.zafl @@
 Et voila!
 
 # TL;DR
-Once everything is installed properly:
+Once everything is installed properly, you can prep a binary for fuzzing with the simple command:
 ```zafl.sh <target_binary> <zafl_output_binary>```
 
 
