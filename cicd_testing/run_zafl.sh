@@ -20,8 +20,6 @@ display_license()
 	echo "Linux, Gcc, and other relevant open source projects are licensed under their"
 	echo "own license and are exempt from this license statement."
 	echo
-
-	display_license_agreement
 }
 
 main()
