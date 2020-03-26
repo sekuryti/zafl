@@ -27,10 +27,10 @@ main()
 		cd $ZAFL_HOME/test/eightqueens
 		./test_8q.sh
 
-		benchmarks="tcpdump ncal bzip2 tar"
+		benchmarks="tcpdump ncal bzip2 tar readelf"
 		configs="zafl_nostars zafl_untracer_critical_edges zafl_context_sensitive_laf_domgraph_optgraph"
 	else
-		benchmarks="readelf touch"
+		benchmarks="touch"
 		configs="zafl_untracer_critical_edges zafl_context_sensitive_laf_domgraph_optgraph"
 	fi
 
