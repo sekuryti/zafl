@@ -11,6 +11,7 @@ Key features of Zafl:
 The instructions that follow assume that:
 * you have `sudo` privileges
 * you are installing in your home directory
+* you are using a recent version of Linux, e.g., Ubuntu 18.04
 
 ### You will first need to install the Zipr static binary rewriting infrastructure
 ```bash
