@@ -35,6 +35,7 @@ main()
 	fi
 
 	# test other zafl configs on various apps
+	cd $PEASOUP_HOME/tests
 	./test_cmds.sh -c "$configs" -a "$benchmarks" -l 
 }
 
