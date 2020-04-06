@@ -56,7 +56,7 @@ usage()
 	echo "     -w, --whitelist <file>                  Specify function whitelist (one function per line)"
 	echo "     -b, --blacklist <file>                  Specify function blacklist (one function per line)"
 	echo "     -l, --enable-laf                        Enable laf-intel style instrumentation"
-	echo "     -L, --disable-laf                       Disable laf-intel style instrumentation"
+	echo "     -L, --disable-laf                       Disable laf-intel style instrumentation (default)"
 	echo "     -a, --args <args>                       Add extra args to be passed to backend analysis engine"
 	echo "     --auto-zafl-libraries                   Auto-initialize fork server when fuzzing just libraries"
 	echo "     -v                                      Verbose mode" 
