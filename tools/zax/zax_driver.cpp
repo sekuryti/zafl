@@ -94,7 +94,7 @@ int main(int argc, char **argv)
 	auto break_critical_edge_style=bceNone;
 	auto do_loop_count_instr=false;
 	auto do_keep_loop_headers_only=false;
-	auto loop_count_buckets=string("0,1,2,4,8,16,32,64,128");
+	auto loop_count_buckets=string("1,2,3,4,8,16,32,128");
 	auto floating_instrumentation=false;
 	auto context_sensitivity=ContextSensitivity_None;
 	auto random_seed = 0U;
