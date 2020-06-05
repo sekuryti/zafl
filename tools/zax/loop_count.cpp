@@ -120,6 +120,7 @@ bool Zedge_t::execute()
 				
 			const auto &bucket_thresholds = m_loopCountBuckets;
 
+			unsigned int i = 1;
 			for(auto bucket_threshold : bucket_thresholds)
 			{
 				// the block to jump to if the comparison for this bucket is true.
@@ -131,13 +132,25 @@ bool Zedge_t::execute()
 				auto cmp_str      = string() + "L"+ loop_cnt_str +": cmp dword [rel L"+loop_cnt_str + "], "+to_string(bucket_threshold);
 				auto new_cmp      = tmp = insertAssemblyAfter(tmp,cmp_str);
 				create_scoop_reloc(getFileIR(), {new_sc,0}, new_cmp);
+			                    tmp = insertAssemblyAfter(tmp, "jle  0", new_hlt_blk);
+
+				// the final range is the last bucket threshold to infinity, so repeat but use a jge
+				if (i == bucket_thresholds.size()) {
+					auto new_hlt_blk = addNewAssembly("jmp 0");
+					new_hlt_blk->setTarget(loop_start);
+					auto loop_cnt_str = to_string(label_counter++);
+					auto cmp_str      = string() + "L"+ loop_cnt_str +": cmp dword [rel L"+loop_cnt_str + "], "+to_string(bucket_threshold);
+					auto new_cmp      = tmp = insertAssemblyAfter(tmp,cmp_str);
+					create_scoop_reloc(getFileIR(), {new_sc,0}, new_cmp);
 				                    tmp = insertAssemblyAfter(tmp, "jg  0", new_hlt_blk);
+				}
+				i++;
 			}
-			new_blk_count      += 2 * bucket_thresholds.size();
+			new_blk_count      += (2 * bucket_thresholds.size()) + 2; // last bucket accounts for the +2
 			loops_instrumented += 1;
 
 			// now, go back and save/restore context around the instrumentation as necessary.
-                        const auto live_flags = dead_regs.find(IRDB_SDK::rn_EFLAGS)==dead_regs.end();
+            const auto live_flags = dead_regs.find(IRDB_SDK::rn_EFLAGS)==dead_regs.end();
 			if(live_flags)
 			{
 				flag_save_points += 1;
