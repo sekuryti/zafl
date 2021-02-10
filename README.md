@@ -58,7 +58,7 @@ export IRDB_SDK=$PWD/irdb-sdk
 Download the the built libraries for your system:
 ```
 TBD
-export IRDB_LIBS=/path/to/irdb-libs
+export IRDB_LIBS=/path/to/irdb-libs/libs
 ```
 
 

@@ -46,7 +46,7 @@ files=Glob( Dir('.').srcnode().abspath+"/*.cpp")
 
 pgm="zax.exe"
 
-LIBPATH="$IRDB_LIBS/lib"
+LIBPATH="$IRDB_LIBS"
 LIBS=Split(" irdb-core irdb-cfg irdb-util irdb-transform irdb-elfdep irdb-deep ") 
 myenv=myenv.Clone(CPPPATH=Split(cpppath))
 myenv.Append(CXXFLAGS = " -std=c++11 -Wall -fmax-errors=2 ")
