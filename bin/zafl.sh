@@ -1,9 +1,12 @@
 #!/bin/bash
 
-PSZR=$(which ps_zipr.sh)
+if [ -z "$PSZ" ]; then
+	PSZ=$(which ps_zipr.sh)
+fi
 
-if [ ! -x "$PSZR" ]; then
-	echo "pszr is not in the search path. Please set PATH environment variable"
+if [ ! -x "$PSZ" ]; then
+	echo "ps_zipr.sh could not be located in either the PATH or via the shell's $PSZ environment variable."
+	echo "Please correct this and try again."
 	exit 1
 fi
 
@@ -476,7 +479,7 @@ main()
 	fi
 
 	zax_opt=" $zax_opt $float_opt $auto_zafl_opt "
-	cmd="$ZAFL_TM_ENV $PSZR $input_binary $output_zafl_binary $ida_or_rida_opt -s move_globals $optional_step -c zax -o move_globals:--elftables-only -o move_globals:--no-use-stars $stars_opt $zax_opt $verbose_opt $options $other_args $trace_opt $zipr_opt $extra_args" 
+	cmd="$ZAFL_TM_ENV $PSZ $input_binary $output_zafl_binary $ida_or_rida_opt -s move_globals $optional_step -c zax -o move_globals:--elftables-only -o move_globals:--no-use-stars $stars_opt $zax_opt $verbose_opt $options $other_args $trace_opt $zipr_opt $extra_args" 
 
 
 	if [ ! -z "$ZAFL_TM_ENV" ]; then

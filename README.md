@@ -9,37 +9,10 @@ Key features of Zafl:
 
 ## Installation
 The instructions that follow assume that:
-* you have access to both the Zipr and ZAFL repo
-* you have `sudo` privileges
-* you are installing in your home directory
 * you are using a recent version of Linux, e.g., Ubuntu 18.04
 
 ### First install the Zipr static binary rewriting infrastructure
-```bash
-cd ~
-git clone --recurse-submodules git@git.zephyr-software.com:allnp/peasoup_umbrella.git
-cd peasoup_umbrella
-. set_env_vars
-./get-peasoup-packages.sh
-scons -j3
-```
-
-### Setting up local postgres tables
-Next we need to setup the proper tables in a local copy of the postgres database.
-```bash
-cd ~/peasoup_umbrella
-./postgres_setup.sh
-```
-
-If all goes well with the postgres setup, you should be able to login into the database by typing: ```psql``` 
-The output of psql should look something like this:
-```
-psql (9.3.22)
-SSL connection (cipher: DHE-RSA-AES256-GCM-SHA384, bits: 256)
-Type "help" for help.
-
-peasoup_XXX=> 
-```
+See directions for this at http://git.zephyr-software.com/opensrc/TBD
 
 ### Testing Zipr
 Test  the binary rewriting infrastructure by rewriting /bin/ls
@@ -68,24 +41,61 @@ Invoke the rewritten version of /bin/ls and make sure it runs normally:
 ./ls.zipr
 ``` 
 
-### Installing ZAFL
+### Download and Set environment for IRDB-SDK and IRDB-libs
+
+Option 1:
+
+If you built Zipr from source, you can use Zipr's set_env_vars feature to
+include the right settings.
+
+Option 2:
+
+Download the sdk:
+```bash
+git clone --recurse-submodules http://git.zephyr-software.com:opensrc/irdb-sdk.git
+export IRDB_SDK=$PWD/irdb-sdk
+```
+Download the the built libraries for your system:
+```
+TBD
+export IRDB_LIBS=/path/to/irdb-libs
+```
+
+
+### Downladoing and Building ZAFL
 Once Zipr has been installed, clone the repo for ZAFL and build.
 ```bash
-cd ~
-git clone --recurse-submodules git@git.zephyr-software.com:allnp/zafl_umbrella.git
-cd zafl_umbrella
+git clone --recurse-submodules http://git.zephyr-software.com:opensrc/zafl.git
+# or: git clone --recurse-submodules git@git.zephyr-software.com:opensrc/zafl.git
+cd zafl
+```
+Setup your environment:
+```bash
 . set_env_vars
-scons -j3
+```
+
+And build zafl.
+```bash
+scons 
+# or scons debug=1
+# or scons -j3
+# or scons debug=1 -j3
 ```
 
 ## Testing Zafl
 Before running Zafl, always make sure to have the proper environment variables set
 ```bash
-cd ~/peasoup_umbrella
-. set_env_vars
-
 cd ~/zafl_umbrella
 . set_env_vars
+```
+
+Zafl also needs to find Zipr, which can be done by setting:
+```bash
+export PSZ=/path/to/ps_zipr.sh
+
+# or
+
+export PATH=$PATH:$(dirname /path/to/ps_zipr.sh)
 ```
 
 #### Running Zafl smoke tests

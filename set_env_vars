@@ -1,27 +1,9 @@
 
 export AFL_SKIP_BIN_CHECK=1
-
 export ZAFL_HOME=$PWD
-
-if [ -z "$ZAFL_INSTALL" ]; then
-
-	# manifest.txt doesn't exist in the installed development
-	if [[ -f manifest.txt ]]; then
-		# we're in dev mode
-		export ZAFL_INSTALL=$PWD/install
-	else
-		# we're in release mode
-		export ZAFL_INSTALL=$ZAFL_HOME
-	fi
-fi
-
 cd $ZAFL_HOME
 
-# find the tools directory
-if [ ! -z "$PSZ" ]; then
-	PSZ_PATH=$(dirname $PSZ)
-fi
-export PATH=$PATH:$ZAFL_INSTALL/bin:$PSZ_PATH
-export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$ZAFL_HOME/libzafl/lib:$SECURITY_TRANSFORMS_HOME/lib
-export PSPATH=$PSPATH:$ZAFL_INSTALL/zafl_plugins
+export PATH=$PATH:$ZAFL_HOME/bin:$PSZ_PATH
+export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$ZAFL_HOME/libzafl/lib
+export PSPATH=$PSPATH:$ZAFL_HOME/zafl_plugins
 

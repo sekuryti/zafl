@@ -1,26 +1,10 @@
 import os
 
-if not os.path.isfile("manifest.txt.config"):
-        os.system(os.environ['PEDI_HOME']+'/pedi --setup -m manifest.txt -l zafl -l ps -l stratafier -l stars -i ' + os.environ['ZAFL_INSTALL'])
-
 
 tools=SConscript("tools/SConstruct")
 libzafl=SConscript("libzafl/SConstruct")
 
 ret=[tools,libzafl]
-
-for libzafl_file in libzafl:
-	if str(libzafl_file).endswith(".so"):
-		ret=ret+Install(os.environ['ZEST_RUNTIME']+"/lib64", libzafl_file)
-
-pedi = Command( target = "./zafl-install",
-                source = [tools,libzafl],
-                action = os.environ['PEDI_HOME']+"/pedi -m manifest.txt " )
-
-# decide whether to pedi
-if Dir('.').abspath == Dir('#.').abspath:
-	ret=ret+pedi
-
 
 Default(ret)
 Return('ret')

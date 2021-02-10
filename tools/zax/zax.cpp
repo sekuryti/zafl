@@ -236,12 +236,14 @@ void Zax_t::instrumentBasicBlock(BasicBlock_t *p_bb, bool p_honorRedZone, const 
 			{
 				tmp = insertAssemblyAfter(tmp, insn_str);
 				block_record.push_back(tmp);
+				cout <<"added before " << insn_str << " as id = " << tmp->getBaseID() << endl;
 			}
 			else
 			{
 				const auto orig = insertAssemblyBefore(tmp, insn_str);
 				inserted_before = true;
 				block_record.push_back(orig);
+				cout <<"added after " << insn_str << " as id = " << tmp->getBaseID() << endl;
 			}
 		};
 
@@ -322,18 +324,18 @@ void Zax_t::instrumentBasicBlock(BasicBlock_t *p_bb, bool p_honorRedZone, const 
 	}
 
 	// compute index into trace map
-	// do the calculation to has the previouus block ID with this block ID
+	// do the calculation to has the previous block ID with this block ID
 	// in the faster or slower fashion depending on the requested technique.
 	if (!p_collafl_optimization)
 	{
 		//   e:   movzx  eax,WORD PTR [rdx]                      
 		if (useFixedAddresses())
 		{
-			sprintf(buf,"movzx  %s,WORD [0x%lx]", reg_temp, getFixedAddressPrevId());
+			sprintf(buf,"movzx  %s,WORD [abs 0x%lx]", reg_temp, getFixedAddressPrevId());
 		}
 		else
 		{
-			sprintf(buf,"movzx  %s,WORD [%s]", reg_temp, reg_prev_id);
+			sprintf(buf,"movzx  %s,WORD [abs %s]", reg_temp, reg_prev_id);
 		}
 		do_insert(buf);
 
@@ -346,7 +348,7 @@ void Zax_t::instrumentBasicBlock(BasicBlock_t *p_bb, bool p_honorRedZone, const 
 		{
 			if (useFixedAddresses())
 			{
-				sprintf(buf, "xor   %s,WORD [0x%lx]", reg_temp16, getFixedAddressContext());
+				sprintf(buf, "xor   %s,WORD [abs 0x%lx]", reg_temp16, getFixedAddressContext());
 				do_insert(buf);
 			}
 			else
@@ -387,7 +389,7 @@ void Zax_t::instrumentBasicBlock(BasicBlock_t *p_bb, bool p_honorRedZone, const 
 		else
 		{
 			// with fixed address and collafl, we can compute the index into the tracemap directly
-			sprintf(buf,"add    BYTE [0x%lx],0x1", getFixedAddressMap() + blockid);
+			sprintf(buf,"add    BYTE [abs 0x%lx],0x1", getFixedAddressMap() + blockid);
 			do_insert(buf);
 		}
 	}
@@ -410,7 +412,7 @@ void Zax_t::instrumentBasicBlock(BasicBlock_t *p_bb, bool p_honorRedZone, const 
 	{
 		if (useFixedAddresses())
 		{
-			sprintf(buf, "mov   WORD [0x%lx], 0x%x", getFixedAddressPrevId(), blockid >> 1);
+			sprintf(buf, "mov   WORD [abs 0x%lx], 0x%x", getFixedAddressPrevId(), blockid >> 1);
 			do_insert(buf);
 		}
 		else
@@ -420,7 +422,7 @@ void Zax_t::instrumentBasicBlock(BasicBlock_t *p_bb, bool p_honorRedZone, const 
 
 			// store prev_id
 			//  23:   mov    WORD PTR [rdx],ax       
-			sprintf(buf, "mov   WORD [%s], %s", reg_prev_id, reg_temp16);
+			sprintf(buf, "mov   WORD [abs %s], %s", reg_prev_id, reg_temp16);
 			do_insert(buf);
 		}
 	}
