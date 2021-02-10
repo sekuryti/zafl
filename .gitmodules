@@ -1,3 +1,3 @@
 [submodule "libzafl"]
 	path = libzafl
-	url = ../opensrc/libzafl.git
+	url = ../../opensrc/libzafl.git
