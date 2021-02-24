@@ -21,7 +21,7 @@ main()
 	time rsync -a --exclude='.git'  $CICD_TO_TEST_DIR/ /tmp/zafl_tmp
 
         # puts ps_zipr (and all submodules) in CICD_MODULE_WORK_DIR
-        cicd_setup_module_dependency allnp/peasoup_umbrella.git zafl_test
+        cicd_setup_module_dependency opensrc/zipr.git zafl_test
 
         # Build/run $PSZ, test result
         cd $CICD_MODULE_WORK_DIR/zafl_test
