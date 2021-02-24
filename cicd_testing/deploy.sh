@@ -12,12 +12,6 @@ do_docker_clean()
 }
 
 
-do_login()
-{
-
-	# login to gitlab's docker registry as gitlab-user
-	docker login $ZAFL_PATH -u gitlab-runner -p 84MyuSuDo4kQat4GZ_Zs  2> /dev/null
-}
 
 do_build_image()
 {
@@ -76,7 +70,6 @@ main()
 	fi
 
 	do_docker_clean
-	do_login
 	do_build_image
 	do_test
 	do_push
