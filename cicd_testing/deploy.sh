@@ -1,6 +1,6 @@
 #/bin/bash
 
-export ZAFL_PATH=git.zephyr-software.com:4567/opensrc/libzafl/
+export ZAFL_PATH=git.zephyr-software.com:4567/opensrc/zafl/
 export ZAFL_TAG=zafl:latest
 export DOCKER_ZAFL=${ZAFL_PATH}${ZAFL_TAG}
 
@@ -68,6 +68,10 @@ main()
 		source set_env_vars
 		cd cicd_testing
 	fi
+        if [[ $CICD_WEEKLY == 1 ]]; then
+                docker login -u $CI_DEPLOY_USER -p $CI_DEPLOY_PASSWORD $DOCKER_PS
+        fi
+
 
 	do_docker_clean
 	do_build_image
