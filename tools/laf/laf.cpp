@@ -454,7 +454,7 @@ bool Laf_t::traceBytesNested(Instruction_t *p_instr, int64_t p_immediate)
 	//
 	for (unsigned i = 0; i < num_bytes; ++i)
 	{
-		s = "cmp " + free_reg1 + ", " + to_string(K.b[i]);
+		s = "cmp " + free_reg1 + ", 0x" + to_hex_string(+K.b[i]);
 		t = insertAssemblyAfter(t, s);
 		cout << s << endl;
 
@@ -465,7 +465,7 @@ bool Laf_t::traceBytesNested(Instruction_t *p_instr, int64_t p_immediate)
 
 		if (i != num_bytes-1)
 		{
-			s = "shr " + free_reg8 + ", 8";
+			s = "shr " + free_reg8 + ", 0x8";
 			t = insertAssemblyAfter(t, s);
 			cout << s << endl;
 		}

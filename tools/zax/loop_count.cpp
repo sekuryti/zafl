@@ -128,7 +128,7 @@ bool Zedge_t::execute()
 
 				// the actual comparison of the counter to the bucket thresholds
 				auto loop_cnt_str = to_string(label_counter++);
-				auto cmp_str      = string() + "L"+ loop_cnt_str +": cmp dword [rel L"+loop_cnt_str + "], "+to_string(bucket_threshold);
+				auto cmp_str      = string() + "L"+ loop_cnt_str +": cmp dword [rel L"+loop_cnt_str + "], 0x"+to_hex_string(bucket_threshold);
 				auto new_cmp      = tmp = insertAssemblyAfter(tmp,cmp_str);
 				create_scoop_reloc(getFileIR(), {new_sc,0}, new_cmp);
 				                    tmp = insertAssemblyAfter(tmp, "jg  0", new_hlt_blk);

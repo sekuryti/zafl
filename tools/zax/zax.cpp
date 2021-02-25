@@ -91,7 +91,7 @@ void Zax_t::instrumentBasicBlock(BasicBlock_t *p_bb, bool p_honorRedZone, const 
 	auto save_temp      = true;
 	auto save_trace_map = true;
 	auto save_prev_id   = true;
-	auto save_context   = (getContextSensitivity() != ContextSensitivity_None) ? true : false;
+	auto save_context   = (getContextSensitivity() != ContextSensitivity_None);
 	auto block_record   = BBRecord_t();
 
 	const auto &bb_insns = p_bb->getInstructions();
@@ -335,7 +335,7 @@ void Zax_t::instrumentBasicBlock(BasicBlock_t *p_bb, bool p_honorRedZone, const 
 		}
 		else
 		{
-			sprintf(buf,"movzx  %s,WORD [abs %s]", reg_temp, reg_prev_id);
+			sprintf(buf,"movzx  %s,WORD [%s]", reg_temp, reg_prev_id);
 		}
 		do_insert(buf);
 
@@ -422,7 +422,7 @@ void Zax_t::instrumentBasicBlock(BasicBlock_t *p_bb, bool p_honorRedZone, const 
 
 			// store prev_id
 			//  23:   mov    WORD PTR [rdx],ax       
-			sprintf(buf, "mov   WORD [abs %s], %s", reg_prev_id, reg_temp16);
+			sprintf(buf, "mov   WORD [%s], %s", reg_prev_id, reg_temp16);
 			do_insert(buf);
 		}
 	}

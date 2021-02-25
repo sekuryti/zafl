@@ -16,8 +16,7 @@ if [ -z "$afl_loc" ]; then
 	echo
 	echo Setup AFL
 	echo 
-#	wget http://lcamtuf.coredump.cx/afl/releases/afl-latest.tgz
-	curl -o afl-latest.tgz http://lcamtuf.coredump.cx/afl/releases/afl-latest.tgz
+	curl -o afl-latest.tgz https://lcamtuf.coredump.cx/afl/releases/afl-latest.tgz
 	tar -xzvf afl-latest.tgz && rm afl-latest.tgz
 	if [ -d afl ]; then
 		rm -fr afl
@@ -26,7 +25,6 @@ if [ -z "$afl_loc" ]; then
 	cd afl
 	make
 	sudo make install
-#	cd qemu_mode && ./build_qemu_support.sh
 
 	# afl wants this
 	sudo $ZAFL_HOME/util/afl_setup_core_pattern.sh

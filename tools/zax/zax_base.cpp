@@ -408,7 +408,7 @@ void ZaxBase_t::insertExitPoint(Instruction_t *p_inst)
 	
 	auto tmp = p_inst;
 	     insertAssemblyBefore(tmp, "xor edi, edi"); //  rdi=0
-	tmp = insertAssemblyAfter(tmp, "mov eax, 231"); //  231 = __NR_exit_group   from <asm/unistd_64.h>
+	tmp = insertAssemblyAfter(tmp, "mov eax, 0xe7"); //  231 = __NR_exit_group   from <asm/unistd_64.h>
 	tmp = insertAssemblyAfter(tmp, "syscall");      //  sys_exit_group(edi)
 }
 
@@ -438,7 +438,7 @@ void ZaxBase_t::insertForkServer(Instruction_t* p_entry)
 	const auto regs = vector<string>({ "rdi", "rsi", "rbp", "rdx", "rcx", "rbx", "rax", "r8", "r9", "r10", "r11", "r12", "r13", "r14", "r15"});
 
 	// red zone
-	(void)insertAssemblyBefore(tmp, "lea rsp, [rsp-128]");
+	(void)insertAssemblyBefore(tmp, "lea rsp, [rsp-0x80]");
 	// save flags and registrers
 	tmp = insertAssemblyAfter(tmp,  "pushf ") ;
 	for (vector<string>::const_iterator rit = regs.begin(); rit != regs.end(); ++rit)
@@ -450,7 +450,7 @@ void ZaxBase_t::insertForkServer(Instruction_t* p_entry)
     		tmp = insertAssemblyAfter(tmp, " pop " + *rit) ;
 	tmp = insertAssemblyAfter(tmp,  "popf ") ;
 	// red zome
-	tmp = insertAssemblyAfter(tmp,  "lea rsp, [rsp+128]");
+	tmp = insertAssemblyAfter(tmp,  "lea rsp, [rsp+0x80]");
 }
 
 void ZaxBase_t::insertForkServer(string p_forkServerEntry)
@@ -1084,7 +1084,7 @@ void ZaxBase_t::addContextSensitivity_Function(const ControlFlowGraph_t& cfg)
 			//         
 			if (useFixedAddresses())
 			{
-				const auto xor_context = string("xor WORD [0x") + to_hex_string(getFixedAddressContext()) + "]" + "," + to_string(contextid);
+				const auto xor_context = string("xor WORD [0x") + to_hex_string(getFixedAddressContext()) + "]" + ", 0x" + to_hex_string(contextid);
 				tmp = do_insert(tmp, xor_context);
 			}
 			else
@@ -1096,7 +1096,7 @@ void ZaxBase_t::addContextSensitivity_Function(const ControlFlowGraph_t& cfg)
 				const auto deref_context = string("mov ") + reg_temp + ", [" + reg_context + "]";
 				tmp = do_insert(tmp, deref_context);
 
-				const auto hash_chain = string("xor ") + reg_temp + ", " + to_string(contextid);
+				const auto hash_chain = string("xor ") + reg_temp + ", 0x" + to_hex_string(contextid);
 				tmp = do_insert(tmp, hash_chain);
 
 				const auto store_context = string("mov [") + reg_context + "]" + "," + reg_temp;
@@ -1128,7 +1128,7 @@ void ZaxBase_t::addContextSensitivity_Function(const ControlFlowGraph_t& cfg)
 			auto free_regs = getFreeRegs(dead_regs, allowed_regs);
 
 			if (honor_red_zone)
-				i = do_insert(i, "lea rsp, [rsp-128]");
+				i = do_insert(i, "lea rsp, [rsp-0x80]");
 
 			if (save_context && free_regs.size() > 0)
 			{
@@ -1166,7 +1166,7 @@ void ZaxBase_t::addContextSensitivity_Function(const ControlFlowGraph_t& cfg)
 				i = do_insert(i, "pop " + reg_context);
 
 			if (honor_red_zone)
-				i = do_insert(i, "lea rsp, [rsp+128]");
+				i = do_insert(i, "lea rsp, [rsp+0x80]");
 		};
 
 	const auto honor_red_zone = shouldHonorRedZone(cfg.getFunction());

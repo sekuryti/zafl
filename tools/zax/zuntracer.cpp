@@ -70,7 +70,8 @@ void ZUntracer_t::_instrumentBasicBlock_fixed(BasicBlock_t *p_bb, char* p_tracem
 	block_record.insert(end(block_record), ALLOF(bb_instructions));
 
 	// e.g.: mov BYTE [ 0x10000 + blockid ], 0x1
-	const auto s = string("mov BYTE [") + p_tracemap_addr + "+" + to_string(blockid) + "], 0x1";
+	assert(p_tracemap_addr[0]=='0' && p_tracemap_addr[1]=='x');
+	const auto s = string("mov BYTE [") + p_tracemap_addr + "+ 0x" + to_hex_string(blockid) + "], 0x1";
 	const auto orig = insertAssemblyBefore(instr, s);
 	block_record.push_back(orig);
 
@@ -149,7 +150,7 @@ void ZUntracer_t::_instrumentBasicBlock(BasicBlock_t *p_bb, const bool p_redZone
 
 	if (honorRedZone) 
 	{
-		do_insert("lea rsp, [rsp-128]");
+		do_insert("lea rsp, [rsp-0x80]");
 	}
 
 	// we did not find a free register, save rcx and then use it for the tracemap
@@ -170,7 +171,7 @@ void ZUntracer_t::_instrumentBasicBlock(BasicBlock_t *p_bb, const bool p_redZone
 	do_insert("mov " + tracemap_reg + ", [" + tracemap_reg + "]");
 
 	// set counter to 1:                    mov BYTE [rcx+1234], 1
-	do_insert("mov BYTE [" + tracemap_reg + "+" + to_string(blockid) + "], 1");
+	do_insert("mov BYTE [" + tracemap_reg + " + 0x" + to_hex_string(blockid) + "], 0x1");
 
 	// restore register
 	if (!found_tracemap_free_register)
@@ -181,7 +182,7 @@ void ZUntracer_t::_instrumentBasicBlock(BasicBlock_t *p_bb, const bool p_redZone
 	// red zone
 	if (honorRedZone) 
 	{
-		do_insert("lea rsp, [rsp+128]");
+		do_insert("lea rsp, [rsp+0x80]");
 	}
 
 	m_modifiedBlocks[blockid] = block_record;
