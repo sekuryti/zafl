@@ -376,7 +376,7 @@ bool Laf_t::traceBytesNested(Instruction_t *p_instr, int64_t p_immediate)
 	// start instrumenting below
 	//
 	
-	// [rsp-128] used to save register (if we can't find a free register)
+	// [rsp-0x80] used to save register (if we can't find a free register)
 	auto s = string();
 	auto t = p_instr;
 	auto traced_instr = p_instr;
@@ -401,7 +401,7 @@ bool Laf_t::traceBytesNested(Instruction_t *p_instr, int64_t p_immediate)
 	}
 
 	// stash away original register value (if needed)
-	const auto red_zone_reg = string(" qword [rsp-128] ");
+	const auto red_zone_reg = string(" qword [rsp-0x80] ");
 	if (save_tmp)
 	{
 		s = "mov " + red_zone_reg + ", " + free_reg8;

@@ -261,7 +261,7 @@ void Zax_t::instrumentBasicBlock(BasicBlock_t *p_bb, bool p_honorRedZone, const 
 	// Emit the instrumentation register-saving phase.
 	// Omit saving any registers we don't need to save because we
 	// were able to locate a free register.
-	if (p_honorRedZone)  do_insert("lea rsp, [rsp-128]");
+	if (p_honorRedZone)  do_insert("lea rsp, [rsp-0x80]");
 	if (save_temp)       do_insert("push rax");
 	if (save_trace_map)  do_insert("push rcx");
 	if (save_prev_id)    do_insert("push rdx");
@@ -433,7 +433,7 @@ void Zax_t::instrumentBasicBlock(BasicBlock_t *p_bb, bool p_honorRedZone, const 
 	if (save_prev_id)     do_insert("pop rdx");
 	if (save_trace_map)   do_insert("pop rcx");
 	if (save_temp)        do_insert("pop rax");
-	if (p_honorRedZone)   do_insert("lea rsp, [rsp+128]");
+	if (p_honorRedZone)   do_insert("lea rsp, [rsp+0x80]");
 	
 	m_modifiedBlocks[blockid] = block_record;
 
