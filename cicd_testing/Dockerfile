@@ -1,4 +1,4 @@
-FROM git.zephyr-software.com:4567/opensrc/irdb-sdk/zipr-dev:latest
+FROM git.zephyr-software.com:4567/opensrc/irdb-cookbook-examples/zipr-dev:latest
 
 # /home/zuser was created in the base image
 COPY ./install /home/zuser/zafl

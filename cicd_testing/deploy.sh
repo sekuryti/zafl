@@ -21,6 +21,7 @@ do_build_image()
 	cp -r ../set_env_vars install
 	cp -r ../zafl_plugins/ install
 	cp -r ../tools/ install
+	cp -r ../bin/ install
 	# if we fail here, continue on so we put "install" back in the right place.
 	# the test should stop this
 	docker build -t $DOCKER_ZAFL . || true	
