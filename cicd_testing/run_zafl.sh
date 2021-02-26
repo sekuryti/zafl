@@ -28,7 +28,7 @@ main()
 	sudo service postgresql start >/dev/null 2>&1
 	
 	local retry_count=0 
-	while ! pg_isready > /dev/null 2>&1 && (( $retry_count < 60 )) ; do
+	while ! pg_isready && [[ $retry_count -lt 60 ]] ; do
 		retry_count=$(expr retry_count +  1)
 		sleep 1
 	done	
