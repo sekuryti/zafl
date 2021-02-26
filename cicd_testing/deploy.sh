@@ -15,11 +15,13 @@ do_docker_clean()
 
 do_build_image()
 {
-	mv ../install .
+	rm -rf install
+	mkdir install
+	cp -r ../zafl_plugins/ install
+	cp -r ../tools/ install
 	# if we fail here, continue on so we put "install" back in the right place.
 	# the test should stop this
 	docker build -t $DOCKER_ZAFL . || true	
-	mv install ..
 }
 
 
