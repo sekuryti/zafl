@@ -29,7 +29,7 @@ main()
 	
 	echo "Waiting for postgres to be ready"
 	local retry_count=0 
-	while ! pg_isready && [[ $retry_count -lt 60 ]] ; do
+	while ! pg_isready && [[ $retry_count -lt 600 ]] ; do
 		retry_count=$(expr $retry_count +  1)
 		sleep 1
 	done	
