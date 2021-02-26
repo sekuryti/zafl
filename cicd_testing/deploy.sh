@@ -17,6 +17,7 @@ do_build_image()
 {
 	rm -rf install
 	mkdir install
+	cp -r ../get-packages.sh install
 	cp -r ../zafl_plugins/ install
 	cp -r ../tools/ install
 	# if we fail here, continue on so we put "install" back in the right place.
