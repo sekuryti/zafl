@@ -74,7 +74,7 @@ main()
 		cd cicd_testing
 	fi
         if [[ $CICD_WEEKLY == 1 ]]; then
-                docker login -u $CI_DEPLOY_USER -p $CI_DEPLOY_PASSWORD $DOCKER_PS
+                docker login -u $CI_DEPLOY_USER -p $CI_DEPLOY_PASSWORD $DOCKER_ZAFL
         fi
 
 
