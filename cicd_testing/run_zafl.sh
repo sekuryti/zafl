@@ -27,9 +27,10 @@ main()
 	# Start postgers and give it time to startup
 	sudo service postgresql start >/dev/null 2>&1
 	
+	echo "Waiting for postgres to be ready"
 	local retry_count=0 
 	while ! pg_isready && [[ $retry_count -lt 60 ]] ; do
-		retry_count=$(expr retry_count +  1)
+		retry_count=$(expr $retry_count +  1)
 		sleep 1
 	done	
 
