@@ -62,7 +62,7 @@ export IRDB_LIBS=/path/to/irdb-libs/libs
 ```
 
 
-### Downladoing and Building ZAFL
+### Downloading and Building ZAFL
 Once Zipr has been installed, clone the repo for ZAFL and build.
 ```bash
 git clone --recurse-submodules http://git.zephyr-software.com:opensrc/zafl.git
