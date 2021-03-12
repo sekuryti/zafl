@@ -343,7 +343,7 @@ int main(int argc, char **argv)
 				cout<<"Skipping (no changes) "<<this_file->getURL()<<endl;
 			}
 		}
-		catch (const DatabaseError_t pnide)
+		catch (const DatabaseError_t &pnide)
 		{
 			cerr << programName << ": Unexpected database error: " << pnide << "file url: " << this_file->getURL() << endl;
 			exit(1);
