@@ -20,6 +20,11 @@ stages:
   script:
     - ./cicd_testing/do-clean.sh 
 
+do-nightly-clean-ubuntu20:
+  <<: *do-nightly-clean
+  tags:
+    - ubuntu20
+
 do-nightly-clean-ubuntu18:
   <<: *do-nightly-clean
   tags:
@@ -45,6 +50,11 @@ do-nightly-clean-centos76:
   script:
     - ./cicd_testing/do-build.sh 
 
+do-build-ubuntu20:
+  <<: *do-build
+  tags:
+    - ubuntu20
+
 do-build-ubuntu18:
   <<: *do-build
   tags:
@@ -69,10 +79,16 @@ do-build-centos76:
   script:
     - ./cicd_testing/basic-pgms-zafl.sh
 
+basic-pgms-zafl-ubuntu20:
+  <<: *basic-pgms-zafl
+  tags:
+    - ubuntu20
+
 basic-pgms-zafl-ubuntu18:
   <<: *basic-pgms-zafl
   tags:
     - ubuntu18
+
 
 basic-pgms-zafl-ubuntu16:
   <<: *basic-pgms-zafl
@@ -92,10 +108,16 @@ basic-pgms-zafl-centos76:
   script:
     - ./cicd_testing/afl-zafl.sh
 
+afl-zafl-ubuntu20:
+  <<: *afl-zafl
+  tags:
+    - ubuntu20
+
 afl-zafl-ubuntu18:
   <<: *afl-zafl
   tags:
     - ubuntu18
+
 
 afl-zafl-ubuntu16:
   <<: *afl-zafl
