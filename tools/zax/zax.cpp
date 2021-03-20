@@ -236,14 +236,18 @@ void Zax_t::instrumentBasicBlock(BasicBlock_t *p_bb, bool p_honorRedZone, const 
 			{
 				tmp = insertAssemblyAfter(tmp, insn_str);
 				block_record.push_back(tmp);
-				cout <<"added before " << insn_str << " as id = " << tmp->getBaseID() << endl;
+				if(m_verbose) {
+					cout <<"added before " << insn_str << " as id = " << tmp->getBaseID() << endl;
+				}
 			}
 			else
 			{
 				const auto orig = insertAssemblyBefore(tmp, insn_str);
 				inserted_before = true;
 				block_record.push_back(orig);
-				cout <<"added after " << insn_str << " as id = " << tmp->getBaseID() << endl;
+				if(m_verbose) {
+					cout <<"added after " << insn_str << " as id = " << tmp->getBaseID() << endl;
+				}
 			}
 		};
 
