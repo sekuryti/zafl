@@ -11,8 +11,15 @@ Key features of Zafl:
 The instructions that follow assume that:
 * you are using a recent version of Linux, e.g., Ubuntu 18.04
 
-### First install the Zipr static binary rewriting infrastructure
-See directions for this at http://git.zephyr-software.com/opensrc/TBD
+### Install AFL locally
+```bash
+git clone https://github.com/google/AFL
+```
+
+Follow directions to build and install AFL
+
+### Install the Zipr static binary rewriting infrastructure
+See directions for this at https://git.zephyr-software.com/opensrc/zipr
 
 ### Testing Zipr
 Test  the binary rewriting infrastructure by rewriting /bin/ls
@@ -46,7 +53,7 @@ Invoke the rewritten version of /bin/ls and make sure it runs normally:
 Option 1:
 
 If you built Zipr from source, you can use Zipr's set_env_vars feature to
-include the right settings.
+include the right settings. 
 
 Option 2:
 
