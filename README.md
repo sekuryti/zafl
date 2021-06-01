@@ -7,7 +7,18 @@ Key features of Zafl:
 * 100% AFL compatible
 * Platform for experimenting with other instrumentation to guide afl, e.g., add calling context to the edge-profile function (a la Angora)
 
-## Installation
+## Installation with Docker
+
+A Docker-based installation is recommended for those getting started with Zafl.  
+Please intending to develop new functionality or fix bugs in existing code should install from source (see next section).
+
+To install the docker-based installation, please see the [install and use directions for the Docker-based setup.](https://git.zephyr-software.com/opensrc/libzafl/-/wikis/home)
+
+## Installation from Source
+
+Installing from source is not recommended for first-time Zafl users.  Please see the Docker-based setup instructions.
+This method is recommended only for those intending to bug-fix or develop new features for Zafl.
+
 The instructions that follow assume that:
 * you are using a recent version of Linux, e.g., Ubuntu 18.04
 
