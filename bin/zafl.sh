@@ -5,7 +5,7 @@ if [ -z "$PSZ" ]; then
 fi
 
 if [ ! -x "$PSZ" ]; then
-	echo "ps_zipr.sh could not be located in either the PATH or via the shell's $PSZ environment variable."
+	echo "ps_zipr.sh could not be located in either the PATH or via the shell's \$PSZ environment variable."
 	echo "Please correct this and try again."
 	exit 1
 fi
