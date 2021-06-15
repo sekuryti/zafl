@@ -30,24 +30,25 @@ do_build_image()
 
 do_test()
 {
+	local tmppath=/tmp/$(whoami)
+	mkdir -p $tmppath
+	chmod 777 $tmppath
 	# use the container to xform /bin/ls
-	cp $(which cat) /tmp
+	cp $(which cat) $tmppath
 
-	if [ -x /tmp/cat.zafl ]; then
-		sudo rm /tmp/cat.zafl
-	fi
+	rm -f $tmppath/cat.zafl
 
 	# map /io inside of containter to /tmp locally
-	docker run -v /tmp:/io -t $DOCKER_ZAFL /io/cat /io/cat.zafl
-	ldd /tmp/cat.zafl 
-	ldd /tmp/cat.zafl | grep -v "not found"
+	docker run -v $tmppath:/io -t $DOCKER_ZAFL /io/cat /io/cat.zafl
+	ldd $tmppath/cat.zafl 
+	ldd $tmppath/cat.zafl | grep -v "not found"
 
 	# verify functional correctness
 	echo "Verify functional correctness of cat"
-	echo "hello" > /tmp/hello
-	/tmp/cat.zafl /tmp/hello > /tmp/hello2
-	diff /tmp/hello /tmp/hello2
-	rm /tmp/hello /tmp/hello2
+	echo "hello" > $tmppath/hello
+	$tmppath/cat.zafl $tmppath/hello > $tmppath/hello2
+	diff $tmppath/hello $tmppath/hello2
+	rm $tmppath/hello $tmppath/hello2
 }
 
 do_push()
