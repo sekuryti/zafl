@@ -28,8 +28,10 @@ usage()
 	echo
 	echo "zafl.sh <input_binary> <output_zafl_binary> [options]"
 	echo 
-	echo "options:"
+	echo "Help options:"
 	echo "     -h, --help                              Print this screen and exit."
+	echo
+	echo "Optimization options:"
 	echo "     -s, --stars                             Use STARS (default)"
 	echo "     -S, --no-stars                          Do not use STARS"
 	echo "     -g, --graph-optimization                Use control flow graph optimizations"
@@ -39,6 +41,8 @@ usage()
 	echo "     -t, --tempdir <dir>                     Specify location of analysis results directory"
 	echo "     -e, --entry                             Specify fork server entry point"
 	echo "     -E, --exit                              Specify fork server exit point(s)"
+	echo
+	echo "Instrumentation options:"
 	echo "     --instrumentation-style <mode>          mode = {edge, block} (default: edge a la AFL)"
 	echo "     -u, --untracer                          Specify untracer instrumentation"
 	echo "     -c, --break-critical-edges [<type>]     Breakup critical edges, type={all,targets,fallthroughs,none}, if -c is used without an argument, all is specified"
@@ -55,15 +59,19 @@ usage()
 	echo "     -i, --enable-floating-instrumentation   Select best instrumentation point within basic block (default)"
 	echo "     -I, --disable-floating-instrumentation  Use first instruction for instrumentation in basic blocks"
 	echo "     --enable-context-sensitivity            Enable context sensitivity (function)"
-	echo "     -r, --random-seed <value>               Specify random seed"
 	echo "     -w, --whitelist <file>                  Specify function whitelist (one function per line)"
 	echo "     -b, --blacklist <file>                  Specify function blacklist (one function per line)"
 	echo "     -l, --enable-laf                        Enable laf-intel style instrumentation"
 	echo "     -L, --disable-laf                       Disable laf-intel style instrumentation (default)"
-	echo "     -a, --args <args>                       Add extra args to be passed to backend analysis engine"
 	echo "     --auto-zafl-libraries                   Auto-initialize fork server when fuzzing just libraries"
+	echo
+	echo "Error Detector Options"
+	echo "     --add-stack-canaries                    Enable the p1tranform step (make sure you have p1transform built) to add stack canary checking" 
+	ehco
+	echo "Misc options:"
 	echo "     -v                                      Verbose mode" 
-	echo 
+	echo "     -a, --args <args>                       Add extra args to be passed to backend analysis engine"
+	echo "     -r, --random-seed <value>               Specify random seed"
 }
 
 ida_or_rida_opt=" -c rida "
@@ -77,6 +85,7 @@ trace_opt=""
 zipr_opt=""
 random_seed=""
 laf_opt=""
+p1_opt=""
 auto_zafl_opt=""
 extra_args=""
 
@@ -349,6 +358,10 @@ parse_args()
 				auto_zafl_libraries="yes"
 				shift
 				;;
+			--add-stack-canaries | --add-stack-canary)
+				p1_opt=" -c p1transform -o '--min_stack_padding 8 --max_stack_padding 8'"
+				shift
+				;;
 			-*|--*=) # unsupported flags
 				echo "Error: Unsupported flag $1" >&2
 				exit 1
@@ -453,6 +466,8 @@ verify_zafl_symbols()
 
 main()
 {
+	local optional_step=""
+
 	parse_args "$@"
 	if [ -z "$entry_opt" ]; then
 		find_main
@@ -469,7 +484,6 @@ main()
 	#
 	log_msg "Transforming input binary $input_binary into $output_zafl_binary"
 
-	optional_step=""
 	if [ ! -z "$laf_opt" ];
 	then
 		if [ ! -z "$verbose_opt" ]; then
@@ -479,7 +493,7 @@ main()
 	fi
 
 	zax_opt=" $zax_opt $float_opt $auto_zafl_opt "
-	cmd="$ZAFL_TM_ENV $PSZ $input_binary $output_zafl_binary $ida_or_rida_opt -s move_globals $optional_step -c zax -o move_globals:--elftables-only -o move_globals:--no-use-stars $stars_opt $zax_opt $verbose_opt $options $other_args $trace_opt $zipr_opt $extra_args" 
+	cmd="$ZAFL_TM_ENV $PSZ $input_binary $output_zafl_binary $ida_or_rida_opt -c move_globals $p1_opt $optional_step -c zax -o move_globals:--elftables-only -o move_globals:--no-use-stars $stars_opt $zax_opt $verbose_opt $options $other_args $trace_opt $zipr_opt $extra_args" 
 
 
 	if [ ! -z "$ZAFL_TM_ENV" ]; then
