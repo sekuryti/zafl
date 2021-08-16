@@ -56,7 +56,7 @@ Invoke the rewritten version and make sure it runs normally:
 #### Step 2: Download and build ZAFL
 First, clone ZAFL's repository:
 ```bash
-git clone --recurse-submodules http://git.zephyr-software.com:opensrc/zafl.git
+git clone --recurse-submodules https://git.zephyr-software.com/opensrc/zafl.git
 ```
 Second, prepare ZAFL's environment:
 ```bash
