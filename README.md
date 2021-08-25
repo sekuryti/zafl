@@ -8,7 +8,7 @@ Welcome to **ZAFL**: a project to extend compiler-quality instrumentation speed 
 <table><tr><td align=center colspan="2"><div><b>Presented in our paper</b> <a href="https://www.usenix.org/conference/usenixsecurity21/presentation/nagy"><i>Breaking-through Binaries: Compiler-quality Instrumentation for Better Binary-only Fuzzing</i></a><br>(2021 USENIX Security Symposium).</td </tr>
   <tr><td><b>Citing this repository:</b></td>
   <td><code class="rich-diff-level-one">@inproceedings{nagy:breakingthrough, title = {Breaking Through Binaries: Compiler-quality Instrumentation for Better Binary-only Fuzzing}, author = {Stefan Nagy and Anh Nguyen-Tuong and Jason D. Hiser and Jack W. Davidson and Matthew Hicks}, booktitle = {{USENIX} Security Symposium (USENIX)}, year = {2021},}</code></td></tr>
-  <tr><td><b>Licensing:</b></td><td>See <a href="https://git.zephyr-software.com/opensrc/libzafl/-/wikis/Licensing">our Licensing wiki page</a></td></tr>
+  <tr><td><b>Licensing:</b></td><td>See <a href="https://git.zephyr-software.com/opensrc/libzafl/-/wikis/Licensing">our Licensing wiki page</a>.</td></tr>
   <tr><td><b>Disclaimer:</b></td><td><i>This software is provided as-is with no warranty.</i></td></tr></table>
 
 ## Prerequisites
