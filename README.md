@@ -136,7 +136,11 @@ TEST PASS: ./bc.zafl: execs_per_sec     : 1904.76
 ```
 
 #### Step 4: Instrument and transform a binary
-**zafl.sh** is the primary script for instrumenting/transforming binaries for fuzzing. Below presents an example of running it on the `bc` binary
+Once everything is installed properly, you can prepare a binary for fuzzing with the simple command:
+```bash
+zafl.sh <target_binary> <zafl_output_binary>
+```
+Below presents an example of running it on the `bc` binary
 ```bash
 zafl.sh /bin/bc /tmp/bc.zafl
 ```
@@ -194,11 +198,7 @@ zafl.sh <target_binary> <zafl_output_binary> -F --ida --no-stars
 ```
 We hope to improve our Windows support in the near future.
 
-# TL;DR
-Once everything is installed properly, you can prepare a binary for fuzzing with the simple command:
-```bash
-zafl.sh <target_binary> <zafl_output_binary>
-```
-To see what transformations ZAFL currently supports, simply run ```zafl.sh --help```.
+## Supported Transformations
+To see the full list of fuzzing-enhancing code transformations that ZAFL currently supports, run `zafl.sh --help` (or for Docker-based installs, `docker run git.zephyr-software.com:4567/opensrc/zafl/zafl:latest`).
 
 **We welcome any community contributions, and ideas for improvements and new fuzzing transformations!** To open an issue or merge request, please contact one of the developers (`hiser@virginia.edu`, `an7s@virginia.edu`, `jwd@virginia.edu`, or `snagy2@vt.edu`).  **Happy fuzzing!**
