@@ -3,8 +3,13 @@
 display_license_agreement()
 {
 	echo
-	echo "BY USING THIS DOCKER IMAGE, YOU AGREE TO BE BOUND BY THE"
-	echo "CREATIVE COMMONS ATTRIBUTION-NONCOMMERCIAL 4.0 INTERNATIONAL LICENSE"
+	echo "BSD 3-Clause License"
+	echo
+	echo "Copyright (c) 2018-2021, Zephyr Software LLC"
+	echo "All rights reserved."
+	echo
+	echo "See the full license here:"
+	echo "https://git.zephyr-software.com/opensrc/zafl/-/blob/master/LICENSE"
 	echo
 }
 
@@ -12,10 +17,10 @@ display_license()
 {
 	echo
 	echo "This docker container is made available to the public by Zephyr Software"
-	echo "(contact: jwd@zephyr-software.com) under the Creative Commons Attribution-"
-	echo " NonCommercial 4.0 International license (CC BY-NC 4.0)."
+	echo "(contact: jwd@zephyr-software.com) under the BSD #-Clause License"
 	echo
-	echo "https://creativecommons.org/licenses/by-nc/4.0/legalcode"
+	echo "See the full license here:"
+	echo "https://git.zephyr-software.com/opensrc/zafl/-/blob/master/LICENSE"
 	echo
 	echo "Linux, Gcc, and other relevant open source projects are licensed under their"
 	echo "own license and are exempt from this license statement."
