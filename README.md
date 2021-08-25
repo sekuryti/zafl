@@ -4,7 +4,7 @@ Welcome to **ZAFL**: a project to extend compiler-quality instrumentation speed 
 * A platform to extend and combine compiler-style code transformations (e.g., CMP unfolding) to binary-only fuzzing.
 * Full compatibility with the AFL and AFLPlusPlus fuzzer ecosystem.
 
-<table><tr><td align=center colspan="2"><div><b>Presented in our paper</b> <a href="https://www.usenix.org/conference/usenixsecurity21/presentation/nagy"><i>Breaking-through Binaries: Compiler-quality Instrumentation for Better Binary-only Fuzzing</i></a><br>(To appear in the 2021 USENIX Security Symposium).</td </tr>
+<table><tr><td align=center colspan="2"><div><b>Presented in our paper</b> <a href="https://www.usenix.org/conference/usenixsecurity21/presentation/nagy"><i>Breaking-through Binaries: Compiler-quality Instrumentation for Better Binary-only Fuzzing</i></a><br>(2021 USENIX Security Symposium).</td </tr>
   <tr><td><b>Citing this repository:</b></td>
   <td><code class="rich-diff-level-one">@inproceedings{nagy:breakingthrough, title = {Breaking Through Binaries: Compiler-quality Instrumentation for Better Binary-only Fuzzing}, author = {Stefan Nagy and Anh Nguyen-Tuong and Jason D. Hiser and Jack W. Davidson and Matthew Hicks}, booktitle = {{USENIX} Security Symposium (USENIX)}, year = {2021},}</code></td></tr>
   <tr><td><b>License:</b></td><td><a href="https://git.zephyr-software.com/opensrc/zafl/-/blob/master/LICENSE">BSD 3-Clause License</a></td></tr>
@@ -17,12 +17,61 @@ Welcome to **ZAFL**: a project to extend compiler-quality instrumentation speed 
 * **Recommended installation**: For first-time users we recommend the *Docker-based* installation. For developers and advanced users we recommend the *source-based* installation.
 
 ## Installation from Docker (recommended)
-To install the Docker-based installation, please see the [install and use directions for the Docker-based setup.](https://git.zephyr-software.com/opensrc/libzafl/-/wikis/home)
+**The following instructions assume you are running a compatible Linux environment** (i.e., Ubuntu 16.04 and up) **with AFL installed**.
+
+#### Step 0: Install the libzafl support library
+See the instructions located here: https://git.zephyr-software.com/opensrc/libzafl
+
+#### Step 1: Pull the Docker image
+First, pull the ZAFL Docker image:
+```bash
+docker pull git.zephyr-software.com:4567/opensrc/zafl/zafl:latest
+```
+Verify that the image is successfully installed by grepping for its name:
+```bash
+docker images | grep git.zephyr-software.com:4567/opensrc/zafl/zafl
+```
+
+#### Step 2: Instrument and transform a binary
+Below presents an example of instrumenting the `bc` binary for fuzzing.
+
+First, copy the binary to `/tmp` (we'll mount this directory as `/io` in the guest container):
+```bash
+cp $(which bc) /tmp/bc
+```
+Then, instrument it using ZAFL's Docker container:
+```bash
+sudo docker run -t -v /tmp:/io git.zephyr-software.com:4567/opensrc/zafl/zafl:latest /io/bc /io/bc.zafl
+```
+The output should contain the following:
+```
+Zafl: inferring main to be at: 0x401510
+Zafl: Transforming input binary /io/bc into /io/bc.zafl
+Zafl: Issuing command:  /opt/ps_zipr/tools/ps_zipr.sh /io/bc /io/bc.zafl  -c rida  -c move_globals   -c zax -o move_globals:--elftables-only -o move_globals:--no-use-stars  -o zax:--stars     -o zax:--enable-floating-instrumentation       -o zax:'-e 0x401510'
+Using Zipr backend.
+Detected ELF non-PIE executable.
+Performing step rida [dependencies=mandatory] ...Done.  Successful.
+Performing step pdb_register [dependencies=mandatory] ...Done.  Successful.
+Performing step fill_in_cfg [dependencies=unknown] ...Done.  Successful.
+Performing step fill_in_indtargs [dependencies=unknown] ...Done.  Successful.
+Performing step fix_calls [dependencies=unknown] ...Done.  Successful.
+Performing step move_globals [dependencies=unknown] ...Done.  Successful.
+Performing step zax [dependencies=none] ...Done.  Successful.
+Performing step zipr [dependencies=none] ...Done.  Successful.
+Zafl: success. Output file is: /io/bc.zafl
+```
+The output binary, `bc.zafl`, should now exist in the host's `/tmp` directory.
+Though this binary is ready to be fuzzed with AFL, it can still be run normally, e.g.:
+```bash
+echo "2+2" | /tmp/bc.zafl
+```
+The above command should print `4`.
+
 
 ## Installation from Source (for developers)
 Installing from source is recommended only for those intending to bug-fix or develop new features for ZAFL. **The following instructions assume you are running a compatible Linux environment** (i.e., Ubuntu 16.04 and up) **with AFL installed**.
 
-#### Step 0: Install the Zipr binary rewriting infrastructure
+#### Step 0: Install the Zipr rewriting infrastructure
 See https://git.zephyr-software.com/opensrc/zipr.
 Before continuing, be sure to prepare Zipr's environment by doing the following:
 ```bash
@@ -70,14 +119,13 @@ scons
 # or scons debug=1 -j3
 ```
 
-## Using ZAFL for Linux Binary Fuzzing
-Before running ZAFL, **always make sure to prepare both it and Zipr's environments**:
+#### Step 3: Prepare ZAFL's environment
+Before running ZAFL from a source build, **always make sure to prepare both it and Zipr's environments**:
 ```bash
 cd /path/to/zipr && . set_env_vars
 cd /path/to/zafl && . set_env_vars
 ```
-
-#### Step 0: Ensure ZAFL's smoke tests succeed
+Furthermore, it is recommended to ensure that ZAFL's smoke tests succeed:
 ```bash
 cd /path/to/zafl/test/bc && ./test_bc.sh
 ```
@@ -87,16 +135,16 @@ command_line      : afl-fuzz -i zafl_in -o zafl_out -- ./bc.zafl
 TEST PASS: ./bc.zafl: execs_per_sec     : 1904.76
 ```
 
-#### Step 1: Instrument your binary
-**zafl.sh** is the primary script for instrumenting/transforming binaries for fuzzing. Below presents an example of running it on the `ls` binary
+#### Step 4: Instrument and transform a binary
+**zafl.sh** is the primary script for instrumenting/transforming binaries for fuzzing. Below presents an example of running it on the `bc` binary
 ```bash
-zafl.sh /bin/ls /tmp/ls.zafl
+zafl.sh /bin/bc /tmp/bc.zafl
 ```
 The output should contain the following:
 ```
 Zafl: main exec is PIE... use entry point address (0x5850) for fork server 
-Zafl: Transforming input binary /bin/ls into ./tmp/ls.zafl 
-Zafl: Issuing command:  ~/zipr/installed/tools/ps_zipr.sh /bin/ls ./tmp/ls.zafl  -c rida  -s move_globals  -c zax -o move_globals:--elftables-only -o move_globals:--no-use-stars  -o zax:--stars     -o zax:--enable-floating-instrumentation       -o zax:'-e 0x5850'     
+Zafl: Transforming input binary /bin/bc into ./tmp/bc.zafl 
+Zafl: Issuing command:  ~/zipr/installed/tools/ps_zipr.sh /bin/bc ./tmp/bc.zafl  -c rida  -s move_globals  -c zax -o move_globals:--elftables-only -o move_globals:--no-use-stars  -o zax:--stars     -o zax:--enable-floating-instrumentation       -o zax:'-e 0x5850'     
 Using Zipr backend.
 Detected ELF shared object.
 Performing step rida [dependencies=mandatory] ...Done.  Successful.
@@ -107,14 +155,10 @@ Performing step fix_calls [dependencies=unknown] ...Done.  Successful.
 Performing step move_globals [dependencies=unknown] ...Done.  Successful.
 Performing step zax [dependencies=none] ...Done.  Successful.
 Performing step zipr [dependencies=none] ...Done.  Successful.
-Zafl: success. Output file is: ./tmp/ls.zafl 
-
+Zafl: success. Output file is: ./tmp/bc.zafl 
 ```
-
-#### Step 2: Running an instrumented binary
-All ZAFL'd binaries can be run normally just as their original uninstrumented versions, e.g.: ```./tmp/ls.zafl```. 
-
-To ensure the binary has been instrumented properly, run: ```ZAFL_DEBUG=1 ./tmp/ls.zafl```. 
+All ZAFL'd binaries can be run normally just as their original uninstrumented versions, e.g.: ```./tmp/bc.zafl```. 
+To ensure the binary has been instrumented properly, run: ```ZAFL_DEBUG=1 ./tmp/bc.zafl```. 
 The output should start with:
 ```
 Error getting shm environment variable - fake allocate AFL trace map
@@ -122,14 +166,16 @@ Success at mmap!
 libautozafl: auto-initialize fork server
 ```
 
-#### Step 3: Fuzzing an instrumented binary
-Let's prep a seed directory for fuzzing:
+## Fuzzing an Instrumented Binary
+Below continues the preceding examples (i.e., it is assumed that you have an instrumented binary, `/tmp/bc.zafl`).
+
+Let's first prepare a seed directory for fuzzing:
 ```bash
 mkdir in_dir && echo "hello" > in_dir/seed
 ```
 Let's now run the ZAFL'd binary with AFL:
 ```bash
-afl-fuzz -i in_dir -o out_dir -- ./tmp/ls.zafl @@
+afl-fuzz -i in_dir -o out_dir -- ./tmp/bc.zafl @@
 ```
 If AFL complains about `Looks like the target binary is not instrumented!`, you'll need to set the following environment variable before fuzzing:
 ```bash
@@ -137,8 +183,8 @@ export AFL_SKIP_BIN_CHECK=1
 ```
 ZAFL's instrumentation also supports AFL's other utilities, e.g.:
 ```bash
-afl-showmap -o map.out -- ./tmp/ls.zafl
-afl-cmin -i out_dir/queue/ -o cmin.out -- ./tmp/ls.zafl @@
+afl-showmap -o map.out -- ./tmp/bc.zafl
+afl-cmin -i out_dir/queue/ -o cmin.out -- ./tmp/bc.zafl @@
 ```
 
 ## Using ZAFL for Windows Binaries
