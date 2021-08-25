@@ -3,6 +3,7 @@ Welcome to **ZAFL**: a project to extend compiler-quality instrumentation speed 
 * Fast, space-efficient, and inlined binary fuzzing instrumentation via the Zipr binary rewriting infrastructure.
 * A platform to extend and combine compiler-style code transformations (e.g., CMP unfolding) to binary-only fuzzing.
 * Full compatibility with the AFL and AFLPlusPlus fuzzer ecosystem.
+* **For more information, video demos, troubleshooting, and licensing, please see [our Wiki page](https://git.zephyr-software.com/opensrc/libzafl/-/wikis/Home).**
 
 <table><tr><td align=center colspan="2"><div><b>Presented in our paper</b> <a href="https://www.usenix.org/conference/usenixsecurity21/presentation/nagy"><i>Breaking-through Binaries: Compiler-quality Instrumentation for Better Binary-only Fuzzing</i></a><br>(2021 USENIX Security Symposium).</td </tr>
   <tr><td><b>Citing this repository:</b></td>
