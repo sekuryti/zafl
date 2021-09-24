@@ -1283,25 +1283,29 @@ int ZaxBase_t::execute()
 			continue;
 		}
 
-		const auto dom_graphp=DominatorGraph_t::factory(cfgp.get());
-		const auto has_domgraph_warnings = dom_graphp -> hasWarnings();  
-
 		const auto entry_block = cfg.getEntry();
 		auto keepers = getBlocksToInstrument(cfg);
 
-		if (m_verbose)
-			cout << "num blocks to keep (baseline): " << keepers.size() << endl;
-
-		if(has_domgraph_warnings)
+		if(m_domgraph_optimize)
 		{
-			if(m_verbose)
+			const auto dom_graphp=DominatorGraph_t::factory(cfgp.get());
+			const auto has_domgraph_warnings = dom_graphp -> hasWarnings();  
+
+
+			if (m_verbose)
+				cout << "num blocks to keep (baseline): " << keepers.size() << endl;
+
+			if(has_domgraph_warnings)
 			{
-				cout << " Domgraph has warnings, eliding domgraph filter" << endl;
-				cout << " And the domgraph is: " << endl;
-				cout << *dom_graphp << endl;
+				if(m_verbose)
+				{
+					cout << " Domgraph has warnings, eliding domgraph filter" << endl;
+					cout << " And the domgraph is: " << endl;
+					cout << *dom_graphp << endl;
+				}
 			}
+			filterBlocksByDomgraph(keepers,dom_graphp.get());
 		}
-		filterBlocksByDomgraph(keepers,dom_graphp.get());
 
 		if (m_verbose)
 			cout << "num blocks to keep (after filter dom): " << keepers.size() << " / " << cfgp->getBlocks().size() << endl;
